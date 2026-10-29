@@ -1,0 +1,8 @@
+{
+  "name": "bend-ta",
+  "private": true,
+  "scripts": {
+    "test": "bun scripts/test.ts",
+    "test:native": "bun scripts/test.ts --native"
+  }
+}
