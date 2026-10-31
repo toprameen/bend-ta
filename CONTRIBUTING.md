@@ -53,6 +53,18 @@ the run. Source reads are limited to 1 MiB; subprocess output is limited to 4 Mi
 and each command has a 30-second timeout. Generated files are held in a unique
 OS temporary directory and removed after normal test failures as well as success.
 
+## Documentation
+
+Write documentation around supported behavior and the reader's task. Keep the
+README focused on purpose, a usable example, essential contracts and links to
+reference material. Avoid development-stage labels, milestone recaps,
+implementation totals, temporary repository status and speculative plans.
+
+Keep evolving inventories, parameter tables and toolchain details in their
+owning reference documents; link to them instead of repeating them. Keep usage,
+precision and numerical limits accurate as behavior changes. Durability comes
+from choosing the right level of detail, not from omitting useful constraints.
+
 ## Changes and review
 
 Keep numeric algorithms in `src/core/` and bind concrete operations in the typed

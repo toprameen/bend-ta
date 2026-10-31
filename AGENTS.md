@@ -8,6 +8,11 @@ facades must instantiate that core instead of copying indicator algorithms.
 - Follow the Bend-only source policy in `CONTRIBUTING.md`. Library code, tests,
   examples, runners and repository checks must be Bend. Do not add foreign
   implementations, another-language scripts or inline CI program logic.
+- Follow the documentation policy in `CONTRIBUTING.md`. Keep the README centered
+  on purpose, usage, essential contracts and reference links. Avoid progress
+  reports, development-stage labels, implementation counts, temporary status
+  and speculative plans. Keep changing details in their owning reference docs;
+  update actual usage and limits when behavior changes.
 - Keep code as the single source of truth. Almost never add code comments:
   a parallel prose description can drift from the implementation. Express intent
   through clear names, types and structure. A comment is justified only for an

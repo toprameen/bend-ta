@@ -1,29 +1,8 @@
 # bend-ta
 
-Technical analysis for Bend 2, with one shared template core and a typed F32
-interface. SMA, EMA, Wilder/RMA and rolling SUM are available, together with shared
-window, moments, extrema and candle-setting primitives. The catalog's original
-32 Direct functions and all 155 original Foundation entries now have F32 interfaces.
-MA, MAMA and VIDYA complete their needed dependencies: 192 catalog functions
-are implemented under the documented F32 contracts. See the
-[family guide](docs/foundation-indicators.md) and [Direct guide](docs/direct-indicators.md).
-
-## Layout
-
-```text
-src/f32.bend              public F32 interface
-src/core/config.bend      period validation and buffer sizing
-src/core/series.bend      aligned batch output using streaming steps
-src/core/rolling.bend     owned rolling-sum buffer
-src/core/smoothing.bend   numeric smoothing formulas
-src/core/ema.bend         generic EMA state and initialization
-src/core/sma.bend         generic SMA state
-examples/                runnable Bend programs
-tests/                   reference, edge-case and template fixtures
-docs/design.md           contracts and extension points, including F64
-docs/foundation.md       shared windows, traversal, statistics and candle settings
-scripts/                 Bend test runner and source-policy gate
-```
+Technical analysis written in Bend, with F32 interfaces for streaming and batch
+calculations. Numeric algorithms share a template core; callers use named,
+typed indicator interfaces.
 
 ## Use
 
@@ -33,40 +12,56 @@ Import `src/f32.bend` by a relative path from your program:
 import Base
 import ./src/f32.bend as TA
 
-# A Result: invalid configuration is Fail; valid output is Done.
 def averages() -> Result<&2, &2, TA.Error(), List<&2, Maybe<&2, F32>>>:
   TA.SMA.batch([3.0, 6.0, 9.0, 12.0], 3)
 ```
 
-That result is `Done{[None{}, None{}, Some{6.0}, Some{9.0}]}`.
-Run the complete example with:
+The result is `Done{[None{}, None{}, Some{6.0}, Some{9.0}]}`. SMA emits its first
+mean once the window is full; `Fail` reports an invalid period.
+
+Run the [moving-average example](examples/moving_averages.bend) from the repository root:
 
 ```sh
 bend examples/moving_averages.bend
 ```
 
-Both indicators expose `init(period)`, `next(state, price)` and
-`batch(prices, period)`. A streaming `next` returns the next state beside a
-`Maybe<F32>` output. Pass the returned state to the next call.
+Stateful indicators expose `init`, `next` and `batch`. Initialize a state, then
+pass each observation to `next` with the state returned by the previous call.
+Batch calculations use the same transitions and retain one output slot per
+observation. `None` denotes warm-up; its duration depends on the indicator.
+Stateless transforms operate directly on observations.
 
-- Periods must be from 1 through 1,073,741,824. Invalid periods return `Fail`.
-  Large SMA periods still require enough memory for their buffer.
-- Every batch input has an output slot; the first `period - 1` slots are `None`.
-- EMA starts with the first complete window's SMA, then uses
-  `alpha = 2 / (period + 1)`. SMA starts with the first complete window's mean.
-- Period 1 returns each input directly; EMA avoids cancellation in that case.
-- A valid empty batch returns `Done{[]}`. A short batch contains only `None`.
-- Inputs are assumed finite. NaN and infinity are not rejected, and no missing
-  value or recovery policy is implemented yet.
+## Indicator reference
+
+The [function catalog](docs/ta-lib-indicator-catalog.md) records implementation
+status, parameters and reference sources. The [F32 interface](src/f32.bend)
+defines the callable functions and result types.
+
+| Family | Guide |
+|---|---|
+| Math, price transforms and lagged changes | [Functions and numerical conventions](docs/direct-indicators.md) |
+| Moving averages, bands and statistics | [Seeds, windows and multi-line results](docs/overlap-statistics.md) |
+| Momentum and directional indicators | [Parameters and output alignment](docs/momentum.md) |
+| Volume and volatility | [Bar inputs and accumulation](docs/volume-volatility.md) |
+| Candlestick patterns | [Settings and signed strengths](docs/candles.md) |
+
+## Data and arithmetic
+
+Supply finite observations in arrival order and align fields before constructing
+bar records. Handle missing data, timestamps, sessions and price adjustments
+before calculation. Nonfinite input validation and recovery are the caller's
+responsibility.
+
+F32 arithmetic rounds at each operation and can overflow or lose small changes.
+The family guides specify seeds, lookbacks, parameter limits, computational costs
+and numerical differences from TA-Lib. Consult those contracts when choosing
+an indicator or comparing results with another implementation.
 
 ## Develop
 
-All project-maintained program logic is Bend. See [CONTRIBUTING.md](CONTRIBUTING.md)
-for the source policy and contribution workflow.
-
-Use Bend 2.0.39, Git, Clang and the standard Unix utilities `find`, `mktemp` and
-`rm`. macOS and Linux are supported. Node or Bun is needed only for optional
-JavaScript-backend tests; there are no npm dependencies.
+All library code, tests and tooling are Bend. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for toolchain requirements, the source policy
+and the contribution workflow. Run checks from the repository root:
 
 ```sh
 bend scripts/check_repo.bend    # enforce the source policy and type-check Bend
@@ -74,30 +69,9 @@ bend scripts/test.bend          # compile and execute native tests
 bend scripts/test.bend -- --js  # also test emitted JavaScript
 ```
 
-If needed, invoke Bend by its executable path and set `BEND` to the same path
-for child compilations. `BEND_JS` selects the JS executable (default: `node`).
-The runner discovers fixtures through Git, including non-ignored untracked files,
-and removes its temporary outputs after ordinary success or failure. Every Bend
-test and example ends in `#|` lines defining its expected stdout.
+The [design guide](docs/design.md) explains numeric templates and typed bindings;
+the [shared foundation](docs/foundation.md) describes windows, ownership and
+stream traversal. Keep algorithms in `src/core/` and concrete numeric bindings
+in `src/f32.bend`.
 
-CI installs the pinned Bend release, runs the policy gate and executes both
-backends. GitHub's language badge is independent of this source policy.
-
-## Precision and next steps
-
-F32 calculations round at each operation. Rolling sums can drift, seed sums can
-overflow, and sufficiently small price changes can be lost. These fixtures test
-the initial contracts; they do not establish TA-Lib parity or universal error
-bounds. Rebuilding the state starts a fresh calculation.
-
-The shared core takes numeric operations as compile-time `~` arguments. An F64
-facade can bind a wider numeric implementation without copying indicators.
-There is no F64 implementation or dependency in this scaffold. See
-[the design](docs/design.md) for that seam and [the implemented indicator families](docs/foundation-indicators.md).
-
-See [the shared foundation](docs/foundation.md) for the new interfaces, ownership,
-complexity and numerical limits. The permanent suite uses compact family fixtures, with the shared contracts
-exercised on both backends. Broad numerical matrices remain external.
-
-The repository is private and is not published to BendHub. An open-source
-license has not been selected.
+See [third-party notices](THIRD_PARTY_NOTICES.md) for reference-source attribution.
