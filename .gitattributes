@@ -1,5 +1,2 @@
 # Bend must also be supported by GitHub's deployed Linguist version.
 *.bend linguist-language=Bend linguist-detectable=true
-
-# The development test runner is not part of the library's language breakdown.
-/scripts/test.ts linguist-detectable=false

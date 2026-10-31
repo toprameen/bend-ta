@@ -1,28 +1,54 @@
 import Base
 
-# Every input has one output slot. None means the indicator is warming up.
+def map.collect(~I: Data, ~O: Data, ~transform: I -> O, xs: List<&2, I>, acc: List<&2, O>) -> List<&2, O>:
+  match xs:
+    case Nil{}:
+      List.reverse(&2, O, acc)
+    case h <> t:
+      map.collect(~I, ~O, ~transform, t, transform(h) <> acc)
+
+def map(~I: Data, ~O: Data, ~transform: I -> O, xs: List<&2, I>) -> List<&2, O>:
+  map.collect(~I, ~O, ~transform, xs, Nil{})
+
 def resume(
-  -N: Data, -S: Type, result: S & Maybe<&2, N>,
-  rest: S -> Maybe<&2, N> -> List<&2, Maybe<&2, N>>
-) -> List<&2, Maybe<&2, N>>:
+  -O: Data, -S: Type, result: S & Maybe<&2, O>,
+  rest: S -> Maybe<&2, O> -> S & List<&2, Maybe<&2, O>>
+) -> S & List<&2, Maybe<&2, O>>:
   match result:
     case (state, value):
       rest(state, value)
 
-# Both batch and live feeds use the same step. The reverse accumulator keeps
-# result construction tail-recursive instead of recursing once per list cell.
 def collect(
-  ~N: Data, ~S: Type, ~step: S -> N -> S & Maybe<&2, N>,
-  xs: List<&2, N>, state: S, acc: List<&2, Maybe<&2, N>>
-) -> List<&2, Maybe<&2, N>>:
+  ~I: Data, ~O: Data, ~S: Type, ~step: S -> I -> S & Maybe<&2, O>,
+  xs: List<&2, I>, state: S, acc: List<&2, Maybe<&2, O>>
+) -> S & List<&2, Maybe<&2, O>>:
   match xs:
     case Nil{}:
-      List.reverse(&2, Maybe<&2, N>, acc)
+      (state, List.reverse(&2, Maybe<&2, O>, acc))
     case h <> t:
-      resume(N, S, step(state, h), s => v => collect(~N, ~S, ~step, t, s, v <> acc))
+      resume(O, S, step(state, h), s => v => collect(~I, ~O, ~S, ~step, t, s, v <> acc))
+
+def scan(
+  ~I: Data, ~O: Data, ~S: Type, ~step: S -> I -> S & Maybe<&2, O>,
+  xs: List<&2, I>, state: S
+) -> S & List<&2, Maybe<&2, O>>:
+  collect(~I, ~O, ~S, ~step, xs, state, Nil{})
+
+def values(-O: Data, -S: Type, result: S & List<&2, Maybe<&2, O>>) -> List<&2, Maybe<&2, O>>:
+  match result:
+    case (state, xs):
+      xs
 
 def batch(
-  ~N: Data, ~S: Type, ~step: S -> N -> S & Maybe<&2, N>,
-  xs: List<&2, N>, state: S
-) -> List<&2, Maybe<&2, N>>:
-  collect(~N, ~S, ~step, xs, state, Nil{})
+  ~I: Data, ~O: Data, ~S: Type, ~step: S -> I -> S & Maybe<&2, O>,
+  xs: List<&2, I>, state: S
+) -> List<&2, Maybe<&2, O>>:
+  values(O, S, scan(~I, ~O, ~S, ~step, xs, state))
+
+def initialized(
+  ~I: Data, ~O: Data, ~S: Type, ~E: Data, ~step: S -> I -> S & Maybe<&2, O>,
+  xs: List<&2, I>, result: Result<&2, &1, E, S>
+) -> Result<&2, &2, E, List<&2, Maybe<&2, O>>>:
+  match result:
+    case Fail{error}: Fail{error}
+    case Done{state}: Done{batch(~I, ~O, ~S, ~step, xs, state)}

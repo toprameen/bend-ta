@@ -39,7 +39,7 @@ not that a market bar is missing. Period 1 returns each input immediately; EMA
 uses a direct identity path to avoid cancellation in the general update formula.
 An empty valid batch is empty, and a batch shorter than the period is all `None`.
 
-EMA uses an SMA seed at sample `period`, then
+EMA uses an SMA seed at sample `period` (accumulated as centered differences), then
 `value + alpha * (price - value)`, with `alpha = 2 / (period + 1)`.
 SMA emits its rolling sum divided by the period once the window is complete.
 The first complete window is included in both outputs.
@@ -57,8 +57,9 @@ space in Bend's block-class range for a future two-word numeric representation.
 It is a representation limit, not a promise that such a buffer fits in RAM.
 Core initialization helpers assume the facade has validated configuration.
 
-EMA has constant-size state. SMA uses O(period) storage. Both perform a fixed
-amount of numeric work per sample; batch traversal and output storage are O(n).
+EMA has constant-size state. SMA uses O(period) storage. EMA performs fixed numeric work per sample. SMA rebuilds its rolling total
+once per logical period: amortized work is constant, with O(period) work at
+that refresh. Batch traversal and output storage are O(n).
 No throughput or GPU-speedup claim is made by this scaffold.
 
 ## Numeric and data policy
@@ -69,8 +70,9 @@ through Base arithmetic; they are not skipped, rejected or assigned a recovery
 rule. Do not use `None` to represent those values implicitly.
 
 F32 seed sums can overflow, a rolling sum can accumulate rounding error, and
-an EMA's intermediate subtraction can overflow for extreme inputs. Stabilized
-accumulation and numerical reference tests are future work. This scaffold has
+an EMA's intermediate subtraction can overflow for extreme inputs. The shared
+foundation adds centered fresh-window moments; the rolling sum now
+rebuilds at each logical wrap, while remaining uncompensated. This scaffold has
 small hand-calculated vectors and state/ownership checks, not comprehensive
 financial-data conformance or proven numerical error bounds.
 
@@ -81,12 +83,21 @@ Native F64 is not available in the tested Bend version. A software F64 adapter
 would be named `f64_soft.bend` so its cost is explicit; it should remain optional.
 Different imported numeric types are not automatically interchangeable.
 
-The first extension points are Wilder smoothing, rolling extrema, RSI and
-MACD. Specify seeds, warm-up lengths and output alignment before adding them.
-Stable variance should precede Bollinger Bands. Avoid empty indicator stubs:
-new modules should come with a working implementation and reference tests.
+Wilder smoothing, rolling extrema, RSI, MACD and Bollinger Bands are now
+implemented; see the [family guide](foundation-indicators.md). Further
+extensions must specify seeds, warm-up and output alignment, and add a working
+implementation with independent reference examples. Specialized filters,
+dynamic-period interfaces and additional numeric backends remain separate work.
 
 The two-field numeric wrapper in `tests/core/templates.bend` tests shared code
 and array layouts with a representation different from F32. It is a test adapter,
 not an implementation or accuracy claim for F64. Future numeric facades should
 run common contract cases plus precision-specific numerical reference vectors.
+
+## Shared foundation
+
+See [foundation.md](foundation.md) for generalized input/output traversal and
+state-preserving scans, owned windows/lags, rolling sums, Wilder smoothing,
+fresh-window extrema/population moments, and typed bar/candle-setting interfaces.
+These are working F32-backed primitives; the full catalog, advanced numeric
+facades and TA-Lib compatibility remain separately scoped.

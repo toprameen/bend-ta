@@ -1,0 +1,43 @@
+name: Bend CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bend-ci:
+    name: Bend-only and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BEND_NO_TELEMETRY: "1"
+      BEND_JS: node
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - name: Install verified Bend 2.0.39
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/bend.tar.gz" \
+            https://github.com/bendlang/bend/releases/download/v2.0.39/bend-2.0.39-linux-x64.tar.gz
+          printf '%s  %s\n' 6cf462fd8f70b094a4950ebb709a9c4ffd8f1d1189d9cedf1fd63cd5d041c7ab "$RUNNER_TEMP/bend.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/bend.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/bend/bin" >> "$GITHUB_PATH"
+      - name: Bend-only policy and source checks
+        run: bend scripts/check_repo.bend
+      - name: Native and JavaScript fixtures
+        run: bend scripts/test.bend -- --js

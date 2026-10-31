@@ -1,7 +1,12 @@
 # bend-ta
 
 Technical analysis for Bend 2, with one shared template core and a typed F32
-interface. This is an initial scaffold with working SMA and EMA calculations.
+interface. SMA, EMA, Wilder/RMA and rolling SUM are available, together with shared
+window, moments, extrema and candle-setting primitives. The catalog's original
+32 Direct functions and all 155 original Foundation entries now have F32 interfaces.
+MA, MAMA and VIDYA complete their needed dependencies: 192 catalog functions
+are implemented under the documented F32 contracts. See the
+[family guide](docs/foundation-indicators.md) and [Direct guide](docs/direct-indicators.md).
 
 ## Layout
 
@@ -16,13 +21,15 @@ src/core/sma.bend         generic SMA state
 examples/                runnable Bend programs
 tests/                   reference, edge-case and template fixtures
 docs/design.md           contracts and extension points, including F64
+docs/foundation.md       shared windows, traversal, statistics and candle settings
+scripts/                 Bend test runner and source-policy gate
 ```
 
 ## Use
 
 Import `src/f32.bend` by a relative path from your program:
 
-```python
+```bend
 import Base
 import ./src/f32.bend as TA
 
@@ -54,17 +61,27 @@ Both indicators expose `init(period)`, `next(state, price)` and
 
 ## Develop
 
-Use Bend 2.0.39 and Bun 1.4.2. Native tests also need the Clang version required
-by your Bend installation. There are no npm package dependencies to install.
+All project-maintained program logic is Bend. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for the source policy and contribution workflow.
+
+Use Bend 2.0.39, Git, Clang and the standard Unix utilities `find`, `mktemp` and
+`rm`. macOS and Linux are supported. Node or Bun is needed only for optional
+JavaScript-backend tests; there are no npm dependencies.
 
 ```sh
-bun run test          # compile and run JavaScript
-bun run test:native   # also compile and run native C
+bend scripts/check_repo.bend    # enforce the source policy and type-check Bend
+bend scripts/test.bend          # compile and execute native tests
+bend scripts/test.bend -- --js  # also test emitted JavaScript
 ```
 
-If Bend is not on PATH, set `BEND` to its executable path. The runner writes
-generated files to a temporary directory and removes them afterwards. Every
-Bend test and example ends in `#|` lines defining its expected stdout.
+If needed, invoke Bend by its executable path and set `BEND` to the same path
+for child compilations. `BEND_JS` selects the JS executable (default: `node`).
+The runner discovers fixtures through Git, including non-ignored untracked files,
+and removes its temporary outputs after ordinary success or failure. Every Bend
+test and example ends in `#|` lines defining its expected stdout.
+
+CI installs the pinned Bend release, runs the policy gate and executes both
+backends. GitHub's language badge is independent of this source policy.
 
 ## Precision and next steps
 
@@ -76,7 +93,11 @@ bounds. Rebuilding the state starts a fresh calculation.
 The shared core takes numeric operations as compile-time `~` arguments. An F64
 facade can bind a wider numeric implementation without copying indicators.
 There is no F64 implementation or dependency in this scaffold. See
-[the design](docs/design.md) for that seam and the planned RSI/MACD work.
+[the design](docs/design.md) for that seam and [the implemented indicator families](docs/foundation-indicators.md).
+
+See [the shared foundation](docs/foundation.md) for the new interfaces, ownership,
+complexity and numerical limits. The permanent suite uses compact family fixtures, with the shared contracts
+exercised on both backends. Broad numerical matrices remain external.
 
 The repository is private and is not published to BendHub. An open-source
 license has not been selected.

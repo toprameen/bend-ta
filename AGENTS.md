@@ -4,7 +4,17 @@ This repository is a Bend 2 technical analysis library. `src/f32.bend` is the
 public F32 facade; `src/core/` holds shared templates and state. Future numeric
 facades must instantiate that core instead of copying indicator algorithms.
 
-- Read `README.md` and `docs/design.md` before changing behavior.
+- Read `CONTRIBUTING.md`, `README.md` and `docs/design.md` before changing behavior.
+- Follow the Bend-only source policy in `CONTRIBUTING.md`. Library code, tests,
+  examples, runners and repository checks must be Bend. Do not add foreign
+  implementations, another-language scripts or inline CI program logic.
+- Keep code as the single source of truth. Almost never add code comments:
+  a parallel prose description can drift from the implementation. Express intent
+  through clear names, types and structure. A comment is justified only for an
+  exceptionally obscure or esoteric consideration that cannot reasonably be
+  made clear in the code itself. Keep that explanation brief and focused on why
+  the constraint exists; never narrate operations or restate the code's behavior.
+  Functional directives such as trailing `#|` test output are exempt.
 - Pass numeric types and operations as leading `~` parameters. Keep periods,
   coefficients and input data as ordinary runtime arguments.
 - Keep initialization, warm-up, output alignment and batch/stream semantics
@@ -13,13 +23,14 @@ facades must instantiate that core instead of copying indicator algorithms.
   wrapping inside the rolling module; callers supply a period, not a depth.
 - Add indicators only with specified initialization and reference examples.
   F64 is planned; do not invent a working F64 facade before a backend exists.
-- Run `bun run test`; `bun run test:native` also compiles and executes C.
-  `BEND` may name an alternate Bend executable. Tests use trailing `#|` output.
+- Run `bend scripts/check_repo.bend` and `bend scripts/test.bend`.
+  Run `bend scripts/test.bend -- --js` for native and JavaScript checks.
+  `BEND` selects the compiler; `BEND_JS` selects the optional JS runtime.
+  Tests use trailing `#|` output. Exercise runner/gate failures when changing them.
 - Keep generated files and temporary probes outside the repository. Do not add
   private workspace context or absolute machine paths to tracked files.
 - Leave changes uncommitted and unpushed unless the user authorizes publication.
   When committing logic and tests, put logic first in a separate commit.
 
-In the maintainer's personal multi-repository Bend workspace, also retrieve the
-canonical parent policy and `CONTEXT/` before nontrivial work. Those local notes
-are not a dependency of this repository and must never be published here.
+Contributor instructions and checks must work from a normal clone without
+personal workspace files, absolute machine paths or private context.
