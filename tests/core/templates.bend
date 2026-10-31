@@ -4,6 +4,12 @@ import Base
 import ../../src/core/ema.bend as Ema
 import ../../src/core/sma.bend as Sma
 import ../../src/core/series.bend as Series
+import ../../src/core/window.bend as Window
+import ../../src/core/moments.bend as Moments
+import ../../src/core/change.bend as Change
+import ../../src/core/transform.bend as Transform
+import ../../src/core/bar.bend as Bar
+import ../../src/core/vidya.bend as Vidya
 
 type Number is Data:
   Number{value: F32, marker: U32}
@@ -48,10 +54,47 @@ def value(v: Maybe<&2, Number>) -> String:
 def show(xs: List<&2, Maybe<&2, Number>>) -> String:
   List.show(~&2, ~Maybe<&2, Number>, ~value, xs)
 
+def moments_step(state: Window.State<Number>, price: Number) -> Window.State<Number> & Maybe<&2, Moments.Value<Number>>:
+  Moments.next(~Number, ~from_u32, ~add, ~sub, ~mul, ~div, state, price)
+
+def moments_value(value: Moments.Value<Number>) -> String:
+  match value:
+    case Moments.Moments{mean, variance}:
+      number(mean) ++ "/" ++ number(variance)
+
+def moments_show(value: Maybe<&2, Moments.Value<Number>>) -> String:
+  Maybe.show(~&2, ~Moments.Value<Number>, ~moments_value, value)
+
+def eq(a: Number, b: Number) -> Bool:
+  match a b:
+    case Number{x, m} Number{y, n}: F32.is_eq(x, y)
+
+def le(a: Number, b: Number) -> Bool:
+  match a b:
+    case Number{x, m} Number{y, n}: F32.is_le(x, y)
+
+def ratio_step(state: Window.State<Number>, price: Number) -> Window.State<Number> & Maybe<&2, Number>:
+  Change.next(~Number, ~(x => y => Change.guarded(~Number, ~from_u32, ~eq, ~div, x, y)), state, price)
+
+def abs(value: Number) -> Number:
+  match value:
+    case Number{x, marker}: Number{F32.abs(x), marker}
+
+def vidya_step(state: Vidya.State<Number>, price: Number) -> Vidya.State<Number> & Maybe<&2, Number>:
+  Vidya.next(~Number, ~from_u32, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price)
+
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(show(Series.batch(~Number, ~Ema.State<Number>, ~ema_step, [from_u32(3), from_u32(6), from_u32(9), from_u32(15)], Ema.init(~Number, ~from_u32, ~div, 3))))
-    IO.print(show(Series.batch(~Number, ~Sma.State<Number>, ~sma_step, [from_u32(3), from_u32(6), from_u32(9), from_u32(12), from_u32(15)], Sma.init(~Number, ~from_u32, 3, 2n))))
+    IO.print(show(Series.batch(~Number, ~Number, ~Ema.State<Number>, ~ema_step, [from_u32(3), from_u32(6), from_u32(9), from_u32(15)], Ema.init(~Number, ~from_u32, ~div, 3))))
+    IO.print(show(Series.batch(~Number, ~Number, ~Sma.State<Number>, ~sma_step, [from_u32(3), from_u32(6), from_u32(9), from_u32(12), from_u32(15)], Sma.init(~Number, ~from_u32, 3, 2n))))
+    IO.print(List.show(~&2, ~Maybe<&2, Moments.Value<Number>>, ~moments_show, Series.batch(~Number, ~Moments.Value<Number>, ~Window.State<Number>, ~moments_step, [from_u32(3), from_u32(6), from_u32(9)], Window.init(~Number, 3, 2n, from_u32(0)))))
+    IO.print(show(Series.batch(~Number, ~Number, ~Window.State<Number>, ~ratio_step, [from_u32(3), from_u32(0), from_u32(6), from_u32(12)], Window.init(~Number, 1, 0n, from_u32(0)))))
+    IO.print(number(Transform.ibs(~Number, ~from_u32, ~sub, ~div, ~le, Bar.HLC{from_u32(8), from_u32(0), from_u32(6)})))
+    IO.print(show(Series.batch(~Number, ~Number, ~Vidya.State<Number>, ~vidya_step, [from_u32(1), from_u32(2), from_u32(4), from_u32(4)], Vidya.init(~Number, ~from_u32, ~div, 3, 2, 1n))))
 
 #|[None, None, Some(6:77), Some(10.5:77)]
 #|[None, None, Some(6:77), Some(9:77), Some(12:77)]
+#|[None, None, Some(6:77/6:77)]
+#|[None, Some(0:77), Some(0:77), Some(2:77)]
+#|0.75:77
+#|[None, None, Some(2.75:77), Some(3.375:77)]

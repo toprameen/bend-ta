@@ -1,0 +1,71 @@
+import Base
+import ../../src/f32.bend as TA
+import ../../src/core/bar.bend as Bar
+import ../../src/core/transform.bend as Transform
+import ../../src/core/series.bend as Series
+
+def near(actual: F32, expected: F32) -> Bool:
+  F32.is_le(F32.abs(F32.sub(actual, expected)), 0.000001)
+
+def nan(+value: F32) -> Bool:
+  F32.is_ne(value, value)
+
+def booleans(xs: List<&2, Bool>) -> String:
+  List.show(~&2, ~Bool, ~Bool.show, xs)
+
+def numbers(xs: List<&2, F32>) -> String:
+  List.show(~&2, ~F32, ~F32.show, xs)
+
+def main() -> IO(Unit):
+  do IO<Unit>:
+    IO.print(booleans([
+      near(TA.ACOS(0.5), 1.0471975511965976),
+      near(TA.ASIN(0.5), 0.5235987755982988),
+      near(TA.ATAN(0.5), 0.46364760900080615),
+      near(TA.CEIL(0.5), 1.0),
+      near(TA.COS(0.5), 0.8775825618903728),
+      near(TA.COSH(0.5), 1.1276259652063807),
+      near(TA.EXP(0.5), 1.6487212707001282),
+      near(TA.FLOOR(0.5), 0.0),
+      near(TA.LN(0.5), F32.neg(0.6931471805599453)),
+      near(TA.LOG10(0.5), F32.neg(0.3010299956639812)),
+      near(TA.SIN(0.5), 0.479425538604203),
+      near(TA.SINH(0.5), 0.5210953054937474),
+      near(TA.SQRT(0.5), 0.7071067811865476),
+      near(TA.TAN(0.5), 0.5463024898437905),
+      near(TA.TANH(0.5), 0.46211715726000974)
+    ]))
+    IO.print(booleans([
+      nan(TA.ACOS(2.0)),
+      nan(TA.ASIN(2.0)),
+      nan(TA.SQRT(F32.neg(1.0))),
+      nan(TA.LN(F32.neg(1.0))),
+      F32.is_eq(TA.LN(0.0), F32.neg(F32.div(1.0, 0.0))),
+      F32.is_eq(TA.EXP(100.0), F32.div(1.0, 0.0)),
+      F32.is_eq(TA.EXP(F32.neg(200.0)), 0.0)
+    ]))
+    IO.print(numbers([TA.CEIL(F32.neg(0.25)), TA.FLOOR(F32.neg(0.25))]))
+    IO.print(booleans([U32.is_eq(F32.bits(TA.SIN(F32.neg(0.0))), 2147483648), U32.is_eq(F32.bits(TA.SQRT(F32.neg(0.0))), 2147483648)]))
+    IO.print(numbers(Series.map(~F32, ~F32, ~TA.SQRT, [0.0, 1.0, 4.0, 9.0])))
+    IO.print(numbers(Series.map(~F32, ~F32, ~TA.COS, [])))
+    IO.print(numbers([TA.ADD(Transform.Operands{3.0, F32.neg(2.0)}), TA.SUB(Transform.Operands{3.0, F32.neg(2.0)}), TA.MULT(Transform.Operands{3.0, F32.neg(2.0)})]))
+    IO.print(numbers(Series.map(~Transform.Operands<F32>, ~F32, ~TA.ADD, [Transform.Operands{1.0, 2.0}, Transform.Operands{3.0, 4.0}])))
+    IO.print(numbers([TA.AVGPRICE(Bar.OHLC{2.0, 8.0, 0.0, 6.0}), TA.MEDPRICE(Bar.HL{8.0, 0.0}), TA.TYPPRICE(Bar.HLC{8.0, 0.0, 6.0}), TA.WCLPRICE(Bar.HLC{8.0, 0.0, 6.0})]))
+    IO.print(numbers([TA.BOP(Bar.OHLC{2.0, 8.0, 0.0, 6.0}), TA.BOP(Bar.OHLC{6.0, 8.0, 0.0, 2.0}), TA.BOP(Bar.OHLC{1.0, 1.0, 1.0, 1.0}), TA.BOP(Bar.OHLC{1.0, 0.0, 2.0, 1.0})]))
+    IO.print(numbers([TA.IBS(Bar.HLC{8.0, 0.0, 6.0}), TA.IBS(Bar.HLC{1.0, 1.0, 1.0}), TA.IBS(Bar.HLC{0.0, 2.0, 1.0}), TA.IBS(Bar.HLC{2.0, 0.0, 3.0})]))
+    IO.print(numbers([TA.MARKETFI(Bar.HLV{8.0, 0.0, 4.0}), TA.MARKETFI(Bar.HLV{8.0, 0.0, 0.0}), TA.MARKETFI(Bar.HLV{2.0e-15, 1.0e-15, 1.0e-15})]))
+    IO.print(booleans([near(TA.BOP(Bar.OHLC{1.0e-15, 2.0e-15, 1.0e-15, 1.5e-15}), 0.5), near(TA.IBS(Bar.HLC{2.0e-15, 1.0e-15, 1.5e-15}), 0.5)]))
+
+#|[True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]
+#|[True, True, True, True, True, True, True]
+#|[-0, -1]
+#|[True, True]
+#|[0, 1, 2, 3]
+#|[]
+#|[1, 5, -6]
+#|[3, 7]
+#|[4, 4, 4.6666665, 5]
+#|[0.5, -0.5, 0, 0]
+#|[0.75, 0.5, 0.5, 1.5]
+#|[2, 0, 1]
+#|[True, True]
