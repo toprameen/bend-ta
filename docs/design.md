@@ -56,24 +56,25 @@ and does not allocate; SMA allocates only after validation. The limit reserves
 space in Bend's block-class range for a future two-word numeric representation.
 It is a representation limit, not a promise that such a buffer fits in RAM.
 Core initialization helpers assume the facade has validated configuration.
+Buffer depth uses Base's integer log2 of `2*period-1`; the validated upper bound
+keeps that calculation within U32.
 
 EMA has constant-size state. SMA uses O(period) storage. EMA performs fixed numeric work per sample. SMA rebuilds its rolling total
 once per logical period: amortized work is constant, with O(period) work at
 that refresh. Batch traversal and output storage are O(n).
-No throughput or GPU-speedup claim is made by this scaffold.
+No throughput or GPU-speedup claim is made.
 
 ## Numeric and data policy
 
 The initial interface assumes finite prices in arrival order. It neither sorts
-bars nor adjusts for splits, timestamps or sessions. NaN and infinity propagate
-through Base arithmetic; they are not skipped, rejected or assigned a recovery
-rule. Do not use `None` to represent those values implicitly.
+bars nor adjusts for splits, timestamps or sessions. NaN and infinity generally propagate through Base arithmetic. Individual
+source-defined holds and VWAP's skip-and-repeat behavior are specified in the
+family contracts. Do not use `None` to represent those values implicitly.
 
 F32 seed sums can overflow, a rolling sum can accumulate rounding error, and
 an EMA's intermediate subtraction can overflow for extreme inputs. The shared
 foundation adds centered fresh-window moments; the rolling sum now
-rebuilds at each logical wrap, while remaining uncompensated. This scaffold has
-small hand-calculated vectors and state/ownership checks, not comprehensive
+rebuilds at each logical wrap, while remaining uncompensated. Reference fixtures and state/ownership checks do not establish comprehensive
 financial-data conformance or proven numerical error bounds.
 
 ## F64 and additional indicators
@@ -86,8 +87,8 @@ Different imported numeric types are not automatically interchangeable.
 Wilder smoothing, rolling extrema, RSI, MACD and Bollinger Bands are now
 implemented; see the [family guide](foundation-indicators.md). Further
 extensions must specify seeds, warm-up and output alignment, and add a working
-implementation with independent reference examples. Specialized filters,
-dynamic-period interfaces and additional numeric backends remain separate work.
+implementation with independent reference examples. Specialized filters and dynamic-period interfaces have separate family guides;
+additional numeric backends require their own implementation and validation.
 
 The two-field numeric wrapper in `tests/core/templates.bend` tests shared code
 and array layouts with a representation different from F32. It is a test adapter,
@@ -99,5 +100,5 @@ run common contract cases plus precision-specific numerical reference vectors.
 See [foundation.md](foundation.md) for generalized input/output traversal and
 state-preserving scans, owned windows/lags, rolling sums, Wilder smoothing,
 fresh-window extrema/population moments, and typed bar/candle-setting interfaces.
-These are working F32-backed primitives; the full catalog, advanced numeric
-facades and TA-Lib compatibility remain separately scoped.
+These primitives support the catalog's F32 interfaces. Additional numeric
+facades and universal TA-Lib compatibility require separate validation.

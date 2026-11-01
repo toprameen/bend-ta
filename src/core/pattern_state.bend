@@ -17,7 +17,7 @@ type State<-N: Data> is Type:
 
 def threshold.init(~N: Data, ~from_u32: U32 -> N, +setting: Candle.Setting<N>) -> Candle.State<N>:
   +size = U32.max(Pattern.period(~N, setting), 1)
-  Candle.init(~N, ~from_u32, setting, size, Config.depth.go(30n, size, 1, 0n, U32.is_le(size, 1)))
+  Candle.init(~N, ~from_u32, setting, size, Config.depth(size))
 
 def init.validated(~N: Data, ~from_u32: U32 -> N, +name: Pattern.Name, +settings: Pattern.Settings<N>, penetration: N) -> State<N>:
   match settings:

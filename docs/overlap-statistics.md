@@ -4,7 +4,8 @@ The F32 facade adds ACCBANDS, ALMA, BBANDS, CKSP, DEMA, DONCHIAN, HMA,
 KAMA, KC, MIDPOINT, MIDPRICE, T3, TEMA, TRIMA, VWMA, WMA, ZLEMA,
 BBW, PERCENTB, LINEARREG, LINEARREG_ANGLE, LINEARREG_INTERCEPT,
 LINEARREG_SLOPE, MEDIAN, PERCENTILE, PERCENTRANK, STDDEV, TSF, AVGDEV,
-HA, MAX, MAXINDEX, MIN, MININDEX, MINMAX and MINMAXINDEX. Existing SUM
+HA, MAX, MAXINDEX, MIN, MININDEX, MINMAX, MINMAXINDEX, VAR, CORREL, BETA
+and KURTOSIS. Existing SUM
 also gains `batch` using its existing state interface and error type. Its
 uncompensated total is now rebuilt at each logical wrap, reducing historical
 drift while retaining the numerical limits described in the foundation guide.
@@ -173,6 +174,49 @@ nearest rank versus median, population variance, centered small residuals,
 ALMA's floored offset and identity, asymmetric bands, KC/CKSP starts and
 stream continuation. External probes compare both generated backends against
 the pinned C library with unstable periods explicitly zero.
+
+## Paired and higher moments
+
+`VAR.init(period,factor)` accepts periods 1..100000 and finite factors with
+magnitude at most 3e37. The factor is validated but has no effect, matching the
+reference's legacy deviation argument. VAR returns population variance, with
+zero for period one and for a constant window. Its first output is at period−1.
+It projects the existing fresh centered population-moments calculation.
+
+`CORREL.init(period)` and `BETA.init(period)` accept periods 1..100000.
+Each observation is an aligned `TA.PairValue()` record, constructed as
+`StatWindow.PairValue{x,y}` from `src/core/statistics_window.bend`. CORREL
+uses price/value levels; BETA uses each field's one-bar fractional return,
+`(current-previous)/previous`, substituting zero when that field's previous
+price is exactly zero. BETA is the slope of y returns against x returns.
+Their first outputs occur at period−1 and period respectively. CORREL returns
+zero when either field is constant and clamps a defined answer to [−1,1].
+BETA returns zero for constant x returns. Period one consequently emits zero
+immediately for CORREL and after one reference observation for BETA.
+
+`KURTOSIS.init(period)` accepts 4..10000. It emits the sample-adjusted Fisher
+excess kurtosis G2, using sample variance in the standardization and the finite
+sample correction. This differs from population fourth-moment kurtosis minus
+three. The first output occurs at period−1. A constant window produces
+`Some{NaN}` through 0/0; it has completed warm-up and does not produce `None`.
+
+Pair and fourth-moment windows use fresh centered scans: first sum differences
+from a current window observation, then retain the unrounded mean difference
+when forming residual products. This preserves representable small variation
+on a large baseline and clears historical outliers as soon as they leave.
+Storage and work per output are O(period). The paired observations are owned
+Data records; the containing arrays remain owned Type state.
+
+Returns still round to F32 before their window is scanned. Nearly equal
+returns can therefore have a large relative slope error even when all price
+inputs are exactly representable: an external period-two example yields
+about −471217 versus the double reference's −479999. The implementation agrees
+with an independent operation-by-operation F32 return/moment model there.
+Very small residual products can underflow and large products can overflow;
+no double-precision equivalence or universal error bound is claimed.
+`tests/reference/statistics_moments.bend` exercises centered residuals,
+return direction/zero prices, sample correction, degenerate outputs, validation
+and continuation. Its scalar comparisons allow 2e−5 absolute/relative error.
 
 ## Reference provenance
 

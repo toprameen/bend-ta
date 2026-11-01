@@ -30,11 +30,13 @@ def command.result(program: String, result: Result<&1, &1, U32 & String, U32 & (
     case Done{(+code, (stdout, stderr))}:
       command.exit(program, code, stdout, stderr, U32.is_zero(code))
 
-# Commands use literal argv, bounded combined output and a 30-second timeout.
-def command(+program: String, args: List<String>) -> IO(Result<String, String>):
+def command.timed(+program: String, args: List<String>, timeout: U32) -> IO(Result<String, String>):
   do IO<Result<String, String>>:
-    result : Result<&1, &1, U32 & String, U32 & (String & String)> <- Process.run(program, args, "", 4194304, 30000)
+    result : Result<&1, &1, U32 & String, U32 & (String & String)> <- Process.run(program, args, "", 4194304, timeout)
     IO.pure(Result<String, String>, command.result(program, result))
+
+def command(program: String, args: List<String>) -> IO(Result<String, String>):
+  command.timed(program, args, 30000)
 
 def env.result(fallback: String, result: Result<&1, &1, U32 & String, String>) -> String:
   match result:

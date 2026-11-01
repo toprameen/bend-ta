@@ -12,7 +12,7 @@ import ./momentum_smooth.bend as Smooth
 import ./momentum_composite.bend as Composite
 
 def depth(+period: U32) -> Nat:
-  Config.depth.go(30n, period, 1, 0n, U32.is_le(period, 1))
+  Config.depth(period)
 
 def adxr(~N: Data, ~from: U32 -> N, +period: U32) -> Directional.ADXR<N>:
   Directional.ADXR{Directional.adx.init(~N, ~from, period), Window.init(~N, U32.sub(period, 1), depth(U32.sub(period, 1)), from(0))}

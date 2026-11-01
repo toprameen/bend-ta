@@ -1,4 +1,18 @@
 import Base
+import ./core/hilbert.bend as Hilbert
+import ./core/filters.bend as Filters
+import ./core/statistics_window.bend as StatWindow
+import ./core/volume_filter.bend as VolumeFilter
+import ./core/volatility_window.bend as VolWindow
+import ./core/hikkake.bend as Hikkake
+import ./core/trend_state.bend as TrendState
+import ./core/adaptive_window.bend as AdaptiveWindow
+import ./core/advanced_oscillator.bend as AdvancedOscillator
+import ./core/trend_composite.bend as TrendComposite
+import ./core/squeeze.bend as Squeeze
+import ./core/window_signals.bend as WindowSignals
+import ./core/market_state.bend as MarketState
+import ./core/variable.bend as Variable
 import ./core/config.bend as Config
 import ./core/series.bend as Series
 import ./core/ema.bend as Ema
@@ -383,7 +397,7 @@ def VolumeError() -> Data:
   Params.Error
 
 def volume.depth(+period: U32) -> Nat:
-  Config.depth.go(30n, period, 1, 0n, U32.is_le(period, 1))
+  Config.depth(period)
 
 def OBV.State() -> Data:
   Volume.Index<F32>
@@ -2583,3 +2597,606 @@ def PVO.next(state: PVO.State(), volume: F32) -> PVO.State() & Maybe<&2, F32>:
 
 def PVO.batch(xs: List<&2, F32>, fast: U32, slow: U32, kind: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~PVO.State(), ~Params.Error, ~PVO.next, xs, PVO.init(fast, slow, kind))
+
+
+def DisplayShift() -> Data:
+  WindowSignals.DisplayShift
+
+def DIV(inputs: Transform.Operands<F32>) -> F32:
+  Transform.binary(~F32, ~F32.div, inputs)
+
+def DPO.State() -> Type:
+  WindowSignals.Detrended<F32>
+
+def DPO.init(+period: U32) -> Result<&2, &1, Params.Error, DPO.State()>:
+  overlap.init(~DPO.State(), overlap.valid(period, 2), u => WindowSignals.dpo.init(~F32, ~U32.to_f32, period))
+
+def DPO.next(state: DPO.State(), price: F32) -> DPO.State() & Maybe<&2, F32>:
+  WindowSignals.dpo.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, state, price)
+
+def DPO.display_shift(period: U32) -> DisplayShift():
+  WindowSignals.DisplayShift{True{}, U32.add(U32.div(period, 2), 1)}
+
+def RVOL.State() -> Type:
+  Win.State<F32>
+
+def RVOL.init(+period: U32) -> Result<&2, &1, Params.Error, RVOL.State()>:
+  overlap.init(~RVOL.State(), Params.period(period), u => overlap.window(period))
+
+def RVOL.next(state: RVOL.State(), volume: F32) -> RVOL.State() & Maybe<&2, F32>:
+  WindowSignals.rvol.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, state, volume)
+
+def ICHIMOKU.State() -> Type:
+  WindowSignals.Cloud<F32>
+
+def ICHIMOKU.Value() -> Data:
+  WindowSignals.CloudValue<F32>
+
+def ICHIMOKU.init(+tenkan: U32, +kijun: U32, +span_b: U32) -> Result<&2, &1, Params.Error, ICHIMOKU.State()>:
+  overlap.init(~ICHIMOKU.State(), Bool.and(overlap.valid(tenkan, 2), Bool.and(overlap.valid(kijun, 2), overlap.valid(span_b, 2))), u => WindowSignals.cloud.init(~F32, ~U32.to_f32, tenkan, kijun, span_b))
+
+def ICHIMOKU.next(state: ICHIMOKU.State(), bar: Bars.HL<F32>) -> ICHIMOKU.State() & Maybe<&2, ICHIMOKU.Value()>:
+  WindowSignals.cloud.next(~F32, ~U32.to_f32, ~F32.add, ~F32.div, ~F32.min, ~F32.max, state, bar)
+
+def ICHIMOKU.display_shift(kijun: U32) -> DisplayShift():
+  WindowSignals.DisplayShift{False{}, kijun}
+
+def FRACTAL.State() -> Type:
+  WindowSignals.Fractal<F32>
+
+def FRACTAL.Value() -> Data:
+  WindowSignals.PivotFlags
+
+def FRACTAL.init(+left: U32, +right: U32) -> Result<&2, &1, Params.Error, FRACTAL.State()>:
+  overlap.init(~FRACTAL.State(), Params.periods([left, right]), u => WindowSignals.fractal.init(~F32, ~U32.to_f32, left, right))
+
+def FRACTAL.next(state: FRACTAL.State(), bar: Bars.HL<F32>) -> FRACTAL.State() & Maybe<&2, FRACTAL.Value()>:
+  WindowSignals.fractal.next(~F32, ~F32.is_gt, state, bar)
+
+def FRACTAL.display_shift(right: U32) -> DisplayShift():
+  WindowSignals.DisplayShift{True{}, right}
+
+def VWAP.State() -> Data:
+  MarketState.Anchored<F32>
+
+def VWAP.init() -> VWAP.State():
+  MarketState.vwap.init(~F32, ~U32.to_f32)
+
+def VWAP.next(state: VWAP.State(), bar: Bars.HLCV<F32>) -> VWAP.State() & Maybe<&2, F32>:
+  MarketState.vwap.next(~F32, ~U32.to_f32, ~F32.add, ~F32.mul, ~F32.div, ~F32.is_gt, ~is_finite, state, bar)
+
+def VWAP.batch(xs: List<&2, Bars.HLCV<F32>>) -> List<&2, Maybe<&2, F32>>:
+  Series.batch(~Bars.HLCV<F32>, ~F32, ~VWAP.State(), ~VWAP.next, xs, VWAP.init())
+
+def ZIGZAG.State() -> Data:
+  MarketState.ZigZag<F32>
+
+def ZIGZAG.Value() -> Data:
+  MarketState.ZigValue<F32>
+
+def ZIGZAG.init(+sensitivity: F32, +minimum: U32) -> Result<&2, &1, Params.Error, ZIGZAG.State()>:
+  overlap.init(~ZIGZAG.State(), Bool.and(Params.period(minimum), Bool.and(is_finite(sensitivity), Bool.and(F32.is_ge(sensitivity, 0.0), F32.is_le(sensitivity, 100.0)))), u => MarketState.zigzag.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, sensitivity, minimum))
+
+def ZIGZAG.next(state: ZIGZAG.State(), bar: Bars.HL<F32>) -> ZIGZAG.State() & Maybe<&2, ZIGZAG.Value()>:
+  MarketState.zigzag.next(~F32, ~F32.mul, ~F32.min, ~F32.max, ~F32.is_ge, state, bar)
+
+def MAVP.State() -> Type:
+  Variable.State<F32>
+
+def MAVP.Sample() -> Data:
+  Variable.Sample<F32>
+
+def MAVP.init(+minimum: U32, +maximum: U32, +kind: U32) -> Result<&2, &1, Params.Error, MAVP.State()>:
+  overlap.init(~MAVP.State(), Bool.and(Bool.and(U32.is_gt(minimum, 0), U32.is_le(maximum, 10000)), Bool.and(U32.is_le(minimum, maximum), Bool.or(Ma.supported(kind), Bool.and(U32.is_eq(maximum, 1), U32.is_le(kind, 15))))), u => Variable.init(~F32, minimum, maximum, kind))
+
+def MAVP.average(+period: U32, kind: U32) -> Ma.State<F32>:
+  Ma.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Config.depth(period), kind, 0.7)
+
+def MAVP.next(state: MAVP.State(), sample: MAVP.Sample()) -> MAVP.State() & Maybe<&2, F32>:
+  Variable.next(~F32, ~U32.to_f32, ~F32.to_u32, ~F32.is_ge, ~F32.is_gt, ~(p => k => MAVP.average(p, k)), ~MA.next, state, sample)
+
+def DPO.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~DPO.State(), ~Params.Error, ~DPO.next, xs, DPO.init(period))
+
+def RVOL.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~RVOL.State(), ~Params.Error, ~RVOL.next, xs, RVOL.init(period))
+
+def ICHIMOKU.batch(xs: List<&2, Bars.HL<F32>>, tenkan: U32, kijun: U32, span_b: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, ICHIMOKU.Value()>>>:
+  Series.initialized(~Bars.HL<F32>, ~ICHIMOKU.Value(), ~ICHIMOKU.State(), ~Params.Error, ~ICHIMOKU.next, xs, ICHIMOKU.init(tenkan, kijun, span_b))
+
+def FRACTAL.batch(xs: List<&2, Bars.HL<F32>>, left: U32, right: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, FRACTAL.Value()>>>:
+  Series.initialized(~Bars.HL<F32>, ~FRACTAL.Value(), ~FRACTAL.State(), ~Params.Error, ~FRACTAL.next, xs, FRACTAL.init(left, right))
+
+def ZIGZAG.batch(xs: List<&2, Bars.HL<F32>>, sensitivity: F32, minimum: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, ZIGZAG.Value()>>>:
+  Series.initialized(~Bars.HL<F32>, ~ZIGZAG.Value(), ~ZIGZAG.State(), ~Params.Error, ~ZIGZAG.next, xs, ZIGZAG.init(sensitivity, minimum))
+
+def MAVP.batch(xs: List<&2, MAVP.Sample()>, minimum: U32, maximum: U32, kind: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~MAVP.Sample(), ~F32, ~MAVP.State(), ~Params.Error, ~MAVP.next, xs, MAVP.init(minimum, maximum, kind))
+
+def Trend.nonnegative(+value: F32) -> Bool:
+  Bool.and(is_finite(value), Bool.and(F32.is_ge(value, 0.0), F32.is_le(value, 3.0e37)))
+
+def FRAMA.State() -> Type:
+  AdaptiveWindow.Frama<F32>
+
+def FRAMA.init(+period: U32) -> Result<&2, &1, Params.Error, FRAMA.State()>:
+  Momentum.configure(~FRAMA.State(), Bool.and(Momentum.period(period, 2), U32.is_zero(U32.mod(period, 2))), u => Done{AdaptiveWindow.frama.init(~F32, ~U32.to_f32, period)})
+
+def FRAMA.next(state: FRAMA.State(), value: Bars.HL<F32>) -> FRAMA.State() & Maybe<&2, F32>:
+  AdaptiveWindow.frama.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.min, ~F32.max, ~F32.is_lt, ~F32.log, ~F32.exp, state, value)
+
+def FRAMA.batch(xs: List<&2, Bars.HL<F32>>, +period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~Bars.HL<F32>, ~F32, ~FRAMA.State(), ~Params.Error, ~FRAMA.next, xs, FRAMA.init(period))
+
+def MCGD.State() -> Type:
+  TrendState.McGinley<F32>
+
+def MCGD.init(+period: U32) -> Result<&2, &1, Params.Error, MCGD.State()>:
+  Momentum.configure(~MCGD.State(), Momentum.period(period, 2), u => Done{TrendState.mcgd.init(~F32, period)})
+
+def MCGD.next(state: MCGD.State(), value: F32) -> MCGD.State() & Maybe<&2, F32>:
+  TrendState.mcgd.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~is_finite, state, value)
+
+def MCGD.batch(xs: List<&2, F32>, +period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~MCGD.State(), ~Params.Error, ~MCGD.next, xs, MCGD.init(period))
+
+def SAR.State() -> Type:
+  TrendState.Sar<F32>
+
+def SAR.init(+acceleration: F32, +maximum: F32) -> Result<&2, &1, Params.Error, SAR.State()>:
+  Momentum.configure(~SAR.State(), Bool.and(Trend.nonnegative(acceleration), Trend.nonnegative(maximum)), u => Done{TrendState.sar.init(~F32, ~F32.min, 0.0, 0.0, acceleration, acceleration, maximum, acceleration, acceleration, maximum, False{})})
+
+def SAR.next(state: SAR.State(), value: Bars.HL<F32>) -> SAR.State() & Maybe<&2, F32>:
+  TrendState.sar.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.min, ~F32.max, ~F32.is_le, ~F32.is_lt, ~F32.is_eq, ~F32.abs, state, value)
+
+def SAR.batch(xs: List<&2, Bars.HL<F32>>, +acceleration: F32, +maximum: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~Bars.HL<F32>, ~F32, ~SAR.State(), ~Params.Error, ~SAR.next, xs, SAR.init(acceleration, maximum))
+
+def SAREXT.State() -> Type:
+  TrendState.Sar<F32>
+
+def SAREXT.init(+start: F32, +offset: F32, +long_init: F32, +long_step: F32, +long_max: F32, +short_init: F32, +short_step: F32, +short_max: F32) -> Result<&2, &1, Params.Error, SAREXT.State()>:
+  Momentum.configure(~SAREXT.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(is_finite(start), F32.is_le(F32.abs(start), 3.0e37)), Trend.nonnegative(offset)), Trend.nonnegative(long_init)), Trend.nonnegative(long_step)), Trend.nonnegative(long_max)), Trend.nonnegative(short_init)), Trend.nonnegative(short_step)), Trend.nonnegative(short_max)), u => Done{TrendState.sar.init(~F32, ~F32.min, start, offset, long_init, long_step, long_max, short_init, short_step, short_max, True{})})
+
+def SAREXT.next(state: SAREXT.State(), value: Bars.HL<F32>) -> SAREXT.State() & Maybe<&2, F32>:
+  TrendState.sar.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.min, ~F32.max, ~F32.is_le, ~F32.is_lt, ~F32.is_eq, ~F32.abs, state, value)
+
+def SAREXT.batch(xs: List<&2, Bars.HL<F32>>, +start: F32, +offset: F32, +long_init: F32, +long_step: F32, +long_max: F32, +short_init: F32, +short_step: F32, +short_max: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~Bars.HL<F32>, ~F32, ~SAREXT.State(), ~Params.Error, ~SAREXT.next, xs, SAREXT.init(start, offset, long_init, long_step, long_max, short_init, short_step, short_max))
+
+def SUPERTREND.State() -> Type:
+  TrendState.Supertrend<F32>
+
+def SUPERTREND.Value() -> Data:
+  TrendState.TrendValue<F32>
+
+def SUPERTREND.init(+period: U32, +multiplier: F32) -> Result<&2, &1, Params.Error, SUPERTREND.State()>:
+  Momentum.configure(~SUPERTREND.State(), Bool.and(Momentum.period(period, 2), Trend.nonnegative(multiplier)), u => Done{TrendState.supertrend.init(~F32, ~U32.to_f32, ~F32.div, period, multiplier)})
+
+def SUPERTREND.next(state: SUPERTREND.State(), value: Bars.HLC<F32>) -> SUPERTREND.State() & Maybe<&2, SUPERTREND.Value()>:
+  TrendState.supertrend.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, ~F32.is_lt, state, value)
+
+def SUPERTREND.batch(xs: List<&2, Bars.HLC<F32>>, +period: U32, +multiplier: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, SUPERTREND.Value()>>>:
+  Series.initialized(~Bars.HLC<F32>, ~SUPERTREND.Value(), ~SUPERTREND.State(), ~Params.Error, ~SUPERTREND.next, xs, SUPERTREND.init(period, multiplier))
+
+def CG.State() -> Type:
+  Win.State<F32>
+
+def CG.init(+period: U32) -> Result<&2, &1, Params.Error, CG.State()>:
+  Momentum.configure(~CG.State(), Momentum.period(period, 2), u => Done{AdaptiveWindow.prices.init(~F32, ~U32.to_f32, period)})
+
+def CG.next(state: CG.State(), value: F32) -> CG.State() & Maybe<&2, F32>:
+  AdaptiveWindow.cg.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, state, value)
+
+def CG.batch(xs: List<&2, F32>, +period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~CG.State(), ~Params.Error, ~CG.next, xs, CG.init(period))
+
+def CTI.State() -> Type:
+  Win.State<F32>
+
+def CTI.init(+period: U32) -> Result<&2, &1, Params.Error, CTI.State()>:
+  Momentum.configure(~CTI.State(), Momentum.period(period, 2), u => Done{AdaptiveWindow.prices.init(~F32, ~U32.to_f32, period)})
+
+def CTI.next(state: CTI.State(), value: F32) -> CTI.State() & Maybe<&2, F32>:
+  AdaptiveWindow.cti.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.min, ~F32.max, ~F32.is_lt, ~F32.sqrt, state, value)
+
+def CTI.batch(xs: List<&2, F32>, +period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~CTI.State(), ~Params.Error, ~CTI.next, xs, CTI.init(period))
+
+def FISHER.State() -> Type:
+  AdaptiveWindow.Fisher<F32>
+
+def FISHER.Value() -> Data:
+  MomentumSmooth.Lines<F32>
+
+def FISHER.init(+period: U32) -> Result<&2, &1, Params.Error, FISHER.State()>:
+  Momentum.configure(~FISHER.State(), Momentum.period(period, 2), u => Done{AdaptiveWindow.fisher.init(~F32, ~U32.to_f32, period)})
+
+def FISHER.next(state: FISHER.State(), value: Bars.HL<F32>) -> FISHER.State() & Maybe<&2, FISHER.Value()>:
+  AdaptiveWindow.fisher.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_lt, ~F32.log, state, value)
+
+def FISHER.batch(xs: List<&2, Bars.HL<F32>>, +period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, FISHER.Value()>>>:
+  Series.initialized(~Bars.HL<F32>, ~FISHER.Value(), ~FISHER.State(), ~Params.Error, ~FISHER.next, xs, FISHER.init(period))
+
+def CRSI.State() -> Type:
+  AdvancedOscillator.Crsi<F32>
+
+def CRSI.init(+period: U32, +streak: U32, +rank: U32) -> Result<&2, &1, Params.Error, CRSI.State()>:
+  Momentum.configure(~CRSI.State(), Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(streak, 2)), Momentum.period(rank, 2)), U32.is_le(rank, 10000)), u => Done{AdvancedOscillator.crsi.init(~F32, ~U32.to_f32, period, streak, rank)})
+
+def CRSI.next(state: CRSI.State(), value: F32) -> CRSI.State() & Maybe<&2, F32>:
+  AdvancedOscillator.crsi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.max, ~F32.is_lt, ~F32.is_eq, state, value)
+
+def CRSI.batch(xs: List<&2, F32>, +period: U32, +streak: U32, +rank: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~CRSI.State(), ~Params.Error, ~CRSI.next, xs, CRSI.init(period, streak, rank))
+
+def SMI.State() -> Type:
+  AdvancedOscillator.Smi<F32>
+
+def SMI.Value() -> Data:
+  MomentumSmooth.Lines<F32>
+
+def SMI.init(+period: U32, +fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Params.Error, SMI.State()>:
+  Momentum.configure(~SMI.State(), Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(fast, 2)), Momentum.period(slow, 2)), Momentum.period(signal, 2)), u => Done{AdvancedOscillator.smi.init(~F32, ~U32.to_f32, ~F32.div, period, fast, slow, signal)})
+
+def SMI.next(state: SMI.State(), value: Bars.HLC<F32>) -> SMI.State() & Maybe<&2, SMI.Value()>:
+  AdvancedOscillator.smi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.is_le, state, value)
+
+def SMI.batch(xs: List<&2, Bars.HLC<F32>>, +period: U32, +fast: U32, +slow: U32, +signal: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, SMI.Value()>>>:
+  Series.initialized(~Bars.HLC<F32>, ~SMI.Value(), ~SMI.State(), ~Params.Error, ~SMI.next, xs, SMI.init(period, fast, slow, signal))
+
+def STC.State() -> Type:
+  AdvancedOscillator.Stc<F32>
+
+def STC.init(+fast: U32, +slow: U32, +cycle: U32) -> Result<&2, &1, Params.Error, STC.State()>:
+  Momentum.configure(~STC.State(), Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(cycle, 2)), u => AdvancedOscillator.stc.init(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, cycle))
+
+def STC.next(state: STC.State(), value: F32) -> STC.State() & Maybe<&2, F32>:
+  AdvancedOscillator.stc.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_eq, ~F32.is_le, ~F32.atan, state, value)
+
+def STC.batch(xs: List<&2, F32>, +fast: U32, +slow: U32, +cycle: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~STC.State(), ~Params.Error, ~STC.next, xs, STC.init(fast, slow, cycle))
+
+def WAVETREND.State() -> Type:
+  AdvancedOscillator.Wave<F32>
+
+def WAVETREND.Value() -> Data:
+  MomentumSmooth.Lines<F32>
+
+def WAVETREND.init(+channel: U32, +average: U32, +signal: U32) -> Result<&2, &1, Params.Error, WAVETREND.State()>:
+  Momentum.configure(~WAVETREND.State(), Bool.and(Bool.and(Momentum.period(channel, 2), Momentum.period(average, 1)), Momentum.period(signal, 1)), u => Done{AdvancedOscillator.wave.init(~F32, ~U32.to_f32, ~F32.div, channel, average, signal)})
+
+def WAVETREND.next(state: WAVETREND.State(), value: Bars.HLC<F32>) -> WAVETREND.State() & Maybe<&2, WAVETREND.Value()>:
+  AdvancedOscillator.wave.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_eq, state, value)
+
+def WAVETREND.batch(xs: List<&2, Bars.HLC<F32>>, +channel: U32, +average: U32, +signal: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, WAVETREND.Value()>>>:
+  Series.initialized(~Bars.HLC<F32>, ~WAVETREND.Value(), ~WAVETREND.State(), ~Params.Error, ~WAVETREND.next, xs, WAVETREND.init(channel, average, signal))
+
+def MACDEXT.State() -> Type:
+  TrendComposite.Macd<F32>
+
+def MACDEXT.Value() -> Data:
+  MomentumSmooth.MACDValue<F32>
+
+def MACDEXT.init(+fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32, +signal: U32, +signal_kind: U32) -> Result<&2, &1, Params.Error, MACDEXT.State()>:
+  Momentum.configure(~MACDEXT.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1)), Momentum.selector(fast, fast_kind)), Momentum.selector(slow, slow_kind)), Momentum.selector(signal, signal_kind)), u => TrendComposite.macd.init(~F32, ~U32.to_f32, ~Momentum.ma, fast, fast_kind, slow, slow_kind, signal, signal_kind))
+
+def MACDEXT.next(state: MACDEXT.State(), value: F32) -> MACDEXT.State() & Maybe<&2, MACDEXT.Value()>:
+  TrendComposite.macd.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value)
+
+def MACDEXT.batch(xs: List<&2, F32>, +fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32, +signal: U32, +signal_kind: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, MACDEXT.Value()>>>:
+  Series.initialized(~F32, ~MACDEXT.Value(), ~MACDEXT.State(), ~Params.Error, ~MACDEXT.next, xs, MACDEXT.init(fast, fast_kind, slow, slow_kind, signal, signal_kind))
+
+def KSTEXT.State() -> Type:
+  TrendComposite.Kst<F32>
+
+def KSTEXT.Value() -> Data:
+  MomentumSmooth.Lines<F32>
+
+def KSTEXT.init(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +ma1: U32, +ma2: U32, +ma3: U32, +ma4: U32, +signal: U32, +kind: U32, +signal_kind: U32) -> Result<&2, &1, Params.Error, KSTEXT.State()>:
+  Momentum.configure(~KSTEXT.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(roc1, 1), Momentum.period(roc2, 1)), Momentum.period(roc3, 1)), Momentum.period(roc4, 1)), Momentum.period(ma1, 1)), Momentum.period(ma2, 1)), Momentum.period(ma3, 1)), Momentum.period(ma4, 1)), Momentum.period(signal, 1)), Momentum.selector(ma1, kind)), Momentum.selector(ma2, kind)), Momentum.selector(ma3, kind)), Momentum.selector(ma4, kind)), Momentum.selector(signal, signal_kind)), u => TrendComposite.kst.init(~F32, ~U32.to_f32, ~Momentum.ma, roc1, roc2, roc3, roc4, ma1, ma2, ma3, ma4, signal, kind, signal_kind))
+
+def KSTEXT.next(state: KSTEXT.State(), value: F32) -> KSTEXT.State() & Maybe<&2, KSTEXT.Value()>:
+  TrendComposite.kst.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_eq, ~F32.atan, state, value)
+
+def KSTEXT.batch(xs: List<&2, F32>, +roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +ma1: U32, +ma2: U32, +ma3: U32, +ma4: U32, +signal: U32, +kind: U32, +signal_kind: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, KSTEXT.Value()>>>:
+  Series.initialized(~F32, ~KSTEXT.Value(), ~KSTEXT.State(), ~Params.Error, ~KSTEXT.next, xs, KSTEXT.init(roc1, roc2, roc3, roc4, ma1, ma2, ma3, ma4, signal, kind, signal_kind))
+
+def SQZMOM.State() -> Type:
+  Squeeze.State<F32>
+
+def SQZMOM.Value() -> Data:
+  Squeeze.Value<F32>
+
+def SQZMOM.init(+bb: U32, +deviations: F32, +kc: U32, +wide: F32, +normal: F32, +narrow: F32) -> Result<&2, &1, Params.Error, SQZMOM.State()>:
+  Momentum.configure(~SQZMOM.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(bb, 2), Momentum.period(kc, 2)), Trend.nonnegative(deviations)), Trend.nonnegative(wide)), Trend.nonnegative(normal)), Trend.nonnegative(narrow)), F32.is_le(narrow, normal)), F32.is_le(normal, wide)), u => Done{Squeeze.init(~F32, ~U32.to_f32, bb, kc, deviations, wide, normal, narrow)})
+
+def SQZMOM.next(state: SQZMOM.State(), value: Bars.HLC<F32>) -> SQZMOM.State() & Maybe<&2, SQZMOM.Value()>:
+  Squeeze.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, ~F32.is_le, ~F32.is_lt, ~F32.sqrt, state, value)
+
+def SQZMOM.batch(xs: List<&2, Bars.HLC<F32>>, +bb: U32, +deviations: F32, +kc: U32, +wide: F32, +normal: F32, +narrow: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, SQZMOM.Value()>>>:
+  Series.initialized(~Bars.HLC<F32>, ~SQZMOM.Value(), ~SQZMOM.State(), ~Params.Error, ~SQZMOM.next, xs, SQZMOM.init(bb, deviations, kc, wide, normal, narrow))
+
+def PairValue() -> Data:
+  StatWindow.PairValue<F32>
+
+def KVO.Value() -> Data:
+  VolumeFilter.Lines<F32>
+
+def ADOSC.State() -> Type:
+  VolumeFilter.Adosc<F32>
+
+def ADOSC.init(+fast: U32, +slow: U32) -> Result<&2, &1, Params.Error, ADOSC.State()>:
+  overlap.init(~ADOSC.State(), Bool.and(overlap.valid(fast, 2), overlap.valid(slow, 2)), u => VolumeFilter.adosc.init(~F32, ~U32.to_f32, ~F32.div, fast, slow))
+
+def ADOSC.next(state: ADOSC.State(), value: Bars.HLCV<F32>) -> ADOSC.State() & Maybe<&2, F32>:
+  VolumeFilter.adosc.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_gt, state, value)
+
+def ADOSC.batch(xs: List<&2, Bars.HLCV<F32>>, fast: U32, slow: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~Bars.HLCV<F32>, ~F32, ~ADOSC.State(), ~Params.Error, ~ADOSC.next, xs, ADOSC.init(fast, slow))
+
+def KVO.State() -> Type:
+  VolumeFilter.Kvo<F32>
+
+def KVO.init(+fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Params.Error, KVO.State()>:
+  overlap.init(~KVO.State(), Bool.and(overlap.valid(fast, 2), Bool.and(overlap.valid(slow, 2), overlap.valid(signal, 2))), u => VolumeFilter.kvo.init(~F32, ~U32.to_f32, ~F32.div, fast, slow, signal))
+
+def KVO.next(state: KVO.State(), value: Bars.HLCV<F32>) -> KVO.State() & Maybe<&2, KVO.Value()>:
+  VolumeFilter.kvo.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_eq, ~F32.is_gt, state, value)
+
+def KVO.batch(xs: List<&2, Bars.HLCV<F32>>, fast: U32, slow: U32, signal: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, KVO.Value()>>>:
+  Series.initialized(~Bars.HLCV<F32>, ~KVO.Value(), ~KVO.State(), ~Params.Error, ~KVO.next, xs, KVO.init(fast, slow, signal))
+
+def VAR.State() -> Type:
+  Win.State<F32>
+
+def VAR.init(+period: U32, +factor: F32) -> Result<&2, &1, Params.Error, VAR.State()>:
+  overlap.init(~VAR.State(), Bool.and(overlap.valid(period, 1), Bool.and(is_finite(factor), F32.is_le(F32.abs(factor), 3.0e37))), u => overlap.window(period))
+
+def VAR.next(state: VAR.State(), value: F32) -> VAR.State() & Maybe<&2, F32>:
+  overlap.project(~VAR.State(), ~Stats.Value<F32>, ~F32, ~(v => StatWindow.variance(~F32, v)), Stats.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, value))
+
+def VAR.batch(xs: List<&2, F32>, period: U32, factor: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~VAR.State(), ~Params.Error, ~VAR.next, xs, VAR.init(period, factor))
+
+def CORREL.State() -> Type:
+  Win.State<StatWindow.PairValue<F32>>
+
+def CORREL.init(+period: U32) -> Result<&2, &1, Params.Error, CORREL.State()>:
+  overlap.init(~CORREL.State(), overlap.valid(period, 1), u => StatWindow.pair.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)))
+
+def CORREL.next(state: CORREL.State(), value: PairValue()) -> CORREL.State() & Maybe<&2, F32>:
+  StatWindow.pair.project(~F32, ~(v => StatWindow.correl.ratio(~F32, ~U32.to_f32, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.min, ~F32.max, ~F32.is_gt, v)), StatWindow.pair.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, value))
+
+def CORREL.batch(xs: List<&2, PairValue()>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~PairValue(), ~F32, ~CORREL.State(), ~Params.Error, ~CORREL.next, xs, CORREL.init(period))
+
+def BETA.State() -> Type:
+  StatWindow.Beta<F32>
+
+def BETA.init(+period: U32) -> Result<&2, &1, Params.Error, BETA.State()>:
+  overlap.init(~BETA.State(), overlap.valid(period, 1), u => StatWindow.beta.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)))
+
+def BETA.next(state: BETA.State(), value: PairValue()) -> BETA.State() & Maybe<&2, F32>:
+  StatWindow.beta.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.is_gt, state, value)
+
+def BETA.batch(xs: List<&2, PairValue()>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~PairValue(), ~F32, ~BETA.State(), ~Params.Error, ~BETA.next, xs, BETA.init(period))
+
+def KURTOSIS.State() -> Type:
+  Win.State<F32>
+
+def KURTOSIS.init(+period: U32) -> Result<&2, &1, Params.Error, KURTOSIS.State()>:
+  overlap.init(~KURTOSIS.State(), Bool.and(U32.is_ge(period, 4), U32.is_le(period, 10000)), u => overlap.window(period))
+
+def KURTOSIS.next(state: KURTOSIS.State(), value: F32) -> KURTOSIS.State() & Maybe<&2, F32>:
+  StatWindow.kurtosis.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, value)
+
+def KURTOSIS.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~KURTOSIS.State(), ~Params.Error, ~KURTOSIS.next, xs, KURTOSIS.init(period))
+
+def ROGERSSATCHELL.State() -> Type:
+  VolWindow.RogersSatchell<F32>
+
+def ROGERSSATCHELL.init(+period: U32, +annualization: F32) -> Result<&2, &1, Params.Error, ROGERSSATCHELL.State()>:
+  overlap.init(~ROGERSSATCHELL.State(), Bool.and(overlap.valid(period, 1), Bool.and(is_finite(annualization), Bool.and(F32.is_ge(annualization, 0.0), F32.is_le(annualization, 3.0e37)))), u => VolWindow.rogerssatchell.init(~F32, ~U32.to_f32, ~F32.sqrt, period, Ma.buffer_depth(period), annualization))
+
+def ROGERSSATCHELL.next(state: ROGERSSATCHELL.State(), value: Bars.OHLC<F32>) -> ROGERSSATCHELL.State() & Maybe<&2, F32>:
+  VolWindow.rogerssatchell.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.log, ~F32.is_gt, state, value)
+
+def ROGERSSATCHELL.batch(xs: List<&2, Bars.OHLC<F32>>, period: U32, annualization: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~Bars.OHLC<F32>, ~F32, ~ROGERSSATCHELL.State(), ~Params.Error, ~ROGERSSATCHELL.next, xs, ROGERSSATCHELL.init(period, annualization))
+
+def RVI.State() -> Type:
+  VolWindow.Rvi<F32>
+
+def RVI.init(+period: U32, +deviation_period: U32) -> Result<&2, &1, Params.Error, RVI.State()>:
+  overlap.init(~RVI.State(), Bool.and(overlap.valid(period, 1), overlap.valid(deviation_period, 2)), u => VolWindow.rvi.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
+
+def RVI.next(state: RVI.State(), value: F32) -> RVI.State() & Maybe<&2, F32>:
+  VolWindow.rvi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, state, value)
+
+def RVI.batch(xs: List<&2, F32>, period: U32, deviation_period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~RVI.State(), ~Params.Error, ~RVI.next, xs, RVI.init(period, deviation_period))
+
+def RVIR.State() -> Type:
+  VolWindow.Rvir<F32>
+
+def RVIR.init(+period: U32, +deviation_period: U32) -> Result<&2, &1, Params.Error, RVIR.State()>:
+  overlap.init(~RVIR.State(), Bool.and(overlap.valid(period, 1), overlap.valid(deviation_period, 2)), u => VolWindow.rvir.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
+
+def RVIR.next(state: RVIR.State(), value: Bars.HL<F32>) -> RVIR.State() & Maybe<&2, F32>:
+  VolWindow.rvir.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, state, value)
+
+def RVIR.batch(xs: List<&2, Bars.HL<F32>>, period: U32, deviation_period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~Bars.HL<F32>, ~F32, ~RVIR.State(), ~Params.Error, ~RVIR.next, xs, RVIR.init(period, deviation_period))
+
+def CDLHIKKAKE.State() -> Type:
+  Hikkake.State<F32>
+
+def CDLHIKKAKE.init() -> Result<&2, &1, Pattern.Error(), CDLHIKKAKE.State()>:
+  Done{Hikkake.init(~F32, ~U32.to_f32, False{}, Candles.Setting{Candles.HighLow{}, 0, 0.0}, 0n)}
+
+def CDLHIKKAKE.next(state: CDLHIKKAKE.State(), bar: Bars.OHLC<F32>) -> CDLHIKKAKE.State() & Maybe<&2, Pattern.Signal()>:
+  Hikkake.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.min, ~F32.max, ~F32.is_lt, ~F32.is_le, state, bar)
+
+def CDLHIKKAKE.batch(xs: List<&2, Bars.OHLC<F32>>) -> Result<&2, &2, Pattern.Error(), List<&2, Maybe<&2, Pattern.Signal()>>>:
+  Series.initialized(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHIKKAKE.State(), ~Pattern.Error(), ~CDLHIKKAKE.next, xs, CDLHIKKAKE.init())
+
+def CDLHIKKAKEMOD.State() -> Type:
+  Hikkake.State<F32>
+
+def CDLHIKKAKEMOD.init.setting(+near: Candles.Setting<F32>) -> Result<&2, &1, Pattern.Error(), CDLHIKKAKEMOD.State()>:
+  match near:
+    case Candles.Setting{kind, +period, +factor}:
+      overlap.init(~CDLHIKKAKEMOD.State(), Patterns.setting.valid(~F32, ~is_finite, ~F32.is_ge, ~U32.to_f32, near), u => Hikkake.init(~F32, ~U32.to_f32, True{}, near, Ma.buffer_depth(U32.max(period, 1))))
+
+def CDLHIKKAKEMOD.init() -> Result<&2, &1, Pattern.Error(), CDLHIKKAKEMOD.State()>:
+  CDLHIKKAKEMOD.init.setting(Candle.defaults(Candles.Near{}))
+
+def CDLHIKKAKEMOD.next(state: CDLHIKKAKEMOD.State(), bar: Bars.OHLC<F32>) -> CDLHIKKAKEMOD.State() & Maybe<&2, Pattern.Signal()>:
+  Hikkake.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.min, ~F32.max, ~F32.is_lt, ~F32.is_le, state, bar)
+
+def CDLHIKKAKEMOD.batch(xs: List<&2, Bars.OHLC<F32>>) -> Result<&2, &2, Pattern.Error(), List<&2, Maybe<&2, Pattern.Signal()>>>:
+  Series.initialized(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHIKKAKEMOD.State(), ~Pattern.Error(), ~CDLHIKKAKEMOD.next, xs, CDLHIKKAKEMOD.init())
+
+def HT_DCPERIOD.State() -> Type:
+  Hilbert.State<F32>
+
+def HT_DCPERIOD.init() -> Result<&2, &1, Params.Error, HT_DCPERIOD.State()>:
+  Done{Hilbert.init(~F32, ~U32.to_f32, 0)}
+
+def HT_DCPERIOD.next(state: HT_DCPERIOD.State(), value: F32) -> HT_DCPERIOD.State() & Maybe<&2, F32>:
+  Hilbert.project(~F32, ~F32, ~(value => Hilbert.scalar(~F32, 0, value)), Hilbert.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.to_u32, ~F32.abs, ~F32.is_le, ~F32.atan, ~F32.sin, ~F32.cos, state, value))
+
+def HT_DCPERIOD.batch(xs: List<&2, F32>) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~HT_DCPERIOD.State(), ~Params.Error, ~HT_DCPERIOD.next, xs, HT_DCPERIOD.init())
+
+def HT_PHASOR.State() -> Type:
+  Hilbert.State<F32>
+
+def HT_PHASOR.Value() -> Data:
+  Hilbert.Phasor<F32>
+
+def HT_PHASOR.init() -> Result<&2, &1, Params.Error, HT_PHASOR.State()>:
+  Done{Hilbert.init(~F32, ~U32.to_f32, 1)}
+
+def HT_PHASOR.next(state: HT_PHASOR.State(), value: F32) -> HT_PHASOR.State() & Maybe<&2, HT_PHASOR.Value()>:
+  Hilbert.project(~F32, ~HT_PHASOR.Value(), ~(value => Hilbert.phasor(~F32, value)), Hilbert.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.to_u32, ~F32.abs, ~F32.is_le, ~F32.atan, ~F32.sin, ~F32.cos, state, value))
+
+def HT_PHASOR.batch(xs: List<&2, F32>) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, HT_PHASOR.Value()>>>:
+  Series.initialized(~F32, ~HT_PHASOR.Value(), ~HT_PHASOR.State(), ~Params.Error, ~HT_PHASOR.next, xs, HT_PHASOR.init())
+
+def HT_TRENDLINE.State() -> Type:
+  Hilbert.State<F32>
+
+def HT_TRENDLINE.init() -> Result<&2, &1, Params.Error, HT_TRENDLINE.State()>:
+  Done{Hilbert.init(~F32, ~U32.to_f32, 2)}
+
+def HT_TRENDLINE.next(state: HT_TRENDLINE.State(), value: F32) -> HT_TRENDLINE.State() & Maybe<&2, F32>:
+  Hilbert.project(~F32, ~F32, ~(value => Hilbert.scalar(~F32, 2, value)), Hilbert.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.to_u32, ~F32.abs, ~F32.is_le, ~F32.atan, ~F32.sin, ~F32.cos, state, value))
+
+def HT_TRENDLINE.batch(xs: List<&2, F32>) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~HT_TRENDLINE.State(), ~Params.Error, ~HT_TRENDLINE.next, xs, HT_TRENDLINE.init())
+
+def HT_DCPHASE.State() -> Type:
+  Hilbert.State<F32>
+
+def HT_DCPHASE.init() -> Result<&2, &1, Params.Error, HT_DCPHASE.State()>:
+  Done{Hilbert.init(~F32, ~U32.to_f32, 3)}
+
+def HT_DCPHASE.next(state: HT_DCPHASE.State(), value: F32) -> HT_DCPHASE.State() & Maybe<&2, F32>:
+  Hilbert.project(~F32, ~F32, ~(value => Hilbert.scalar(~F32, 3, value)), Hilbert.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.to_u32, ~F32.abs, ~F32.is_le, ~F32.atan, ~F32.sin, ~F32.cos, state, value))
+
+def HT_DCPHASE.batch(xs: List<&2, F32>) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~HT_DCPHASE.State(), ~Params.Error, ~HT_DCPHASE.next, xs, HT_DCPHASE.init())
+
+def HT_SINE.State() -> Type:
+  Hilbert.State<F32>
+
+def HT_SINE.Value() -> Data:
+  Hilbert.Sine<F32>
+
+def HT_SINE.init() -> Result<&2, &1, Params.Error, HT_SINE.State()>:
+  Done{Hilbert.init(~F32, ~U32.to_f32, 4)}
+
+def HT_SINE.next(state: HT_SINE.State(), value: F32) -> HT_SINE.State() & Maybe<&2, HT_SINE.Value()>:
+  Hilbert.project(~F32, ~HT_SINE.Value(), ~(value => Hilbert.waves(~F32, value)), Hilbert.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.to_u32, ~F32.abs, ~F32.is_le, ~F32.atan, ~F32.sin, ~F32.cos, state, value))
+
+def HT_SINE.batch(xs: List<&2, F32>) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, HT_SINE.Value()>>>:
+  Series.initialized(~F32, ~HT_SINE.Value(), ~HT_SINE.State(), ~Params.Error, ~HT_SINE.next, xs, HT_SINE.init())
+
+def HT_TRENDMODE.State() -> Type:
+  Hilbert.State<F32>
+
+def HT_TRENDMODE.init() -> Result<&2, &1, Params.Error, HT_TRENDMODE.State()>:
+  Done{Hilbert.init(~F32, ~U32.to_f32, 5)}
+
+def HT_TRENDMODE.next(state: HT_TRENDMODE.State(), value: F32) -> HT_TRENDMODE.State() & Maybe<&2, U32>:
+  Hilbert.project(~F32, ~U32, ~(value => Hilbert.mode(~F32, value)), Hilbert.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.to_u32, ~F32.abs, ~F32.is_le, ~F32.atan, ~F32.sin, ~F32.cos, state, value))
+
+def HT_TRENDMODE.batch(xs: List<&2, F32>) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, U32>>>:
+  Series.initialized(~F32, ~U32, ~HT_TRENDMODE.State(), ~Params.Error, ~HT_TRENDMODE.next, xs, HT_TRENDMODE.init())
+
+def filter.valid(+period: U32, minimum: U32, maximum: U32) -> Bool:
+  Bool.and(U32.is_ge(period, minimum), U32.is_le(period, maximum))
+
+def SWAK_BUTTER.State() -> Data:
+  Filters.State<F32>
+
+def SWAK_BUTTER.init(+period: U32) -> Result<&2, &1, Params.Error, SWAK_BUTTER.State()>:
+  overlap.init(~SWAK_BUTTER.State(), filter.valid(period, 2, 10000), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 0, period, 0.0))
+
+def SWAK_BUTTER.next(state: SWAK_BUTTER.State(), value: F32) -> SWAK_BUTTER.State() & Maybe<&2, F32>:
+  Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
+
+def SWAK_BUTTER.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~SWAK_BUTTER.State(), ~Params.Error, ~SWAK_BUTTER.next, xs, SWAK_BUTTER.init(period))
+
+def SWAK_GAUSS.State() -> Data:
+  Filters.State<F32>
+
+def SWAK_GAUSS.init(+period: U32) -> Result<&2, &1, Params.Error, SWAK_GAUSS.State()>:
+  overlap.init(~SWAK_GAUSS.State(), filter.valid(period, 2, 10000), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 1, period, 0.0))
+
+def SWAK_GAUSS.next(state: SWAK_GAUSS.State(), value: F32) -> SWAK_GAUSS.State() & Maybe<&2, F32>:
+  Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
+
+def SWAK_GAUSS.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~SWAK_GAUSS.State(), ~Params.Error, ~SWAK_GAUSS.next, xs, SWAK_GAUSS.init(period))
+
+def SWAK_2PHP.State() -> Data:
+  Filters.State<F32>
+
+def SWAK_2PHP.init(+period: U32) -> Result<&2, &1, Params.Error, SWAK_2PHP.State()>:
+  overlap.init(~SWAK_2PHP.State(), filter.valid(period, 2, 10000), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 2, period, 0.0))
+
+def SWAK_2PHP.next(state: SWAK_2PHP.State(), value: F32) -> SWAK_2PHP.State() & Maybe<&2, F32>:
+  Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
+
+def SWAK_2PHP.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~SWAK_2PHP.State(), ~Params.Error, ~SWAK_2PHP.next, xs, SWAK_2PHP.init(period))
+
+def SWAK_BP.State() -> Data:
+  Filters.State<F32>
+
+def SWAK_BP.init(+period: U32, +delta: F32) -> Result<&2, &1, Params.Error, SWAK_BP.State()>:
+  overlap.init(~SWAK_BP.State(), Bool.and(filter.valid(period, 5, 2000), Bool.and(is_finite(delta), Bool.and(F32.is_ge(delta, 0.05), F32.is_le(delta, 0.5)))), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 3, period, delta))
+
+def SWAK_BP.next(state: SWAK_BP.State(), value: F32) -> SWAK_BP.State() & Maybe<&2, F32>:
+  Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
+
+def SWAK_BP.batch(xs: List<&2, F32>, period: U32, +delta: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~SWAK_BP.State(), ~Params.Error, ~SWAK_BP.next, xs, SWAK_BP.init(period, delta))
+
+def SWAK_HP.State() -> Data:
+  Filters.State<F32>
+
+def SWAK_HP.init(+period: U32) -> Result<&2, &1, Params.Error, SWAK_HP.State()>:
+  overlap.init(~SWAK_HP.State(), filter.valid(period, 5, 100000), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 4, period, 0.0))
+
+def SWAK_HP.next(state: SWAK_HP.State(), value: F32) -> SWAK_HP.State() & Maybe<&2, F32>:
+  Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
+
+def SWAK_HP.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+  Series.initialized(~F32, ~F32, ~SWAK_HP.State(), ~Params.Error, ~SWAK_HP.next, xs, SWAK_HP.init(period))

@@ -43,6 +43,9 @@ defines the callable functions and result types.
 | Moving averages, bands and statistics | [Seeds, windows and multi-line results](docs/overlap-statistics.md) |
 | Momentum and directional indicators | [Parameters and output alignment](docs/momentum.md) |
 | Volume and volatility | [Bar inputs and accumulation](docs/volume-volatility.md) |
+| Adaptive trend and oscillators | [State machines and composite seeds](docs/advanced-trend.md) |
+| Cycles and recursive filters | [Startup and precision limits](docs/cycles-filters.md) |
+| Causal, dynamic and anchored indicators | [Confirmation, display offsets and period banks](docs/causal-indicators.md) |
 | Candlestick patterns | [Settings and signed strengths](docs/candles.md) |
 
 ## Data and arithmetic
@@ -50,7 +53,8 @@ defines the callable functions and result types.
 Supply finite observations in arrival order and align fields before constructing
 bar records. Handle missing data, timestamps, sessions and price adjustments
 before calculation. Nonfinite input validation and recovery are the caller's
-responsibility.
+responsibility; VWAP defines an explicit skip-and-repeat rule in its
+[contract](docs/causal-indicators.md).
 
 F32 arithmetic rounds at each operation and can overflow or lose small changes.
 The family guides specify seeds, lookbacks, parameter limits, computational costs

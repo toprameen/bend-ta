@@ -34,23 +34,20 @@ parameter labels/defaults/ranges are reference facts, not proposed Bend identifi
 `real` means a reference double-valued output that our numeric facade would map to
 `N`; it does not mean native F64 already exists in Bend.
 
-## Assessed baseline and subsequent foundation
+## Assessed baseline and implemented contracts
 
-The original assessment inspected working shared-template **SMA and EMA only**, at
-base commit `a01bb1f06f3e9a81650d48c27f782cbbd287dcd7`, plus the pending Bend-only
-tooling changes. No new indicator implementation is supplied by this document.
-Subsequent shared-foundation work adds RMA/SUM, windows, moments/extrema and
-bar/candle primitives; see [foundation.md](foundation.md) for the current
-implementation. The original 32 Direct entries now have implemented F32 interfaces and are
-marked Existing; see [their contracts](direct-indicators.md). Other labels
-retain the assessment scope and should be revisited as interfaces are added.
-The original 155 Foundation entries are now implemented, along with MA, MAMA
-and VIDYA dependencies; see [the family guide](foundation-indicators.md).
-Per-entry reference interfaces and planning discussion retain their assessment
-context; the implemented-contract links describe current code and limits.
-See [the current design](design.md), [F32 facade](../src/f32.bend),
-[EMA](../src/core/ema.bend), [SMA](../src/core/sma.bend),
-[rolling storage](../src/core/rolling.bend) and [series traversal](../src/core/series.bend).
+The original assessment at `a01bb1f06f3e9a81650d48c27f782cbbd287dcd7`
+covered the SMA/EMA scaffold and planned additional work. All 237 catalog names
+now have F32 interfaces and are marked Existing under their documented project
+contracts. This records interface coverage, not universal numerical parity with
+TA-Lib. Each entry links its owning guide for the current seed, lookback,
+parameters, costs and limitations; original implementation/validation discussion
+retains the source-led assessment context.
+
+See [the design](design.md), [foundation](foundation.md),
+[F32 facade](../src/f32.bend), [advanced trend/oscillators](advanced-trend.md),
+[cycle/filter precision limits](cycles-filters.md) and
+[causal/dynamic/anchored contracts](causal-indicators.md).
 
 The existing core passes concrete numeric operations as leading `~` template
 arguments, while periods and data are runtime arguments. Keep that pattern and
@@ -90,7 +87,7 @@ performance, accuracy, GPU support or reference parity.
 
 This table records the original component plan. The [foundation guide](foundation.md)
 and [implemented family guide](foundation-indicators.md) describe current components;
-remaining specialized/compatibility work is still proposed:
+the rows below retain the original design plan rather than an unfinished-work list:
 
 | Component | Bend design and beneficiaries |
 |---|---|
@@ -346,13 +343,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `16` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** two-half rolling extrema, log/exp numeric operations, typed HL input, adaptive smoothing.
+**Readiness:** Existing. **Dependencies:** two-half rolling extrema, log/exp numeric operations, typed HL input, adaptive smoothing.
 
 **Bend implementation:** Split an even-length high/low window into two halves, estimate fractal dimension from their ranges and the full range, and derive an adaptive smoothing coefficient. Update the midpoint price recursively; share the half-window extrema machinery rather than rebuilding windows each step.
 
 **Blockers and special considerations:** The pinned source rejects odd periods, seeds from a midpoint, and has a period-plus-instability lookback. It returns the current midpoint directly for flat or alpha-at-least-one regimes instead of evaluating a log of zero. Preserve these branches. F32 near the range comparisons can select a different regime; log/exp are required of future numeric adapters.
 
 **Validation:** Odd-period rejection; a flat market; a trending ramp; tiny positive half-ranges around the direct-price branch.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/frama/frama.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/frama/frama.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_FRAMA.c).
 
@@ -378,13 +377,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** shared Hilbert engine, price history ring, adaptive window mean.
+**Readiness:** Existing. **Dependencies:** shared Hilbert engine, price history ring, adaptive window mean.
 
 **Bend implementation:** Use the Hilbert estimator's smoothed cycle period to choose a bounded recent-price mean, then apply the source 4,3,2,1 temporal smoothing of that mean. The bounded history can be an owned ring shared with other cycle-dependent indicators.
 
 **Blockers and special considerations:** The fixed lookback is 63 plus function-specific instability settings. The mean consumes raw input prices, not the smoothed-price projection used for phase. Rounded cycle length makes the output discontinuously sensitive to F32 period estimates. Do not replace it with a fixed-period EMA or assume its warm-up equals HT_DCPERIOD's.
 
 **Validation:** Trend plus a sinusoidal component; constant prices; changing inferred integer window lengths; alignment against the pinned reference.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_trendline/ht_trendline.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_trendline/ht_trendline.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_HT_TRENDLINE.c).
 
@@ -394,13 +395,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Tenkan Period = `9` (integer, 2..100000); Kijun Period = `26` (integer, 2..100000); Senkou B Period = `52` (integer, 2..100000).
 
-**Readiness:** API decision. **Dependencies:** three MIDPRICE windows, multi-output records, display-shift metadata.
+**Readiness:** Existing. **Dependencies:** three MIDPRICE windows, multi-output records, display-shift metadata.
 
 **Bend implementation:** Compose high/low midpoint windows for Tenkan, Kijun and Senkou B; form Senkou A from the two already-computed midpoint lines. Emit a four-field causal current-bar record, and carry plotting offsets separately from calculation timestamps.
 
 **Blockers and special considerations:** Pinned TA-Lib returns four outputs, with no Chikou close output. Its spans are not moved in the arrays: separate DisplayShift metadata marks both as +Kijun-period. Warm-up is longest of the three periods minus one; periods need not be ordered. Shifting arrays inside next would conflict with bend-ta's positional alignment and can cause look-ahead mistakes.
 
 **Validation:** Nonstandard period orderings; exact first complete longest window; verify current-bar outputs separately from a +Kijun display shift.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ichimoku/ichimoku.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ichimoku/ichimoku.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_ICHIMOKU.c).
 
@@ -474,13 +477,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Minimum Period = `2` (integer, 1..10000); Maximum Period = `30` (integer, 1..10000); MA Type = `0` (MA selector; see common enum notes).
 
-**Readiness:** API decision. **Dependencies:** MA dispatcher, period normalization, parallel fixed-period state bank or batch planner.
+**Readiness:** Existing. **Dependencies:** MA dispatcher, period normalization, parallel fixed-period state bank or batch planner.
 
 **Bend implementation:** Normalize each per-bar period by clamping and integer truncation, then select the corresponding fixed-period MA result. A faithful streaming design needs a bank of period-specific histories/states or a documented recomputation strategy; the batch implementation may group outputs by their selected period.
 
 **Blockers and special considerations:** It is not an EMA whose coefficient changes according to today's period: each selected value comes from a separately computed fixed-period MA. Upstream uses the maximum period for warm-up and maps NaN/below-min periods to the minimum. The finite period range and supported MA kind control state/memory cost. A batch-first interface may be preferable until streaming costs are explicit.
 
 **Validation:** An alternating period series compared with separately computed MAs; fractional/out-of-range/NaN periods; min=max; a non-SMA MA kind.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/mavp/mavp.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/mavp/mavp.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_MAVP.c).
 
@@ -490,13 +495,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `14` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** finite-result classification, adaptive scalar recursion.
+**Readiness:** Existing. **Dependencies:** finite-result classification, adaptive scalar recursion.
 
 **Bend implementation:** Keep the previous McGinley line and apply previous+(price-previous)/(period*(price/previous)^4), using explicit products for the fourth power. If the proposed update is nonfinite, retain the previous line, matching the pinned algorithm's recovery branch.
 
 **Blockers and special considerations:** The seed is the first price, followed by period-1 plus instability warm-up. A generic numeric adapter needs finite-result detection, which is not part of the current indicator template signature. Zero prices, a zero carried line and tiny price/line ratios are real behavior cases, not only invalid-input accidents. This denominator is especially fragile in F32.
 
 **Validation:** A zero seed then nonzero prices; a live zero price; tiny price/line ratios causing an overflowing step; flat input.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/mcgd/mcgd.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/mcgd/mcgd.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_MCGD.c).
 
@@ -556,13 +563,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Acceleration Factor = `0.02` (double, 0..3e+37); AF Maximum = `0.2` (double, 0..3e+37).
 
-**Readiness:** Advanced. **Dependencies:** typed HL input, direction enum, scalar reversal state.
+**Readiness:** Existing. **Dependencies:** typed HL input, direction enum, scalar reversal state.
 
 **Bend implementation:** Model long/short direction, current SAR, extreme point, acceleration factor and recent high/low as an explicit state machine. Apply reversal tests before the next projected stop and clamp the projection against the recent bars as the source does.
 
 **Blockers and special considerations:** Warm-up is one bar. Direction is initialized using one-bar minus-directional movement, with ties choosing long. Equality can trigger a reversal, and acceleration is bounded by its maximum. A generic EMA-like helper cannot capture these transition rules. F32 rounding can alter reversal timing, so reference fixtures must compare the state transitions, not only approximate stop levels.
 
 **Validation:** Equal first-bar directional moves; exact touch of SAR; gaps reversing each direction; acceleration above maximum; flat high/low bars.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/sar/sar.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/sar/sar.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SAR.c).
 
@@ -572,13 +581,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Start Value = `0` (double, -3e+37..3e+37); Offset on Reverse = `0` (double, 0..3e+37); AF Init Long = `0.02` (double, 0..3e+37); AF Long = `0.02` (double, 0..3e+37); AF Max Long = `0.2` (double, 0..3e+37); AF Init Short = `0.02` (double, 0..3e+37); AF Short = `0.02` (double, 0..3e+37); AF Max Short = `0.2` (double, 0..3e+37).
 
-**Readiness:** Advanced. **Dependencies:** SAR state machine, direction-specific parameters, signed result or typed direction output.
+**Readiness:** Existing. **Dependencies:** SAR state machine, direction-specific parameters, signed result or typed direction output.
 
 **Bend implementation:** Generalize the SAR state machine with separate long/short initial, increment and maximum acceleration parameters, an optional explicit starting stop and a reversal offset. Keep internal direction separate from numeric sign and offer a compatibility encoder for the signed scalar result.
 
 **Blockers and special considerations:** The source uses the sign of Start Value to select initial direction, and negative outputs encode short SAR. This can conflict with negative-priced markets, so a typed result is safer internally. Offset on Reverse is a fractional multiplier, not a percent divided by 100. Warm-up remains one bar; preserve asymmetric clamp/reversal order.
 
 **Validation:** Explicit positive/negative start values; asymmetric long/short acceleration; nonzero reversal offset; agreement with basic SAR under equivalent defaults after decoding direction.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/sarext/sarext.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/sarext/sarext.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SAREXT.c).
 
@@ -604,13 +615,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `10` (integer, 2..100000); Multiplier = `3` (double, 0..3e+37).
 
-**Readiness:** Advanced. **Dependencies:** ATR, typed HLC input, band-ratchet state, multi-output records.
+**Readiness:** Existing. **Dependencies:** ATR, typed HLC input, band-ratchet state, multi-output records.
 
 **Bend implementation:** Maintain ATR, independently ratcheted upper/lower bands, previous close and an explicit trend enum. Seed both bands from the first valid midpoint/ATR pair, then apply the source release and crossing tests; emit the chosen band and direction together.
 
 **Blockers and special considerations:** Upstream seeds the first valid trend long and inherits ATR lookback. Equality does not flip direction; it uses strict close comparisons. Do not infer the carried direction by comparing the output line with a band: the bands can coincide or cross. The line is not guaranteed monotone within one trend. F32 comparison differences are categorical compatibility risks.
 
 **Validation:** A constant series; zero multiplier with coincident bands; exact band touches; gaps where bands cross; persistent first seeded trend.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/supertrend/supertrend.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/supertrend/supertrend.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SUPERTREND.c).
 
@@ -620,13 +633,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 2..10000).
 
-**Readiness:** Advanced. **Dependencies:** two-pole filter engine, sin/sqrt numeric operations.
+**Readiness:** Existing. **Dependencies:** two-pole filter engine, sin/sqrt numeric operations.
 
 **Bend implementation:** Use the shared second-order filter state with a Butterworth coefficient factory. Feed its symmetric input combination x[t]+2*x[t-1]+x[t-2] into the recurrence, keeping both previous inputs and outputs in a fixed-size owned record.
 
 **Blockers and special considerations:** Unlike the high-pass family, the source seeds previous outputs with the first price so constant input starts at its level. Preserve the source coefficient and feed-forward ordering if comparing to a reference. Its warm-up is instability-controlled. Large-period F32 coefficient subtraction can degrade DC behavior and settling, even though the state is small.
 
 **Validation:** A constant nonzero series from startup; step and impulse responses; periods at range limits; comparison with Gaussian output to prevent shared-coefficient mixups.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_butter/swak_butter.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_butter/swak_butter.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SWAK_BUTTER.c).
 
@@ -636,13 +651,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 2..10000).
 
-**Readiness:** Advanced. **Dependencies:** two-pole filter engine, sin/sqrt numeric operations.
+**Readiness:** Existing. **Dependencies:** two-pole filter engine, sin/sqrt numeric operations.
 
 **Bend implementation:** Instantiate the shared second-order filter state with the Gaussian factory and a current-input-only feed-forward term. It shares feedback coefficients with the source's Butterworth/two-pole high-pass designs but has a different input term and startup state.
 
 **Blockers and special considerations:** The source seeds both output delays to the first input and uses a squared coefficient as the current-input gain. Do not copy Butterworth's symmetric input taps merely because the feedback coefficients match. Instability warm-up and F32 pole/normalization error need separate validation; future numeric adapters require the relevant transcendental operations.
 
 **Validation:** Constant input; a one-bar impulse; direct comparison of the distinct Gaussian and Butterworth kernels; long-period settling.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_gauss/swak_gauss.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_gauss/swak_gauss.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SWAK_GAUSS.c).
 
@@ -748,13 +765,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Sensitivity = `5` (double, 0..100); Minimum Trend Length = `1` (integer, 1..100000).
 
-**Readiness:** API decision. **Dependencies:** typed HL input, direction/pivot state, integer index output, multi-output records.
+**Readiness:** Existing. **Dependencies:** typed HL input, direction/pivot state, integer index output, multi-output records.
 
 **Bend implementation:** Port the pinned causal state machine: carry trend, current extreme pivot and bars since that pivot; test percentage reversal and minimum trend age, otherwise extend the current extreme. Emit running pivot price, trend and pivot index together as one current-bar result.
 
 **Blockers and special considerations:** Pinned TA-Lib does not retroactively interpolate a completed ZigZag polyline. Reversal is tested before extension on outside bars; equal extrema extend to the newer pivot index. It seeds a down leg at an earlier low, and first output is after minimum-trend-length bars. Preserve absolute index semantics and clarify how a caller resets or slices a stream. A charting adapter may draw tentative legs separately.
 
 **Validation:** An outside bar that both reverses and extends; equal extrema updating only pivot age/index; sensitivity 0/100; minimum-age boundary.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/zigzag/zigzag.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/zigzag/zigzag.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_ZIGZAG.c).
 
@@ -944,13 +963,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `10` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** owned window, weighted sums, accurate accumulation.
+**Readiness:** Existing. **Dependencies:** owned window, weighted sums, accurate accumulation.
 
 **Bend implementation:** Retain a period of prices and compute the negative ratio of an age-weighted sum to the ordinary sum, with the newest sample weighted one. Begin with a bounded window scan; later optimize the two sums only after numerical behavior is specified.
 
 **Blockers and special considerations:** This is Ehlers' negative unshifted form. A zero denominator yields -(period+1)/2, not a carried previous value or zero. Current upstream uses exact finite-window accumulation where possible; ordinary F32 running sums cannot promise that contract. Positive input is the intended domain, with severe sensitivity near a zero sum.
 
 **Validation:** Check constant positive prices, cancellation to an exact zero sum, and weight orientation on a ramp.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cg/cg.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cg/cg.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_CG.c).
 
@@ -1040,13 +1061,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `3` (integer, 2..100000); Streak Period = `2` (integer, 2..100000); Rank Period = `100` (integer, 2..10000).
 
-**Readiness:** Advanced. **Dependencies:** RSI, signed streak state, ROCP, percent rank, aligned composition.
+**Readiness:** Existing. **Dependencies:** RSI, signed streak state, ROCP, percent rank, aligned composition.
 
 **Bend implementation:** Combine RSI of closes, RSI of a signed up/down streak, and the strict percent rank of the current one-bar return among earlier returns. Keep signed streak counts in an integer representation and average the three aligned 0..100 outputs.
 
 **Blockers and special considerations:** An unchanged close resets the streak to zero. Percent rank excludes the current observation and counts strictly smaller prior returns. The two RSI legs inherit RSI's configured unstable discard, with streak RSI starting one bar later. Current flat-RSI behavior is 50, so old oracle versions change flat CRSI too.
 
 **Validation:** Use tied returns, streak reversal/equality and all-flat prices under a recorded TA-Lib version/configuration.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/crsi/crsi.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/crsi/crsi.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_CRSI.c).
 
@@ -1056,13 +1079,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** owned window, stable centered covariance, sqrt, clamp.
+**Readiness:** Existing. **Dependencies:** owned window, stable centered covariance, sqrt, clamp.
 
 **Bend implementation:** Calculate the Pearson correlation of the trailing prices with an increasing time coordinate. Reuse a centered rolling regression/covariance primitive, with the coordinate variance computed from the period instead of storing a second input series.
 
 **Blockers and special considerations:** Minimum period is two; constant prices return zero and results are clamped to [-1,1]. Naive sums of squares lose F32 spread at large price offsets. A centered or rescanned formulation is preferable, but changed rounding needs toleranced reference tests rather than a binary64 parity claim.
 
 **Validation:** Check ascending/descending ramps at +/-1, constant prices at zero, and a large-offset tiny-variation window.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cti/cti.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cti/cti.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_CTI.c).
 
@@ -1088,13 +1113,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 2..100000).
 
-**Readiness:** API decision. **Dependencies:** lag buffer, SMA, display-shift metadata.
+**Readiness:** Existing. **Dependencies:** lag buffer, SMA, display-shift metadata.
 
 **Bend implementation:** Keep the price displaced by floor(period/2)+1 bars and subtract the current period SMA. Emit the computed value on the current observation, alongside optional display-shift metadata for callers wanting the conventional left-shifted chart.
 
 **Blockers and special considerations:** The source delays price, not the moving average. Plotting at a negative display shift is a separate concern; moving an output into a prior bar would violate an append-only next API. The lookback is max(period-1,displacement), which matters for short periods.
 
 **Validation:** Use a nonlinear sequence and short odd/even periods to distinguish delayed-price from delayed-average formulas and plotting alignment.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/dpo/dpo.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/dpo/dpo.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_DPO.c).
 
@@ -1152,13 +1179,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `10` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** high/low midpoint, rolling extrema, log, multi-output records, warm-up configuration.
+**Readiness:** Existing. **Dependencies:** high/low midpoint, rolling extrema, log, multi-output records, warm-up configuration.
 
 **Bend implementation:** Locate the current midpoint inside its trailing midpoint channel, smooth the centered position recursively, apply the source's limiter, and feed a logarithmic Fisher transform into another recurrence. Return Fisher and the previous Fisher as trigger.
 
 **Blockers and special considerations:** A flat channel uses neutral position 0.5. The limiter is a thresholded jump to +/-0.999 when the intermediate exceeds +/-0.99, not a simple clamp to 0.99. Zero seeds precede a configured FISHER unstable discard. F32 logarithms and limiter crossings need explicit tolerance and branch tests.
 
 **Validation:** Use constant midpoints, persistent channel extremes and inputs on each side of the limiter threshold.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/fisher/fisher.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/fisher/fisher.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_FISHER.c).
 
@@ -1184,13 +1213,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Left Bars = `2` (integer, 1..100000); Right Bars = `2` (integer, 1..100000).
 
-**Readiness:** API decision. **Dependencies:** high/low window, integer outputs, delayed confirmation, display-shift metadata.
+**Readiness:** Existing. **Dependencies:** high/low window, integer outputs, delayed confirmation, display-shift metadata.
 
 **Bend implementation:** Buffer leftBars+rightBars+1 bars and, at each new bar, test the candidate rightBars positions behind it against every other high/low in the window. Return separate integer swingHigh and swingLow flags at the confirmation bar.
 
 **Blockers and special considerations:** Both comparisons are strict: any tied high cancels only the high flag, and any tied low cancels only the low flag. The source emits 100/0 and reports a negative display shift for plotting at the pivot. Bend needs an explicit confirmation/pivot-index convention to avoid suggesting the signal was available earlier.
 
 **Validation:** Use plateaus, an outside bar that is both pivots, and a late bar that invalidates an apparent but unconfirmed pivot.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/fractal/fractal.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/fractal/fractal.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_FRACTAL.c).
 
@@ -1266,13 +1297,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** ROC-1 Period = `10` (integer, 1..100000); ROC-2 Period = `15` (integer, 1..100000); ROC-3 Period = `20` (integer, 1..100000); ROC-4 Period = `30` (integer, 1..100000); MA-1 Period = `10` (integer, 1..100000); MA-2 Period = `10` (integer, 1..100000); MA-3 Period = `10` (integer, 1..100000); MA-4 Period = `15` (integer, 1..100000); Signal Period = `9` (integer, 1..100000); ROC MA = `0` (MA selector; see common enum notes); Signal MA = `0` (MA selector; see common enum notes).
 
-**Readiness:** Advanced. **Dependencies:** ROC, moving-average dispatch, multi-output records, aligned composition.
+**Readiness:** Existing. **Dependencies:** ROC, moving-average dispatch, multi-output records, aligned composition.
 
 **Bend implementation:** Generalize KST by selecting one MA type for all four ROC smoothing legs and another for the signal. Compute actual lookback for each period/type pair and align their weighted sum before starting the selected signal state.
 
 **Blockers and special considerations:** Full MA support is a dependency; accepting unsupported enum values would misstate compatibility. SMA/SMA should reduce to KST. Signal period one bypasses smoothing for every signal MA type; MAMA's period-insensitive behavior and each selected type's unstable discard complicate warm-up.
 
 **Validation:** Compare SMA/SMA to KST, mix MA types with different lookbacks, and check signal period one for a non-SMA selection.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/kstext/kstext.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/kstext/kstext.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_KSTEXT.c).
 
@@ -1298,13 +1331,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Fast Period = `12` (integer, 2..100000); Fast MA = `0` (MA selector; see common enum notes); Slow Period = `26` (integer, 2..100000); Slow MA = `0` (MA selector; see common enum notes); Signal Period = `9` (integer, 1..100000); Signal MA = `0` (MA selector; see common enum notes).
 
-**Readiness:** Advanced. **Dependencies:** moving-average dispatch, multi-output records, aligned composition.
+**Readiness:** Existing. **Dependencies:** moving-average dispatch, multi-output records, aligned composition.
 
 **Bend implementation:** Use a three-stage configurable MA composition: independent fast and slow type/period pairs feed their difference into a third selected MA. Encapsulate this dispatch and coordination once rather than writing a special algorithm per type combination.
 
 **Blockers and special considerations:** When periods are swapped, their MA types must travel with them. The larger actual MA lookback, not simply the larger period, drives the input alignment. Two MAMA legs are identical even at different periods. Signal period one bypasses any selected signal type. Current defaults are all SMA.
 
 **Validation:** Test mixed MA types whose lookback order differs from period order; compare SMA/SMA/SMA composition and signal-period-one behavior.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/macdext/macdext.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/macdext/macdext.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_MACDEXT.c).
 
@@ -1578,13 +1613,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `13` (integer, 2..100000); Fast Period = `2` (integer, 2..100000); Slow Period = `25` (integer, 2..100000); Signal Period = `9` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** rolling high/low extrema, EMA chains, multi-output records.
+**Readiness:** Existing. **Dependencies:** rolling high/low extrema, EMA chains, multi-output records.
 
 **Bend implementation:** Subtract the rolling high/low midpoint from close and separately retain the range width. Double-smooth numerator and denominator through slow-then-fast EMA stages, divide to obtain SMI, then feed SMI to a signal EMA and return both lines.
 
 **Blockers and special considerations:** The range is divided by two in the final normalization. All EMA stages are mean-seeded and their configured lookbacks accumulate; both outputs are withheld until the signal exists. Zero smoothed range gives zero. Reordering the first two smoothing stages changes transient results even with the same total lookback.
 
 **Validation:** Check a flat channel, extreme channel positions and asymmetric fast/slow periods against the explicit staged composition.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/smi/smi.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/smi/smi.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SMI.c).
 
@@ -1594,13 +1631,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** BB Period = `20` (integer, 2..100000); Deviations = `2` (double, 0..3e+37); KC Period = `20` (integer, 2..100000); Wide Factor = `2` (double, 0..3e+37); Normal Factor = `1.5` (double, 0..3e+37); Narrow Factor = `1` (double, 0..3e+37).
 
-**Readiness:** Advanced. **Dependencies:** stable variance, SMA, true range, rolling extrema, rolling regression, mixed output record.
+**Readiness:** Existing. **Dependencies:** stable variance, SMA, true range, rolling extrema, rolling regression, mixed output record.
 
 **Bend implementation:** Combine Bollinger bounds, Keltner-style SMA center/true-range width and a linear regression of close relative to a Donchian/SMA anchor. Return the regression momentum together with a signed integer compression level derived from narrow/normal/wide channel containment.
 
 **Blockers and special considerations:** Width uses an SMA of TRANGE, not Wilder ATR. Validate wide>=normal>=narrow>=0 and use strict containment. Integer squeeze levels are 3/2/1, -1 for release and 0 otherwise. The two outputs begin at their common latest readiness; F32 errors near band crossings can change classification, not just numeric tolerance.
 
 **Validation:** Test each compression level and exact boundary, equal factors, invalid ordering and mismatched BB/KC periods.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/sqzmom/sqzmom.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/sqzmom/sqzmom.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SQZMOM.c).
 
@@ -1610,13 +1649,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Fast Period = `23` (integer, 2..100000); Slow Period = `50` (integer, 2..100000); Cycle Period = `10` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** MACD-compatible line, rolling extrema, recursive normalization, warm-up configuration.
+**Readiness:** Existing. **Dependencies:** MACD-compatible line, rolling extrema, recursive normalization, warm-up configuration.
 
 **Bend implementation:** Build the MACD line, normalize it in a cycle window, smooth with fixed weight 0.5, and repeat that normalized/smoothed stage. Store prior fractions explicitly so a zero normalization range can retain the previous fraction rather than divide.
 
 **Blockers and special considerations:** Each fraction starts from zero until defined, while each smoother begins from its first input. Inverted fast/slow periods are swapped. The full lookback includes EMA warm-up, two cycle windows and STC's own configured unstable discard. These recurrences make start-history and flat-after-move behavior part of compatibility.
 
 **Validation:** Check a flat start, a trend followed by a zero-range plateau, swapped periods and explicit warm-up settings.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/stc/stc.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/stc/stc.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_STC.c).
 
@@ -1770,13 +1811,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Channel Period = `10` (integer, 2..100000); Average Period = `21` (integer, 1..100000); Signal Period = `4` (integer, 1..100000).
 
-**Readiness:** Advanced. **Dependencies:** typical-price transform, EMA chains, SMA, multi-output records, repetition detection.
+**Readiness:** Existing. **Dependencies:** typical-price transform, EMA chains, SMA, multi-output records, repetition detection.
 
 **Bend implementation:** EMA-smooth typical price, EMA-smooth its absolute deviation from that average, normalize the signed deviation by 0.015 times the deviation average, then EMA-smooth into WT1 and SMA-smooth WT1 into WT2. Bundle all stage state and previous-repeat checks.
 
 **Blockers and special considerations:** This is not CCI followed by an average: its center and deviation are exponential. The source zeroes a frozen repeated price/EMA gap to prevent roundoff from driving a flat market toward +/-66.67. Three EMA warm-ups accumulate, and both lines publish only when WT2 is ready. F32 makes frozen-gap tests particularly important.
 
 **Validation:** Test long constant tails after movement, a zero-deviation seed and the exact staged composition with source repetition handling.
+
+**Bend interface:** Implemented under [the F32 contract](advanced-trend.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/wavetrend/wavetrend.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/wavetrend/wavetrend.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_WAVETREND.c).
 
@@ -1820,13 +1863,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Fast Period = `3` (integer, 2..100000); Slow Period = `10` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** money-flow multiplier, cumulative AD, EMA primitives, stabilization settings.
+**Readiness:** Existing. **Dependencies:** money-flow multiplier, cumulative AD, EMA primitives, stabilization settings.
 
 **Bend implementation:** Feed the cumulative AD value into fast and slow exponential states and emit their difference. Implement the pinned ADOSC seed path directly, rather than assuming the ordinary public EMA init/next composition reproduces it.
 
 **Blockers and special considerations:** Source initializes both EMA values from the initial AD anchor and has a composite auto-stabilization adjustment. Fast/slow orientation and nearly cancelling large volume averages require reference vectors; current bend-ta EMA alone does not establish parity.
 
 **Validation:** Unequal and reversed periods, a flow-sign reversal, flat ranges and zero/explicit/auto unstable settings.
+
+**Bend interface:** Implemented under [the F32 contract](volume-volatility.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/adosc/adosc.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/adosc/adosc.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_ADOSC.c).
 
@@ -1884,13 +1929,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Fast Period = `34` (integer, 2..100000); Slow Period = `55` (integer, 2..100000); Signal Period = `13` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** typed HLCV inputs, trend state, EMA primitives, multi-output records.
+**Readiness:** Existing. **Dependencies:** typed HLCV inputs, trend state, EMA primitives, multi-output records.
 
 **Bend implementation:** Track direction of H+L+C, directional cumulative range and volume force; form fast-minus-slow EMA force and a signal EMA. Keep named oscillator and signal outputs in one state.
 
 **Blockers and special considerations:** Hold the previous trend when H+L+C ties. The pinned 1997 force is volume*abs(2*dm/cm-1)*100*trend, not abs(2*(dm/cm-1)). Zero cumulative range gives zero force; fast and slow EMAs seed from the first force, while the oscillator and signal seed at zero, with composite warm-up.
 
 **Validation:** Equal H+L+C, trend reversal resetting cumulative range, zero range, and both output fields under explicit stabilization.
+
+**Bend interface:** Implemented under [the F32 contract](volume-volatility.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/kvo/kvo.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/kvo/kvo.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_KVO.c).
 
@@ -1998,13 +2045,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 1..100000).
 
-**Readiness:** API decision. **Dependencies:** previous-window rolling mean, typed volume input, numeric domain policy.
+**Readiness:** Existing. **Dependencies:** previous-window rolling mean, typed volume input, numeric domain policy.
 
 **Bend implementation:** Compute current volume divided by the mean of the previous period volumes, then insert current volume into the window. This order excludes the current bar from its baseline.
 
 **Blockers and special considerations:** Lookback is period, requiring period+1 observations. The pinned raw division deliberately emits Inf for positive current volume over zero baseline, and NaN for 0/0; do not replace these with zero or warm-up None.
 
 **Validation:** Prior volumes [1,1] then 10 yields 10 for period2; test all-zero baseline and a nonzero bar following it.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rvol/rvol.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rvol/rvol.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_RVOL.c).
 
@@ -2014,13 +2063,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** none.
 
-**Readiness:** API decision. **Dependencies:** typed HLCV inputs, cumulative weighted sums, finite-value classification.
+**Readiness:** Existing. **Dependencies:** typed HLCV inputs, cumulative weighted sums, finite-value classification.
 
 **Bend implementation:** Keep cumulative sum(typicalPrice*volume) and sum(volume), returning their ratio once cumulative volume is positive. Explicit state initialization/reset supplies the anchor; no automatic session/calendar behavior is implied.
 
 **Blockers and special considerations:** Pinned batch code skips nonfinite typical-price or volume bars and repeats the prior result, initially zero; stream entry points reject nonfinite bars. Finite products can still overflow. Choose and document one Bend invalid-input contract or separate batch-compatibility behavior.
 
 **Validation:** Leading zero volume, a later zero-volume bar, a nonfinite bar followed by recovery, anchor reset and large finite products.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/vwap/vwap.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/vwap/vwap.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_VWAP.c).
 
@@ -2144,13 +2195,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `10` (integer, 1..100000); Annualization = `252` (double, 0..3e+37).
 
-**Readiness:** Advanced. **Dependencies:** typed OHLC inputs, log and sqrt, stable rolling sum.
+**Readiness:** Existing. **Dependencies:** typed OHLC inputs, log and sqrt, stable rolling sum.
 
 **Bend implementation:** Per bar compute log(H/O)*log(H/C)+log(L/O)*log(L/C); maintain a rolling term sum and emit sqrt(annualization)*sqrt(sum/period) when the sum is positive.
 
 **Blockers and special considerations:** A bar with any nonpositive price contributes zero but still counts in the window. Clamp a nonpositive window sum to zero. Pinned code periodically rebuilds and reanchors after collapse; F32 log ratios near one lose precision.
 
 **Validation:** Flat bars, a nonpositive-price bar, outlier expiration, annualization=1 and scaled annualization.
+
+**Bend interface:** Implemented under [the F32 contract](volume-volatility.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rogerssatchell/rogerssatchell.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rogerssatchell/rogerssatchell.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_ROGERSSATCHELL.c).
 
@@ -2160,13 +2213,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `14` (integer, 1..100000); StdDev Period = `10` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** stable standard deviation, Wilder smoothing, previous price.
+**Readiness:** Existing. **Dependencies:** stable standard deviation, Wilder smoothing, previous price.
 
 **Bend implementation:** Compute rolling population standard deviation; route it to up/down buckets by comparison with previous price, Wilder-smooth each bucket, and return 100*up/(up+down).
 
 **Blockers and special considerations:** This is Donald Dorsey Relative Volatility Index, not Relative Vigor Index. Ties feed neither bucket; a zero total yields 50. Standard-deviation and smoothing periods are independent and warm-ups compose.
 
 **Validation:** All-flat input gives 50; compare repeated-price ties, strictly rising/falling paths and different deviation/smoothing periods.
+
+**Bend interface:** Implemented under [the F32 contract](volume-volatility.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rvi/rvi.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rvi/rvi.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_RVI.c).
 
@@ -2176,13 +2231,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `14` (integer, 1..100000); StdDev Period = `10` (integer, 2..100000).
 
-**Readiness:** Advanced. **Dependencies:** RVI, typed high-low inputs, paired state.
+**Readiness:** Existing. **Dependencies:** RVI, typed high-low inputs, paired state.
 
 **Bend implementation:** Maintain an RVI on highs and another on lows with the same configuration; output their arithmetic mean when both are ready.
 
 **Blockers and special considerations:** This is the 1995 revised Relative Volatility Index. It is not an RVI of the midpoint, and both components must share aligned readiness and settings.
 
 **Validation:** A bar sequence with diverging high/low movements; compare against separately computed RVI legs and flat input.
+
+**Bend interface:** Implemented under [the F32 contract](volume-volatility.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rvir/rvir.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/rvir/rvir.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_RVIR.c).
 
@@ -2210,13 +2267,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `5` (integer, 1..100000).
 
-**Readiness:** Advanced. **Dependencies:** paired price inputs, return transform, stable covariance.
+**Readiness:** Existing. **Dependencies:** paired price inputs, return transform, stable covariance.
 
 **Bend implementation:** Convert both price series to fractional returns, maintain centered return moments, and emit covariance(return0,return1)/variance(return0). Keep the input ordering explicit in the facade.
 
 **Blockers and special considerations:** The first input is the denominator/independent series; reversing inputs changes beta. period returns require period+1 prices. A zero prior price produces a zero return; pinned degeneracy checks are relative to moment scale.
 
 **Validation:** Return1=2*return0 yields beta2; reverse inputs, zero prior price, constant returns and tiny return scales.
+
+**Bend interface:** Implemented under [the F32 contract](overlap-statistics.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/beta/beta.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/beta/beta.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_BETA.c).
 
@@ -2226,13 +2285,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `30` (integer, 1..100000).
 
-**Readiness:** Advanced. **Dependencies:** paired inputs, stable covariance, centered rolling moments.
+**Readiness:** Existing. **Dependencies:** paired inputs, stable covariance, centered rolling moments.
 
 **Bend implementation:** Maintain paired centered sums and cross-products over the same window, periodically rebuilding; normalize covariance by the product of standard deviations.
 
 **Blockers and special considerations:** The source outputs zero for degenerate windows and clamps finite correlations to [-1,1]. It uses scale-relative variance checks and guards the variance product against underflow. F32 requires scaled formulas/threshold validation, not copied double epsilons.
 
 **Validation:** Perfect positive/negative correlation, either series constant, tiny-unit rescaling and large outlier expiration.
+
+**Bend interface:** Implemented under [the F32 contract](overlap-statistics.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/correl/correl.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/correl/correl.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_CORREL.c).
 
@@ -2242,13 +2303,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `30` (integer, 4..10000).
 
-**Readiness:** Advanced. **Dependencies:** centered rolling moments through fourth order, owned ring, undefined numeric result.
+**Readiness:** Existing. **Dependencies:** centered rolling moments through fourth order, owned ring, undefined numeric result.
 
 **Bend implementation:** Maintain centered first-through-fourth moments with rebuilds after collapse/outlier departure, then apply the sample-adjusted Fisher excess-kurtosis estimator G2. Keep the finite-sample factors in configuration.
 
 **Blockers and special considerations:** Minimum period is4. This is not biased population excess kurtosis; constant windows return NaN rather than zero. Fourth powers overflow F32 quickly, so use scaled/recentered calculations and an explicit undefined-output contract.
 
 **Validation:** Reject period3, compare G2 on a known window, constant data returns undefined/NaN, and test translation/scaling plus outlier expiration.
+
+**Bend interface:** Implemented under [the F32 contract](overlap-statistics.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/kurtosis/kurtosis.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/kurtosis/kurtosis.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_KURTOSIS.c).
 
@@ -2402,13 +2465,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `5` (integer, 1..100000); Deviations = `1` (double, -3e+37..3e+37).
 
-**Readiness:** Advanced. **Dependencies:** stable rolling moments, owned ring, rebuild policy.
+**Readiness:** Existing. **Dependencies:** stable rolling moments, owned ring, rebuild policy.
 
 **Bend implementation:** Build a centered rolling population-variance engine using a nearby shift, first/second centered sums and periodic/collapse-triggered rebuilds. The pinned source already uses these defenses; avoid naive E[x²]-E[x]² in F32.
 
 **Blockers and special considerations:** Divide by period, not period-1; the exposed Deviations parameter is accepted but ignored. F32 rebase thresholds need their own error analysis, so matching the formula is not numerical or bitwise parity.
 
 **Validation:** Large baseline with tiny spread, exact constant/period1 windows, an outlier leaving, and differing Deviations with identical results.
+
+**Bend interface:** Implemented under [the F32 contract](overlap-statistics.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/var/var.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/var/var.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_VAR.c).
 
@@ -2526,13 +2591,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** shared Hilbert engine, four-bar WMA, atan numeric operation.
+**Readiness:** Existing. **Dependencies:** shared Hilbert engine, four-bar WMA, atan numeric operation.
 
 **Bend implementation:** Build a reusable Hilbert state with separate odd/even delay taps, detrender, in-phase/quadrature estimates and smoothed real/imaginary products. Convert the phase change into a cycle-period estimate, apply the source change-rate and 6..50 clamps, then emit the smoothed period.
 
 **Blockers and special considerations:** The fixed lookback component is 32, plus source instability settings; do not assume the historical fixed number is the full default warm-up. This is a specific Ehlers estimator, not a generic FFT. Preserve tap ordering, degree/radian conversions and zero-product guards. F32 and transcendental rounding can affect the clamped period.
 
 **Validation:** Sine waves near periods 6 and 50; a constant series; even/odd starting indices; first valid output with instability options.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_dcperiod/ht_dcperiod.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_dcperiod/ht_dcperiod.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_HT_DCPERIOD.c).
 
@@ -2542,13 +2609,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** shared Hilbert engine, 50-value smoothed-price ring, sin/cos/atan numeric operations.
+**Readiness:** Existing. **Dependencies:** shared Hilbert engine, 50-value smoothed-price ring, sin/cos/atan numeric operations.
 
 **Bend implementation:** Extend the shared Hilbert period state with a short smoothed-price ring. Project the most recent rounded dominant-cycle window onto sine and cosine components, then apply the source phase corrections and wrap convention to produce a phase in degrees.
 
 **Blockers and special considerations:** Its fixed lookback is 63 plus instability suppression. Replacing the source atan-ratio and explicit quadrant adjustments with an unexamined atan2 changes edge behavior. Preserve rounded cycle-length selection, zero-imaginary handling and the wrap above 315 degrees. F32 near a rounding threshold changes which historical bars enter the projection.
 
 **Validation:** A phase-shifted sine wave through wrap boundaries; a constant input; cycles whose inferred length lies near an integer rounding boundary.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_dcphase/ht_dcphase.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_dcphase/ht_dcphase.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_HT_DCPHASE.c).
 
@@ -2558,13 +2627,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** shared Hilbert engine, multi-output records.
+**Readiness:** Existing. **Dependencies:** shared Hilbert engine, multi-output records.
 
 **Bend implementation:** Expose the shared Hilbert estimator's delayed in-phase component and current quadrature component as one record. Keep the full period-estimation state, because its adaptive period factor feeds back into the Hilbert taps even when only the phasor outputs are requested.
 
 **Blockers and special considerations:** The fixed lookback component is 32 plus configured/automatic instability. Output is not the later smoothed I2/Q2 pair: the source emits its delayed I1 and Q1 values. Generalize the batch helper for a record output and test ordering explicitly. Different tap startup or parity changes the signal even if the names look correct.
 
 **Validation:** Known sine-wave phase relation; constant input; odd/even startup paths; swap-detection checks on the two output fields.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_phasor/ht_phasor.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_phasor/ht_phasor.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_HT_PHASOR.c).
 
@@ -2574,13 +2645,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** Hilbert phase projection, sin numeric operation, multi-output records.
+**Readiness:** Existing. **Dependencies:** Hilbert phase projection, sin numeric operation, multi-output records.
 
 **Bend implementation:** Reuse the dominant-cycle phase projection, then emit sin(phase) and sin(phase+45 degrees) together. Both outputs should be computed from the same phase state so warm-up and phase corrections remain identical.
 
 **Blockers and special considerations:** The second output is a fixed 45-degree phase lead, not a future price observation. Source warm-up is 63 plus instability settings. Keep degree/radian conversion explicit and preserve the phase estimator's wrap and zero guards. F32 phase error can move crossover bars, so compare events as well as numeric amplitudes.
 
 **Validation:** Phase-wrap and lead-sine crossovers on a synthetic cycle; flat input; matching first valid indices for both fields.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_sine/ht_sine.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_sine/ht_sine.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_HT_SINE.c).
 
@@ -2590,13 +2663,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** Hilbert phase and trendline engines, integer/enum output, mode-switch state.
+**Readiness:** Existing. **Dependencies:** Hilbert phase and trendline engines, integer/enum output, mode-switch state.
 
 **Bend implementation:** Combine phase/sine-crossing state, elapsed trend days, the smoothed dominant period and the adaptive trendline. Reproduce the ordered source rules to emit the cycle/trend classification, represented as a typed enum or an integer compatibility result.
 
 **Blockers and special considerations:** This is not simply a price-above-trendline Boolean. A sine crossing, phase-rate band and minimum trend age can force cycle mode, while a 1.5% displacement rule can override them. Fixed lookback is 63 plus instability suppression. F32 comparisons can change categorical outputs; scalar floating tolerances alone are insufficient validation.
 
 **Validation:** Pure cycles, strong trends and flat prices; equality at crossing thresholds; precedence where the displacement override and a cycle condition both apply.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_trendmode/ht_trendmode.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/ht_trendmode/ht_trendmode.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_HT_TRENDMODE.c).
 
@@ -2606,13 +2681,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 2..10000).
 
-**Readiness:** Advanced. **Dependencies:** two-pole filter engine, sin/sqrt numeric operations, coefficient validation.
+**Readiness:** Existing. **Dependencies:** two-pole filter engine, sin/sqrt numeric operations, coefficient validation.
 
 **Bend implementation:** Precompute the Ehlers two-pole coefficients and keep two previous inputs plus two previous outputs. Advance a second-order high-pass recurrence driven by x[t]-2*x[t-1]+x[t-2]. Reuse a typed filter state with distinct coefficient factories for the SWAK family.
 
 **Blockers and special considerations:** The source seeds previous inputs from the first price and outputs at zero, then suppresses an automatic/configured instability count. F32 cancellation in the second difference and coefficient computation is significant for slowly changing prices or long periods. Use the source's stable coefficient expressions and avoid claiming its double/FMA settling behavior for F32.
 
 **Validation:** Constant input yielding zero response; impulse and step responses; large periods; native/JS comparison through the warm-up boundary.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_2php/swak_2php.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_2php/swak_2php.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SWAK_2PHP.c).
 
@@ -2622,13 +2699,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 5..2000); Delta = `0.1` (double, 0.05..0.5).
 
-**Readiness:** Advanced. **Dependencies:** two-pole filter engine, sin/cos numeric operations, bandwidth coefficient configuration.
+**Readiness:** Existing. **Dependencies:** two-pole filter engine, sin/cos numeric operations, bandwidth coefficient configuration.
 
 **Bend implementation:** Compute period- and delta-dependent band-pass coefficients once, then update a two-output-delay recurrence driven by x[t]-x[t-2]. A common filter core can share state mechanics with the other SWAK variants while keeping each coefficient factory distinct.
 
 **Blockers and special considerations:** Delta controls bandwidth, and the source limits its range and the period separately from other SWAK filters. Its lookback varies with settling characteristics, not a simple period window. The expression (1-sin(t))/cos(t) avoids a less stable equivalent coefficient form. F32 poles close to one need long-run stability tests and a precision-specific warm-up policy.
 
 **Validation:** On-band and off-band sine waves; minimum/maximum delta; constant input; long-period narrow-band impulse decay.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_bp/swak_bp.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_bp/swak_bp.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SWAK_BP.c).
 
@@ -2638,13 +2717,15 @@ Readiness totals: **192 Existing**, **8 API decision**, **37 Advanced**.
 
 **Parameters:** Time Period = `20` (integer, 5..100000).
 
-**Readiness:** Advanced. **Dependencies:** one-pole filter engine, sin/cos numeric operations.
+**Readiness:** Existing. **Dependencies:** one-pole filter engine, sin/cos numeric operations.
 
 **Bend implementation:** Compute the high-pass coefficient at initialization and retain the previous input and output. Each step combines the latest first difference with the decayed previous output, giving constant-size streaming state.
 
 **Blockers and special considerations:** The source seeds its previous input from the first price and output at zero, with a period-derived automatic/configured instability count. Its stable trigonometric coefficient form should be retained instead of an algebraically convenient cancellation-prone version. Large periods and small changes around large F32 baselines can collapse the driving difference to zero.
 
 **Validation:** Constant prices; step response and decay; smallest allowed period; tiny changes around a large baseline.
+
+**Bend interface:** Implemented under [the F32 contract](cycles-filters.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_hp/swak_hp.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/swak_hp/swak_hp.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_SWAK_HP.c).
 
@@ -3108,13 +3189,15 @@ Source for shared settings and geometric helpers: [utility macros](https://githu
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** typed OHLC bars, generic input/output batch traversal, signed pattern result, candle geometry helpers, pending-pattern confirmation state.
+**Readiness:** Existing. **Dependencies:** typed OHLC bars, generic input/output batch traversal, signed pattern result, candle geometry helpers, pending-pattern confirmation state.
 
 **Bend implementation:** Implement a state machine: detect an inside bar followed by a directional high/low breakout, emit the opposite-breakout candidate direction at100, and retain its inside-bar bounds. A qualifying close during the next three bars emits the same direction at200.
 
 **Blockers and special considerations:** New candidates take precedence and replace the pending pattern; confirmation is emitted on the confirming bar, not backfilled. Expiry and initial warm-up history matter, so three-bar geometry alone is insufficient. No candle-settings averages are used. Upstream lookback is `5` preceding bars; setting names here mean their averaging periods.
 
 **Validation:** Test candidates in both directions, confirmation on the third allowed bar versus the next bar, and a new candidate replacing a pending one.
+
+**Bend interface:** Implemented under [the F32 contract](candles.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cdlhikkake/cdlhikkake.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cdlhikkake/cdlhikkake.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_CDLHIKKAKE.c).
 
@@ -3124,13 +3207,15 @@ Source for shared settings and geometric helpers: [utility macros](https://githu
 
 **Parameters:** none.
 
-**Readiness:** Advanced. **Dependencies:** typed OHLC bars, generic input/output batch traversal, signed pattern result, candle geometry helpers, immutable candle settings, lag-aligned range averages: Near, pending-pattern confirmation state.
+**Readiness:** Existing. **Dependencies:** typed OHLC bars, generic input/output batch traversal, signed pattern result, candle geometry helpers, immutable candle settings, lag-aligned range averages: Near, pending-pattern confirmation state.
 
 **Bend implementation:** Extend the HIKKAKE state machine with two nested inside bars and a Near-positioned close in the earlier inside bar. Retain the inner bar bounds for a breakout candidate and subsequent three-bar confirmation. Emit candidate100 and confirmation200 with direction.
 
 **Blockers and special considerations:** Four-bar setup geometry and lag2 Near averaging differ from ordinary HIKKAKE. Preserve candidate replacement priority, expiry, and source initialization. Configuration must freeze the Near setting per state rather than reading mutable global settings during a stream. Upstream lookback is `max(1,Near) + 5` preceding bars; setting names here mean their averaging periods.
 
 **Validation:** Test an otherwise valid HIKKAKE without the extra nesting/Near condition, both modified directions, and confirmation exactly at the expiry boundary.
+
+**Bend interface:** Implemented under [the F32 contract](candles.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cdlhikkakemod/cdlhikkakemod.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/cdlhikkakemod/cdlhikkakemod.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_CDLHIKKAKEMOD.c).
 
@@ -3674,13 +3759,15 @@ Source for shared settings and geometric helpers: [utility macros](https://githu
 
 **Parameters:** none.
 
-**Readiness:** API decision. **Dependencies:** paired inputs, numeric domain policy.
+**Readiness:** Existing. **Dependencies:** paired inputs, numeric domain policy.
 
 **Bend implementation:** Map aligned pairs using ~div. The upstream source performs raw IEEE division with no denominator guard; keep this behavior in a compatibility interface.
 
 **Blockers and special considerations:** Zero division is observably Inf or NaN, not zero. A checked Bend API may return an explicit domain result, but this must be separate from None used for warm-up.
 
 **Validation:** Nonzero division, positive/negative zero denominators, 0/0, and mismatched input lengths.
+
+**Bend interface:** Implemented under [the F32 contract](causal-indicators.md); see its seed, alignment, parameter, cost and numerical limits. The assessment discussion above retains its original planning context.
 
 **Sources:** [specification](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/div/div.md), [algorithm](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input/div/div.c), [public implementation](https://github.com/TA-Lib/ta-lib/blob/ccd3172940ed1d9daa4e7197f2265810852e8910/src/ta_func/ta_DIV.c).
 

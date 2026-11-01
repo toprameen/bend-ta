@@ -2,7 +2,8 @@
 
 The foundation uses generic Bend templates with F32 bindings in
 [`src/f32.bend`](../src/f32.bend). It supplies working building blocks for new
-indicators; the full TA-Lib catalog and numerical parity remain separate work.
+indicators. Catalog coverage and numerical compatibility are described in the
+[function catalog](ta-lib-indicator-catalog.md).
 
 ## Traversal and ownership
 
@@ -120,8 +121,8 @@ ShadowVeryShort, Near, Far and Equal. The defaults follow the
 Settings are per state, with no mutable global table. A pattern inspecting an
 older candle must retain that candle's aligned threshold, for example using a
 generic window; it must not substitute today's threshold. These primitives now
-support the [59 implemented recognizers](candles.md). The two Hikkake patterns
-remain separate catalog work.
+support the [candlestick recognizers](candles.md). Hikkake adds a specialized
+confirmation state while reusing the aligned Near threshold.
 
 ## Extension discipline
 
@@ -130,9 +131,10 @@ Use leading `~` arguments only for numeric types/operations and reducers;
 periods, settings and data remain runtime arguments. The two-field numeric
 adapter fixture exercises new window/moments code without claiming F64 support.
 
-Add specialized structures when an indicator needs them: monotonic extrema
-queues, order statistics, covariance/regression, Hilbert/adaptive filters and MA
-dispatch are deferred. Reference compatibility needs pinned seeds, unstable
+Specialized modules add order statistics, covariance/regression, Hilbert and
+adaptive filters, dynamic MA banks and confirmation states. Monotonic extrema
+queues remain an optional performance improvement; current scans have explicit
+costs in the family guides. Reference compatibility needs pinned seeds, unstable
 settings, arithmetic policy, boundaries and meaningful numerical fixtures.
 Use compact tests through these interfaces; temporary numerical matrices and
 mutations need not become permanent suites.

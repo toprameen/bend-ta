@@ -248,7 +248,7 @@ def next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: 
     case Cascade{kind, factor, stages}: cascade.output(~N, ~from, ~add, ~sub, ~mul, kind, factor, cascade.step(~N, ~from, ~add, ~sub, ~mul, ~div, 6n, stages, Some{price}))
 
 def buffer_depth(+period: U32) -> Nat:
-  Config.depth.go(30n, period, 1, 0n, U32.is_le(period, 1))
+  Config.depth(period)
 
 def root.go(fuel: Nat, +low: U32, +high: U32, +period: U32) -> U32:
   match fuel:
@@ -328,3 +328,19 @@ def init.checked(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N
 
 def init(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, +kind: U32) -> Result<&2, &1, Parameters.Error, State<N>>:
   init.checked(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, kind, Bool.and(Bool.and(U32.is_gt(period, 0), U32.is_le(period, 100000)), Bool.or(supported(kind), Bool.and(U32.is_eq(period, 1), U32.is_le(kind, 15)))))
+def lookback.selected(+period: U32, kind: Nat) -> U32:
+  match kind:
+    case 3n: U32.mul(2, U32.sub(period, 1))
+    case 4n: U32.mul(3, U32.sub(period, 1))
+    case 6n: period
+    case 7n: 32
+    case 8n: U32.mul(6, U32.sub(period, 1))
+    case 9n: U32.sub(U32.add(period, root.go(32n, 1, period, period)), 2)
+    case 10n: 0
+    case 11n: 0
+    case 12n: U32.add(U32.sub(period, 1), U32.div(U32.sub(period, 1), 2))
+    case 14n: U32.div(U32.add(U32.mul(3, period), 2), 4)
+    case _: U32.sub(period, 1)
+
+def lookback(+period: U32, kind: U32) -> U32:
+  Bool.pick(U32, U32.is_le(period, 1), 0, lookback.selected(period, U32.to_nat(kind)))

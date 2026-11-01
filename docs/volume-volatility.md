@@ -24,6 +24,11 @@ recovery remain explicit caller responsibilities.
 | CVI | HL | Range EMA followed by lagged percent change | period-1+lag |
 | MASSI | HL | Two range EMAs followed by rolling ratio sum | 2×(fast-1)+slow-1 |
 | PVO | Volume scalar | Shared percentage-price-oscillator transition on volume | selected MA lookback |
+| ADOSC | HLCV | Both A/D EMAs seeded from first cumulative A/D value | max(fast,slow)−1 |
+| KVO | HLCV | Reference bar, then raw volume-force seeds and zero signal | max(fast,slow,signal) |
+| ROGERSSATCHELL | OHLC | Full window of per-bar log variance terms | period−1 |
+| RVI | Scalar | Full deviation window, then mean-seeded Wilder up/down legs | deviation_period+period−2 |
+| RVIR | HL | Mean of independently initialized high and low RVIs | deviation_period+period−2 |
 
 Each name has `State()`, `init`, `next` and `batch`. Unparameterized AD, OBV,
 NVI, PVI, PVT and TRANGE initialize directly and their batches return an aligned
@@ -76,3 +81,50 @@ examples, a pinned C example for CVI/MASSI, continuation and configuration
 checks, and an NVI overflow-retention case. Broader pinned-C comparisons and
 temporary numerical harnesses live outside the repository. Algorithms follow
 the catalog's pinned revision; retain [the upstream notice](../THIRD_PARTY_NOTICES.md).
+
+## Volume filters and relative volatility
+
+`ADOSC.init(fast,slow)` and `KVO.init(fast,slow,signal)` require every period
+in 2..100000. ADOSC preserves argument order: swapping fast and slow reverses
+the result. It accumulates the same money-flow volume as AD, seeds both
+averages from the first A/D value, then emits their difference after the
+longest EMA lookback. It does not use the ordinary EMA's mean seed.
+
+KVO returns a `KVO.Value()` record, `VolumeFilter.Lines{kvo,signal}` from
+`src/core/volume_filter.bend`, with both lines ready together. The first bar
+anchors prices and range. The next bar seeds both force EMAs from its force,
+so the oscillator and signal begin at zero inside warm-up. Trend follows the
+change in high+low+close, retaining its direction on a tie. To preserve small
+representable moves on large price baselines, the change is calculated by
+summing each field's difference from the preceding bar. Cumulative range
+starts with both anchor ranges, resets to previous+current range on a trend
+change, and otherwise accumulates the current range. Volume force is
+`volume*abs(2*range/cumulative_range−1)*100*trend`, or zero when cumulative
+range is exactly zero. All filter updates use difference-first EMA arithmetic.
+No automatic unstable-period discard is applied.
+
+`ROGERSSATCHELL.init(period,annualization)` requires period 1..100000 and finite
+annualization in 0..3e37. It consumes OHLC bars and returns volatility in log
+return units. Each positive-price bar contributes
+`log(high/close)*log(high/open)+log(low/close)*log(low/open)`; any nonpositive
+price contributes zero while still occupying one window slot. The result is
+`sqrt(annualization)*sqrt(mean_term)`, with zero for a nonpositive mean term.
+The scale is applied after the root. A fresh centered window mean removes old
+rounding when terms become flat. Consistent OHLC bounds are assumed; a malformed
+bar can contribute a negative term.
+
+`RVI.init(period,deviation_period)` and `RVIR.init(period,deviation_period)`
+require smoothing periods 1..100000 and deviation periods 2..100000. RVI routes
+the fresh population standard deviation into the up leg for a rising input,
+into the down leg for a falling input, and into neither on a tie. Both legs
+use mean-seeded Wilder smoothing. Output is `100*up/(up+down)`, or 50 for an
+exactly zero total. RVIR runs that calculation independently on highs and lows
+and averages the two outputs. There is no additional unstable discard.
+
+ADOSC and KVO use constant work and storage per sample. ROGERSSATCHELL, RVI
+and RVIR use O(deviation/window period) storage and fresh scan work per sample;
+RVI smoothing state has constant size. F32 logarithms, roots, filters and
+products may lose precision or overflow even with finite observations.
+`tests/reference/volume_filters.bend` checks pinned C values and seeds,
+argument reversal, trend/price ties, nonpositive-price fallback, scaling,
+validation and continuation with 2e−5 absolute/relative tolerance.

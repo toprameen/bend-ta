@@ -1,7 +1,6 @@
 # Candlestick recognizers
 
-The 59 candle entries marked Foundation in the pinned catalog are implemented
-through `src/f32.bend`. Each named `CDL*.State()` is an owned pattern state.
+Named candle recognizers are exposed through `src/f32.bend`. Each named `CDL*.State()` is an owned pattern state.
 `CDL*.init()` returns `Result<Pattern.Error(), State()>`; `CDL*.next(state, bar)`
 returns `(state, Maybe<Pattern.Signal()>)`; `CDL*.batch(bars)` returns a result
 containing one output slot per input. Bars use `Bar.OHLC<F32>` from
@@ -24,7 +23,7 @@ by ENGULFING and 3OUTSIDE. Ready output is always `Some{signal}`, including a
 zero signal. `Patterns.Signal{negative, strength}` is an exact signed integer
 representation: zero is `{False{}, 0}`, ordinary detections have magnitude 100,
 and the reference's matching-endpoint ENGULFING/HARAMI/HARAMICROSS detections
-have magnitude 80. `TA.Pattern.show(signal)` formats the signed decimal value.
+have magnitude 80. Hikkake confirmation has magnitude 200. `TA.Pattern.show(signal)` formats the signed decimal value.
 Bend 2.0.39 does not supply a native signed integer type. Direction and strength
 are not encoded as floating point.
 
@@ -61,9 +60,42 @@ arguments. Numeric settings and data remain runtime values.
 Storage is O(sum of the eleven configured periods), plus four fixed history
 frames. Rolling thresholds rebuild their totals at each logical wrap, giving
 amortized constant work per input and worst-case work proportional to the
-sum of periods when refreshes coincide. Every
-named state currently maintains all eleven settings. Large valid settings
+sum of periods when refreshes coincide. The static recognizer
+states maintain all eleven settings. Large valid settings
 still require enough memory for their buffers. Reinitialize to reset history.
+
+## Hikkake confirmation state
+
+`CDLHIKKAKE` and `CDLHIKKAKEMOD` use the specialized generic
+`src/core/hikkake.bend` transition and the same signed `Pattern.Signal()`.
+Their named interfaces expose `init`, `next` and `batch`; they are separate
+from the static `Pattern.Name` dispatcher. Hikkake needs an inside bar followed
+by a lower-high/lower-low bullish breakout, or a higher-high/higher-low bearish
+breakout. Modified Hikkake needs two consecutive inside bars, plus the second
+candle's close near its low for a bullish setup or near its high for a bearish
+setup. Near uses that candle's own preceding threshold, delayed with the bar.
+
+A new setup reports ±100 and replaces any outstanding setup. On the next
+three bars, a close strictly above the saved last-inside high confirms a bullish
+setup; a close strictly below its saved low confirms a bearish setup. The
+confirming output is ±200 and clears the pending setup. A new setup takes
+precedence over confirming the old one on the same bar. A tie at either saved
+bound does not confirm; a later fourth bar cannot confirm an expired setup.
+
+The first output indices are 5 for ordinary Hikkake and `max(1,Near.period)+5`
+for modified Hikkake (10 with default Near). Detection and confirmation advance
+during warm-up, so the first ready output may be a confirmation. Modified
+Hikkake's `init.setting(near)` accepts an immutable `Candle.Setting<F32>` with
+the ordinary candle-setting validation; `init()` selects default Near. Feed a
+custom state through `next` or `Series.scan`. Period-zero Near uses the second
+candle's own range. Ordinary Hikkake uses fixed history and confirmation state;
+modified Hikkake additionally stores only its Near range window. No absolute
+sample counter limits either confirmation state.
+
+`tests/reference/hikkake.bend` contains pinned C examples of both signs,
+warm-up confirmation, strict ties, expiry, custom period-zero Near and chunk
+continuation. It uses `n` for warm-up, `z` for zero, `p`/`m` for ±100 and
+`P`/`M` for ±200.
 
 ## Reference and numerical contract
 

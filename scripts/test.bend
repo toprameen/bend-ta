@@ -86,7 +86,7 @@ def build(context: Context, +file: String, +dir: String, +index: U32, expected: 
     case Context{root, bend, +js, runtime}:
       +exe = dir ++ "/" ++ U32.show(index) ++ ".native"
       +output_js = dir ++ "/" ++ U32.show(index) ++ ".js"
-      Tool.bind(String, Unit, Tool.command(bend, (root ++ "/" ++ file) <> outputs(js, exe, output_js)), out =>
+      Tool.bind(String, Unit, Tool.command.timed(bend, (root ++ "/" ++ file) <> outputs(js, exe, output_js), 120000), out =>
         execute(js, runtime, file, exe, output_js, expected))
 
 def run_file(+context: Context, +file: String, dir: String, index: U32) -> IO(Result<String, Unit>):

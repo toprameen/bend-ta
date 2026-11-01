@@ -50,7 +50,8 @@ tracked files deleted in the working tree. Use normal UTF-8 paths. All test/exam
 Comparisons normalize CRLF and trim surrounding whitespace. Empty expected output
 still needs a `#|` marker. Compiler/runtime failures and output mismatches fail
 the run. Source reads are limited to 1 MiB; subprocess output is limited to 4 MiB
-and each command has a 30-second timeout. Generated files are held in a unique
+and commands have a 30-second timeout, with two minutes allowed for fixture
+compilation. Generated files are held in a unique
 OS temporary directory and removed after normal test failures as well as success.
 
 ## Documentation
