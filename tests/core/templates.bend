@@ -1,6 +1,7 @@
 # An independent numeric representation tests the shared template seam.
 # This two-field wrapper is a test adapter, not an F64 implementation.
 import Base
+import ../../src/core/extrema_queue.bend as Queue
 import ../../src/core/ema.bend as Ema
 import ../../src/core/sma.bend as Sma
 import ../../src/core/series.bend as Series
@@ -83,6 +84,14 @@ def abs(value: Number) -> Number:
 def vidya_step(state: Vidya.State<Number>, price: Number) -> Vidya.State<Number> & Maybe<&2, Number>:
   Vidya.next(~Number, ~from_u32, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price)
 
+def queued(state: Queue.State<Number>, price: Number) -> Queue.State<Number> & Maybe<&2, Queue.Value<Number>>:
+  +value = price
+  Queue.next(~Number, ~le, ~(a => b => le(b, a)), state, value, value)
+
+def queued_value(value: Queue.Value<Number>) -> String:
+  match value:
+    case Queue.Value{low, high, low_age, high_age, size}: number(low) ++ "/" ++ number(high)
+
 def main() -> IO(Unit):
   do IO<Unit>:
     IO.print(show(Series.batch(~Number, ~Number, ~Ema.State<Number>, ~ema_step, [from_u32(3), from_u32(6), from_u32(9), from_u32(15)], Ema.init(~Number, ~from_u32, ~div, 3))))
@@ -91,6 +100,7 @@ def main() -> IO(Unit):
     IO.print(show(Series.batch(~Number, ~Number, ~Window.State<Number>, ~ratio_step, [from_u32(3), from_u32(0), from_u32(6), from_u32(12)], Window.init(~Number, 1, 0n, from_u32(0)))))
     IO.print(number(Transform.ibs(~Number, ~from_u32, ~sub, ~div, ~le, Bar.HLC{from_u32(8), from_u32(0), from_u32(6)})))
     IO.print(show(Series.batch(~Number, ~Number, ~Vidya.State<Number>, ~vidya_step, [from_u32(1), from_u32(2), from_u32(4), from_u32(4)], Vidya.init(~Number, ~from_u32, ~div, 3, 2, 1n))))
+    IO.print(List.show(~&2, ~Maybe<&2, Queue.Value<Number>>, ~(v => Maybe.show(~&2, ~Queue.Value<Number>, ~queued_value, v)), Series.batch(~Number, ~Queue.Value<Number>, ~Queue.State<Number>, ~queued, [from_u32(3), from_u32(6), from_u32(6), from_u32(1), from_u32(9), from_u32(0), from_u32(2)], Queue.init(~Number, ~from_u32, 3, 2n))))
 
 #|[None, None, Some(6:77), Some(10.5:77)]
 #|[None, None, Some(6:77), Some(9:77), Some(12:77)]
@@ -98,3 +108,5 @@ def main() -> IO(Unit):
 #|[None, Some(0:77), Some(0:77), Some(2:77)]
 #|0.75:77
 #|[None, None, Some(2.75:77), Some(3.375:77)]
+
+#|[None, None, Some(3:77/6:77), Some(1:77/6:77), Some(1:77/9:77), Some(0:77/9:77), Some(0:77/9:77)]
