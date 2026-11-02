@@ -100,14 +100,15 @@ def references() -> Bool:
   ])
 
 def invalids() -> Bool:
-  all([
+  Bool.and(all([
     rejected(~TA.FRAMA.State(), TA.FRAMA.init(3)),
     rejected(~TA.MCGD.State(), TA.MCGD.init(1)),
-    rejected(~TA.SAR.State(), TA.SAR.init(F32.sub(0.0, 1.0), 0.2)),
+    rejected(~TA.SAR.State(), TA.SAR.init(F32.sub(0.0, 1.0), 0.2))
+  ]), all([
     rejected(~TA.CRSI.State(), TA.CRSI.init(3, 2, 10001)),
     rejected(~TA.MACDEXT.State(), TA.MACDEXT.init(3, 11, 6, 1, 2, 1)),
     rejected(~TA.SQZMOM.State(), TA.SQZMOM.init(4, 2.0, 4, 1.0, 2.0, 1.0))
-  ])
+  ]))
 
 def chunks() -> Bool:
   all([
