@@ -137,10 +137,13 @@ reuse the centered shared F32 formulas.
 
 SAR, MCGD and the ATR/EMA state use constant space. Windows and lag buffers own
 power-of-two arrays; their logical lengths remain the requested periods. FRAMA,
-CG, CTI, FISHER, SMI, STC and SQZMOM use fresh chronological window scans. Their
-filled-window work is proportional to the relevant periods, with storage
-proportional to the sum of window lengths. CRSI rank scans its preceding return
-window. MACDEXT and KSTEXT inherit their selected MAs' costs and KSTEXT's ROC lag
+CG, CTI and SQZMOM retain fresh chronological scans for their means, moments or
+regressions. Their filled-window work is proportional to the relevant periods.
+FISHER, SMI and STC range stages use monotonic queues, with amortized constant
+update work and an O(period) worst-case prune burst. SQZMOM also uses queued
+range extrema while retaining its other scans. Stored windows and queues use
+space proportional to the sum of their periods. CRSI rank scans its preceding
+return window. MACDEXT and KSTEXT inherit their selected MAs' costs and KSTEXT's ROC lag
 storage. Batch traversal is linear in the number of observations in addition to
 indicator work and output storage.
 

@@ -2,6 +2,7 @@ import Base
 import ./bar.bend as Bar
 import ./window.bend as Window
 import ./moments.bend as Moments
+import ./ma.bend as Ma
 import ./ema.bend as Ema
 
 type RogersSatchell<-N: Data> is Type:
@@ -31,15 +32,15 @@ def rogerssatchell.positive(~N: Data, ~from: U32 -> N, ~mul: N -> N -> N, ~sqrt:
     case False{}: (RogersSatchell{window, scale}, Some{from(0)})
     case True{}: (RogersSatchell{window, scale}, Some{mul(scale, sqrt(mean))})
 
-def rogerssatchell.emit(~N: Data, ~from: U32 -> N, ~mul: N -> N -> N, ~sqrt: N -> N, ~gt: N -> N -> Bool, +scale: N, result: Window.State<N> & Maybe<&2, Moments.Value<N>>) -> RogersSatchell<N> & Maybe<&2, N>:
+def rogerssatchell.emit(~N: Data, ~from: U32 -> N, ~mul: N -> N -> N, ~sqrt: N -> N, ~gt: N -> N -> Bool, +scale: N, result: Window.State<N> & Maybe<&2, N>) -> RogersSatchell<N> & Maybe<&2, N>:
   match result:
     case (window, None{}): (RogersSatchell{window, scale}, None{})
-    case (window, Some{Moments.Moments{+mean, variance}}):
+    case (window, Some{+mean}):
       rogerssatchell.positive(~N, ~from, ~mul, ~sqrt, scale, window, mean, gt(mean, from(0)))
 
 def rogerssatchell.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~sqrt: N -> N, ~log: N -> N, ~gt: N -> N -> Bool, state: RogersSatchell<N>, bar: Bar.OHLC<N>) -> RogersSatchell<N> & Maybe<&2, N>:
   match state:
-    case RogersSatchell{window, scale}: rogerssatchell.emit(~N, ~from, ~mul, ~sqrt, ~gt, scale, Moments.next(~N, ~from, ~add, ~sub, ~mul, ~div, window, rogerssatchell.term(~N, ~from, ~add, ~mul, ~div, ~log, ~gt, bar)))
+    case RogersSatchell{window, scale}: rogerssatchell.emit(~N, ~from, ~mul, ~sqrt, ~gt, scale, Ma.mean.next(~N, ~from, ~add, ~sub, ~div, window, rogerssatchell.term(~N, ~from, ~add, ~mul, ~div, ~log, ~gt, bar)))
 
 def rvi.init(~N: Data, ~from: U32 -> N, ~div: N -> N -> N, +period: U32, deviation_period: U32, depth: Nat) -> Rvi<N>:
   +alpha = div(from(1), from(period))

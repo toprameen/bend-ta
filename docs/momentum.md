@@ -103,10 +103,10 @@ and freezes its live value when the source's range/DM guard is inactive. ADXR
 averages ADX with its value `p-1` outputs earlier. Reference `ta_round_pos` is an
 identity at the pinned revision; no integer rounding is applied.
 
-AROON scans `p+1` bars and chooses the most recent equal extreme. AROONOSC
+AROON maintains a `p+1`-bar extrema queue and chooses the most recent equal extreme. AROONOSC
 scales the signed numeric difference of the selected integer positions before
 any price-level percentage rounding. WILLR and raw
-stochastic stages scan `p` bars. WILLR uses the source's scaled flatness test and
+stochastic stages maintain `p`-bar extrema queues. WILLR uses the source's scaled flatness test and
 clamps to [-100,0]. Raw stochastic returns zero for a scaled-flat range; PSO
 uses neutral 50, then two mean-seeded EMAs and `tanh(value/2)`. CCI uses a fresh
 mean absolute deviation with the factor 0.015. CHOP uses raw highs/lows, while
@@ -143,10 +143,12 @@ nonfinite-data recovery or a performance claim.
 ## Storage and validation
 
 Owned rings hide capacity and wrapping. RSI/CMO, DM/DI/DX/ADX, SI/ASI and WAD use
-constant-size state; ADXR owns an ADX lag ring. Window scans for ranges, CMOU,
+constant-size state; ADXR owns an ADX lag ring. CMOU,
 IMI, MFI, CCI, CHOP/CHOPTR, VORTEX, ULTOSC, ER and VHF cost O(period) per sample
-and O(period) storage. FOSC inherits the regression window scan. EMA stages use
-constant-size state; SMA and lag stages own period-sized rings. Selected SMA
+and O(period) storage. WILLR, AROON/AROONOSC and stochastic range stages use
+owned monotonic extrema queues: amortized constant update work, O(period)
+worst-case pruning and O(period) storage. FOSC inherits the regression
+window scan. EMA stages use constant-size state; SMA and lag stages own period-sized rings. Selected SMA
 and weighted means rebuild their totals in O(period) per sample; adaptive MAs
 inherit their documented scan costs. KST/COPPOCK own their ROC
 lags, smoothing stages and signal. Batch traversal/output storage is O(n).

@@ -1,4 +1,5 @@
 import Base
+import ./core/extrema_queue.bend as RangeQueue
 import ./core/hilbert.bend as Hilbert
 import ./core/filters.bend as Filters
 import ./core/statistics_window.bend as StatWindow
@@ -1622,7 +1623,7 @@ def MAX.State() -> Type:
   Statistics.Extremes<F32>
 
 def MAX.init(+period: U32) -> Result<&2, &1, Params.Error, MAX.State()>:
-  overlap.init(~MAX.State(), overlap.valid(period, 2), u => Statistics.Extremes{overlap.window(period), 0})
+  overlap.init(~MAX.State(), overlap.valid(period, 2), u => Statistics.extreme.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def MAX.next(state: MAX.State(), price: F32) -> MAX.State() & Maybe<&2, MAX.Value()>:
   overlap.project(~MAX.State(), ~Statistics.Extrema<F32>, ~MAX.Value(), ~stats.MAX, Statistics.extreme.next(~F32, ~F32.is_le, state, price))
@@ -1641,7 +1642,7 @@ def MIN.State() -> Type:
   Statistics.Extremes<F32>
 
 def MIN.init(+period: U32) -> Result<&2, &1, Params.Error, MIN.State()>:
-  overlap.init(~MIN.State(), overlap.valid(period, 2), u => Statistics.Extremes{overlap.window(period), 0})
+  overlap.init(~MIN.State(), overlap.valid(period, 2), u => Statistics.extreme.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def MIN.next(state: MIN.State(), price: F32) -> MIN.State() & Maybe<&2, MIN.Value()>:
   overlap.project(~MIN.State(), ~Statistics.Extrema<F32>, ~MIN.Value(), ~stats.MIN, Statistics.extreme.next(~F32, ~F32.is_le, state, price))
@@ -1660,7 +1661,7 @@ def MAXINDEX.State() -> Type:
   Statistics.Extremes<F32>
 
 def MAXINDEX.init(+period: U32) -> Result<&2, &1, Params.Error, MAXINDEX.State()>:
-  overlap.init(~MAXINDEX.State(), overlap.valid(period, 2), u => Statistics.Extremes{overlap.window(period), 0})
+  overlap.init(~MAXINDEX.State(), overlap.valid(period, 2), u => Statistics.extreme.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def MAXINDEX.next(state: MAXINDEX.State(), price: F32) -> MAXINDEX.State() & Maybe<&2, MAXINDEX.Value()>:
   overlap.project(~MAXINDEX.State(), ~Statistics.Extrema<F32>, ~MAXINDEX.Value(), ~stats.MAXINDEX, Statistics.extreme.next(~F32, ~F32.is_le, state, price))
@@ -1679,7 +1680,7 @@ def MININDEX.State() -> Type:
   Statistics.Extremes<F32>
 
 def MININDEX.init(+period: U32) -> Result<&2, &1, Params.Error, MININDEX.State()>:
-  overlap.init(~MININDEX.State(), overlap.valid(period, 2), u => Statistics.Extremes{overlap.window(period), 0})
+  overlap.init(~MININDEX.State(), overlap.valid(period, 2), u => Statistics.extreme.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def MININDEX.next(state: MININDEX.State(), price: F32) -> MININDEX.State() & Maybe<&2, MININDEX.Value()>:
   overlap.project(~MININDEX.State(), ~Statistics.Extrema<F32>, ~MININDEX.Value(), ~stats.MININDEX, Statistics.extreme.next(~F32, ~F32.is_le, state, price))
@@ -1698,7 +1699,7 @@ def MINMAX.State() -> Type:
   Statistics.Extremes<F32>
 
 def MINMAX.init(+period: U32) -> Result<&2, &1, Params.Error, MINMAX.State()>:
-  overlap.init(~MINMAX.State(), overlap.valid(period, 2), u => Statistics.Extremes{overlap.window(period), 0})
+  overlap.init(~MINMAX.State(), overlap.valid(period, 2), u => Statistics.extreme.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def MINMAX.next(state: MINMAX.State(), price: F32) -> MINMAX.State() & Maybe<&2, MINMAX.Value()>:
   overlap.project(~MINMAX.State(), ~Statistics.Extrema<F32>, ~MINMAX.Value(), ~stats.MINMAX, Statistics.extreme.next(~F32, ~F32.is_le, state, price))
@@ -1717,7 +1718,7 @@ def MINMAXINDEX.State() -> Type:
   Statistics.Extremes<F32>
 
 def MINMAXINDEX.init(+period: U32) -> Result<&2, &1, Params.Error, MINMAXINDEX.State()>:
-  overlap.init(~MINMAXINDEX.State(), overlap.valid(period, 2), u => Statistics.Extremes{overlap.window(period), 0})
+  overlap.init(~MINMAXINDEX.State(), overlap.valid(period, 2), u => Statistics.extreme.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def MINMAXINDEX.next(state: MINMAXINDEX.State(), price: F32) -> MINMAXINDEX.State() & Maybe<&2, MINMAXINDEX.Value()>:
   overlap.project(~MINMAXINDEX.State(), ~Statistics.Extrema<F32>, ~MINMAXINDEX.Value(), ~stats.MINMAXINDEX, Statistics.extreme.next(~F32, ~F32.is_le, state, price))
@@ -1785,35 +1786,36 @@ def PERCENTILE.next(state: PERCENTILE.State(), price: F32) -> PERCENTILE.State()
 def PERCENTILE.batch(xs: List<&2, F32>, period: U32, percent: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~PERCENTILE.State(), ~Params.Error, ~PERCENTILE.next, xs, PERCENTILE.init(period, percent))
 
-def stats.midpoint(value: Extrema.Value()) -> F32:
-  Overlap.midpoint(~F32, ~U32.to_f32, ~F32.add, ~F32.div, value)
+def stats.midpoint(value: RangeQueue.Value<F32>) -> F32:
+  Overlap.midpoint.cached(~F32, ~U32.to_f32, ~F32.add, ~F32.div, value)
 
 def MIDPOINT.State() -> Type:
-  Window.State()
+  RangeQueue.State<F32>
 
 def MIDPOINT.init(+period: U32) -> Result<&2, &1, Params.Error, MIDPOINT.State()>:
-  overlap.init(~MIDPOINT.State(), overlap.valid(period, 2), u => overlap.window(period))
+  overlap.init(~MIDPOINT.State(), overlap.valid(period, 2), u => RangeQueue.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def MIDPOINT.next(state: MIDPOINT.State(), price: F32) -> MIDPOINT.State() & Maybe<&2, F32>:
-  overlap.project(~MIDPOINT.State(), ~Extrema.Value(), ~F32, ~stats.midpoint, Extrema.next(state, price))
+  +value = price
+  overlap.project(~MIDPOINT.State(), ~RangeQueue.Value<F32>, ~F32, ~stats.midpoint, RangeQueue.next(~F32, ~F32.is_le, ~F32.is_gt, state, value, value))
 
 def MIDPOINT.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~MIDPOINT.State(), ~Params.Error, ~MIDPOINT.next, xs, MIDPOINT.init(period))
 
-def overlap.hlwindow(+period: U32) -> Win.State<Bars.HL<F32>>:
-  Win.init(~Bars.HL<F32>, period, Ma.buffer_depth(period), Bars.HL{0.0, 0.0})
+def overlap.hlwindow(+period: U32) -> RangeQueue.State<F32>:
+  RangeQueue.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period))
 
 def DONCHIAN.Value() -> Data:
   Overlap.Bands<F32>
 
 def DONCHIAN.State() -> Type:
-  Win.State<Bars.HL<F32>>
+  RangeQueue.State<F32>
 
 def DONCHIAN.init(+period: U32) -> Result<&2, &1, Params.Error, DONCHIAN.State()>:
   overlap.init(~DONCHIAN.State(), overlap.valid(period, 2), u => overlap.hlwindow(period))
 
 def DONCHIAN.next(state: DONCHIAN.State(), bar: Bars.HL<F32>) -> DONCHIAN.State() & Maybe<&2, DONCHIAN.Value()>:
-  Overlap.channel.next(~F32, ~U32.to_f32, ~F32.add, ~F32.div, ~F32.min, ~F32.max, state, bar)
+  Overlap.channel.next(~F32, ~U32.to_f32, ~F32.add, ~F32.div, ~F32.is_lt, state, bar)
 
 def DONCHIAN.batch(xs: List<&2, Bars.HL<F32>>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, DONCHIAN.Value()>>>:
   Series.initialized(~Bars.HL<F32>, ~DONCHIAN.Value(), ~DONCHIAN.State(), ~Params.Error, ~DONCHIAN.next, xs, DONCHIAN.init(period))
@@ -1960,7 +1962,7 @@ def CKSP.init(+period: U32, +multiplier: F32, +stop_period: U32) -> Result<&2, &
   overlap.init(~CKSP.State(), Bool.and(Bool.and(overlap.valid(period, 2), overlap.valid(stop_period, 1)), Bool.and(is_finite(multiplier), Bool.and(F32.is_ge(multiplier, 0.0), F32.is_le(multiplier, 3.0e37)))), u => Overlap.chande.init(~F32, ~U32.to_f32, ~F32.div, period, Ma.buffer_depth(period), multiplier, stop_period, Ma.buffer_depth(stop_period)))
 
 def CKSP.next(state: CKSP.State(), bar: Bars.HLC<F32>) -> CKSP.State() & Maybe<&2, CKSP.Value()>:
-  Overlap.chande.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.min, ~F32.max, state, bar)
+  Overlap.chande.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_lt, ~F32.max, state, bar)
 
 def CKSP.batch(xs: List<&2, Bars.HLC<F32>>, period: U32, multiplier: F32, stop_period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, CKSP.Value()>>>:
   Series.initialized(~Bars.HLC<F32>, ~CKSP.Value(), ~CKSP.State(), ~Params.Error, ~CKSP.next, xs, CKSP.init(period, multiplier, stop_period))
@@ -2636,7 +2638,7 @@ def ICHIMOKU.init(+tenkan: U32, +kijun: U32, +span_b: U32) -> Result<&2, &1, Par
   overlap.init(~ICHIMOKU.State(), Bool.and(overlap.valid(tenkan, 2), Bool.and(overlap.valid(kijun, 2), overlap.valid(span_b, 2))), u => WindowSignals.cloud.init(~F32, ~U32.to_f32, tenkan, kijun, span_b))
 
 def ICHIMOKU.next(state: ICHIMOKU.State(), bar: Bars.HL<F32>) -> ICHIMOKU.State() & Maybe<&2, ICHIMOKU.Value()>:
-  WindowSignals.cloud.next(~F32, ~U32.to_f32, ~F32.add, ~F32.div, ~F32.min, ~F32.max, state, bar)
+  WindowSignals.cloud.next(~F32, ~U32.to_f32, ~F32.add, ~F32.div, ~F32.is_lt, state, bar)
 
 def ICHIMOKU.display_shift(kijun: U32) -> DisplayShift():
   WindowSignals.DisplayShift{False{}, kijun}

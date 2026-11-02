@@ -1,4 +1,5 @@
 import Base
+import ./extrema_queue.bend as Queue
 import ./bar.bend as Bar
 import ./config.bend as Config
 import ./window.bend as Window
@@ -46,13 +47,13 @@ def rvol.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~
   rvol.mean(~N, ~div, volume, Ma.mean.ready(~N, ~from, ~add, ~sub, ~div, Window.full(~N, window)))
 
 type Cloud<-N: Data> is Type:
-  Cloud{tenkan: Window.State<Bar.HL<N>>, kijun: Window.State<Bar.HL<N>>, span: Window.State<Bar.HL<N>>}
+  Cloud{tenkan: Queue.State<N>, kijun: Queue.State<N>, span: Queue.State<N>}
 
 type CloudValue<-N: Data> is Data:
   CloudValue{tenkan: N, kijun: N, span_a: N, span_b: N}
 
-def cloud.window(~N: Data, ~from: U32 -> N, +period: U32) -> Window.State<Bar.HL<N>>:
-  Window.init(~Bar.HL<N>, period, Config.depth(period), Bar.HL{from(0), from(0)})
+def cloud.window(~N: Data, ~from: U32 -> N, +period: U32) -> Queue.State<N>:
+  Queue.init(~N, ~from, period, Config.depth(period))
 
 def cloud.init(~N: Data, ~from: U32 -> N, tenkan: U32, kijun: U32, span: U32) -> Cloud<N>:
   Cloud{cloud.window(~N, ~from, tenkan), cloud.window(~N, ~from, kijun), cloud.window(~N, ~from, span)}
@@ -62,21 +63,21 @@ def cloud.value(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N,
     case Some{Overlap.Bands{u, +t, l}} Some{Overlap.Bands{u2, +k, l2}} Some{Overlap.Bands{u3, b, l3}}: Some{CloudValue{t, k, div(add(t, k), from(2)), b}}
     case _ _ _: None{}
 
-def cloud.span(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, tenkan: Window.State<Bar.HL<N>>, kijun: Window.State<Bar.HL<N>>, t: Maybe<&2, Overlap.Bands<N>>, k: Maybe<&2, Overlap.Bands<N>>, result: Window.State<Bar.HL<N>> & Maybe<&2, Overlap.Bands<N>>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
+def cloud.span(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, tenkan: Queue.State<N>, kijun: Queue.State<N>, t: Maybe<&2, Overlap.Bands<N>>, k: Maybe<&2, Overlap.Bands<N>>, result: Queue.State<N> & Maybe<&2, Overlap.Bands<N>>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
   match result:
     case (span, b): (Cloud{tenkan, kijun, span}, cloud.value(~N, ~from, ~add, ~div, t, k, b))
 
-def cloud.kijun(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, tenkan: Window.State<Bar.HL<N>>, span: Window.State<Bar.HL<N>>, t: Maybe<&2, Overlap.Bands<N>>, bar: Bar.HL<N>, result: Window.State<Bar.HL<N>> & Maybe<&2, Overlap.Bands<N>>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
+def cloud.kijun(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~lt: N -> N -> Bool, tenkan: Queue.State<N>, span: Queue.State<N>, t: Maybe<&2, Overlap.Bands<N>>, bar: Bar.HL<N>, result: Queue.State<N> & Maybe<&2, Overlap.Bands<N>>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
   match result:
-    case (kijun, k): cloud.span(~N, ~from, ~add, ~div, tenkan, kijun, t, k, Overlap.channel.next(~N, ~from, ~add, ~div, ~min, ~max, span, bar))
+    case (kijun, k): cloud.span(~N, ~from, ~add, ~div, tenkan, kijun, t, k, Overlap.channel.next(~N, ~from, ~add, ~div, ~lt, span, bar))
 
-def cloud.tenkan(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, kijun: Window.State<Bar.HL<N>>, span: Window.State<Bar.HL<N>>, +bar: Bar.HL<N>, result: Window.State<Bar.HL<N>> & Maybe<&2, Overlap.Bands<N>>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
+def cloud.tenkan(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~lt: N -> N -> Bool, kijun: Queue.State<N>, span: Queue.State<N>, +bar: Bar.HL<N>, result: Queue.State<N> & Maybe<&2, Overlap.Bands<N>>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
   match result:
-    case (tenkan, t): cloud.kijun(~N, ~from, ~add, ~div, ~min, ~max, tenkan, span, t, bar, Overlap.channel.next(~N, ~from, ~add, ~div, ~min, ~max, kijun, bar))
+    case (tenkan, t): cloud.kijun(~N, ~from, ~add, ~div, ~lt, tenkan, span, t, bar, Overlap.channel.next(~N, ~from, ~add, ~div, ~lt, kijun, bar))
 
-def cloud.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, state: Cloud<N>, +bar: Bar.HL<N>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
+def cloud.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~lt: N -> N -> Bool, state: Cloud<N>, +bar: Bar.HL<N>) -> Cloud<N> & Maybe<&2, CloudValue<N>>:
   match state:
-    case Cloud{tenkan, kijun, span}: cloud.tenkan(~N, ~from, ~add, ~div, ~min, ~max, kijun, span, bar, Overlap.channel.next(~N, ~from, ~add, ~div, ~min, ~max, tenkan, bar))
+    case Cloud{tenkan, kijun, span}: cloud.tenkan(~N, ~from, ~add, ~div, ~lt, kijun, span, bar, Overlap.channel.next(~N, ~from, ~add, ~div, ~lt, tenkan, bar))
 
 type Fractal<-N: Data> is Type:
   Fractal{window: Window.State<Bar.HL<N>>, left: U32, right: U32, count: U32}
@@ -91,7 +92,8 @@ type PivotContext<-N: Data> is Data:
   PivotContext{left: U32, bar: Bar.HL<N>}
 
 def fractal.init(~N: Data, ~from: U32 -> N, +left: U32, +right: U32) -> Fractal<N>:
-  Fractal{cloud.window(~N, ~from, U32.add(U32.add(left, right), 1)), left, right, 0}
+  +size = U32.add(U32.add(left, right), 1)
+  Fractal{Window.init(~Bar.HL<N>, size, Config.depth(size), Bar.HL{from(0), from(0)}), left, right, 0}
 
 def fractal.compare(~N: Data, ~gt: N -> N -> Bool, context: PivotContext<N>, scan: PivotScan, bar: Bar.HL<N>) -> PivotScan:
   match context scan bar:

@@ -2,7 +2,7 @@ import Base
 import ./bar.bend as Bar
 import ./window.bend as Window
 import ./ema.bend as Ema
-import ./moments.bend as Moments
+import ./ma.bend as Ma
 
 type IndexKind is Data:
   Obv{}
@@ -179,10 +179,10 @@ def ease.value(
       +box = div(div(volume, divisor), range)
       ease.divide(~N, ~from_u32, ~div, delta, box, eq(box, from_u32(0)))
 
-def ease.emit(~N: Data, close: N, divisor: N, result: Window.State<N> & Maybe<&2, Moments.Value<N>>) -> Ease<N> & Maybe<&2, N>:
+def ease.emit(~N: Data, close: N, divisor: N, result: Window.State<N> & Maybe<&2, N>) -> Ease<N> & Maybe<&2, N>:
   match result:
     case (average, None{}): (Ease{Some{close}, average, divisor}, None{})
-    case (average, Some{Moments.Moments{mean, variance}}): (Ease{Some{close}, average, divisor}, Some{mean})
+    case (average, Some{mean}): (Ease{Some{close}, average, divisor}, Some{mean})
 
 def ease.sample(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N,
@@ -192,7 +192,7 @@ def ease.sample(
   match previous:
     case None{}: (Ease{Some{mid}, average, divisor}, None{})
     case Some{before}:
-      ease.emit(~N, mid, divisor, Moments.next(~N, ~from_u32, ~add, ~sub, ~mul, ~div, average,
+      ease.emit(~N, mid, divisor, Ma.mean.next(~N, ~from_u32, ~add, ~sub, ~div, average,
         ease.value(~N, ~from_u32, ~div, ~eq, sub(mid, before), range, volume, divisor, eq(range, from_u32(0)))))
 
 def ease.next(

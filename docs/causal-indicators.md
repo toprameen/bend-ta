@@ -113,5 +113,7 @@ thresholds can differ from the reference's double arithmetic; these contracts
 claim neither universal TA-Lib parity nor financial-data error bounds.
 
 DPO and RVOL require O(period) storage and fresh O(period) scans per ready input.
-Ichimoku scans its three windows; Fractal scans left+right+1 observations.
+Ichimoku maintains three extrema queue pairs, using O(sum of its periods)
+storage and amortized constant update work, with an O(period) prune burst.
+Fractal scans left+right+1 observations.
 ZigZag and VWAP have constant-size state and constant work per observation.

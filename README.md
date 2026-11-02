@@ -78,4 +78,6 @@ the [shared foundation](docs/foundation.md) describes windows, ownership and
 stream traversal. Keep algorithms in `src/core/` and concrete numeric bindings
 in `src/f32.bend`.
 
+For repeatable performance measurements, see the [rolling benchmarks](benchmarks/README.md).
+
 See [third-party notices](THIRD_PARTY_NOTICES.md) for reference-source attribution.

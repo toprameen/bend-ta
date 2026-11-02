@@ -1,4 +1,5 @@
 import Base
+import ./extrema_queue.bend as Queue
 import ./bar.bend as Bar
 import ./window.bend as Window
 import ./moments.bend as Moments
@@ -11,27 +12,14 @@ import ./volatility.bend as Vol
 type Bands<-N: Data> is Data:
   Bands{upper: N, middle: N, lower: N}
 
-def channel.step(~N: Data, ~min: N -> N -> N, ~max: N -> N -> N, u: Unit, acc: Maybe<&2, Bar.HL<N>>, bar: Bar.HL<N>) -> Maybe<&2, Bar.HL<N>>:
-  match acc bar:
-    case None{} Bar.HL{h, l}: Some{Bar.HL{h, l}}
-    case Some{Bar.HL{h, l}} Bar.HL{high, low}: Some{Bar.HL{max(h, high), min(l, low)}}
-
-def channel.finish(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, result: Window.State<Bar.HL<N>> & Maybe<&2, Bar.HL<N>>) -> Window.State<Bar.HL<N>> & Maybe<&2, Bands<N>>:
+def channel.output(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, result: Queue.State<N> & Maybe<&2, Queue.Value<N>>) -> Queue.State<N> & Maybe<&2, Bands<N>>:
   match result:
-    case (window, None{}): (window, None{})
-    case (window, Some{Bar.HL{+high, +low}}): (window, Some{Bands{high, div(add(high, low), from(2)), low}})
+    case (state, None{}): (state, None{})
+    case (state, Some{Queue.Value{+low, +high, low_age, high_age, size}}): (state, Some{Bands{high, div(add(high, low), from(2)), low}})
 
-def channel.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, result: Window.State<Bar.HL<N>> & Bool) -> Window.State<Bar.HL<N>> & Maybe<&2, Bands<N>>:
-  match result:
-    case (window, False{}): (window, None{})
-    case (window, True{}): channel.finish(~N, ~from, ~add, ~div, Window.fold(~Bar.HL<N>, ~Unit, ~Maybe<&2, Bar.HL<N>>, ~(u => a => x => channel.step(~N, ~min, ~max, u, a, x)), window, Unit{}, None{}))
-
-def channel.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, result: Window.State<Bar.HL<N>> & Maybe<&2, Bar.HL<N>>) -> Window.State<Bar.HL<N>> & Maybe<&2, Bands<N>>:
-  match result:
-    case (window, old): channel.ready(~N, ~from, ~add, ~div, ~min, ~max, Window.full(~Bar.HL<N>, window))
-
-def channel.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, window: Window.State<Bar.HL<N>>, bar: Bar.HL<N>) -> Window.State<Bar.HL<N>> & Maybe<&2, Bands<N>>:
-  channel.pushed(~N, ~from, ~add, ~div, ~min, ~max, Window.push(~Bar.HL<N>, window, bar))
+def channel.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, ~lt: N -> N -> Bool, state: Queue.State<N>, bar: Bar.HL<N>) -> Queue.State<N> & Maybe<&2, Bands<N>>:
+  match bar:
+    case Bar.HL{high, low}: channel.output(~N, ~from, ~add, ~div, Queue.next(~N, ~(a => b => Bool.not(lt(b, a))), ~(a => b => lt(b, a)), state, low, high))
 
 type Bollinger<-N: Data> is Type:
   Bollinger{average: Ma.State<N>, moments: Window.State<N>, up: N, down: N, kind: U32}
@@ -201,41 +189,44 @@ type Stops<-N: Data> is Data:
   Stops{high_stop: N, low_stop: N}
 
 type ChandeKroll<-N: Data> is Type:
-  ChandeKroll{prices: Window.State<Bar.HL<N>>, stops: Window.State<Bar.HL<N>>, atr: Vol.Atr<N>, factor: N}
+  ChandeKroll{prices: Queue.State<N>, stops: Queue.State<N>, atr: Vol.Atr<N>, factor: N}
 
 def chande.init(~N: Data, ~from: U32 -> N, ~div: N -> N -> N, +period: U32, depth: Nat, factor: N, stop_period: U32, stop_depth: Nat) -> ChandeKroll<N>:
-  +zero = from(0)
-  ChandeKroll{Window.init(~Bar.HL<N>, period, depth, Bar.HL{zero, zero}), Window.init(~Bar.HL<N>, stop_period, stop_depth, Bar.HL{zero, zero}), Vol.atr.init(~N, ~from, ~div, period), factor}
+  ChandeKroll{Queue.init(~N, ~from, period, depth), Queue.init(~N, ~from, stop_period, stop_depth), Vol.atr.init(~N, ~from, ~div, period), factor}
 
-def chande.output(~N: Data, prices: Window.State<Bar.HL<N>>, atr: Vol.Atr<N>, factor: N, result: Window.State<Bar.HL<N>> & Maybe<&2, Bands<N>>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
+def chande.output(~N: Data, prices: Queue.State<N>, atr: Vol.Atr<N>, factor: N, result: Queue.State<N> & Maybe<&2, Bands<N>>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
   match result:
     case (stops, None{}): (ChandeKroll{prices, stops, atr, factor}, None{})
     case (stops, Some{Bands{high, middle, low}}): (ChandeKroll{prices, stops, atr, factor}, Some{Stops{high, low}})
 
-def chande.values(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, prices: Window.State<Bar.HL<N>>, stops: Window.State<Bar.HL<N>>, atr: Vol.Atr<N>, +factor: N, range: Maybe<&2, Bands<N>>, atr_value: Maybe<&2, N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
+def chande.values(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~lt: N -> N -> Bool, ~max: N -> N -> N, prices: Queue.State<N>, stops: Queue.State<N>, atr: Vol.Atr<N>, +factor: N, range: Maybe<&2, Bands<N>>, atr_value: Maybe<&2, N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
   match range atr_value:
     case Some{Bands{high, mid, low}} Some{a}:
       +spread = mul(factor, a)
-      chande.output(~N, prices, atr, factor, channel.next(~N, ~from, ~add, ~div, ~min, ~max, stops, Bar.HL{sub(high, spread), add(low, spread)}))
+      chande.output(~N, prices, atr, factor, channel.next(~N, ~from, ~add, ~div, ~lt, stops, Bar.HL{sub(high, spread), add(low, spread)}))
     case _ _: (ChandeKroll{prices, stops, atr, factor}, None{})
 
-def chande.atr(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~min: N -> N -> N, ~max: N -> N -> N, prices: Window.State<Bar.HL<N>>, stops: Window.State<Bar.HL<N>>, factor: N, range: Maybe<&2, Bands<N>>, result: Vol.Atr<N> & Maybe<&2, N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
+def chande.atr(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~lt: N -> N -> Bool, ~max: N -> N -> N, prices: Queue.State<N>, stops: Queue.State<N>, factor: N, range: Maybe<&2, Bands<N>>, result: Vol.Atr<N> & Maybe<&2, N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
   match result:
-    case (atr, a): chande.values(~N, ~from, ~add, ~sub, ~mul, ~div, ~min, ~max, prices, stops, atr, factor, range, a)
+    case (atr, a): chande.values(~N, ~from, ~add, ~sub, ~mul, ~div, ~lt, ~max, prices, stops, atr, factor, range, a)
 
-def chande.range(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~min: N -> N -> N, ~max: N -> N -> N, stops: Window.State<Bar.HL<N>>, atr: Vol.Atr<N>, factor: N, bar: Bar.HLC<N>, result: Window.State<Bar.HL<N>> & Maybe<&2, Bands<N>>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
+def chande.range(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~lt: N -> N -> Bool, ~max: N -> N -> N, stops: Queue.State<N>, atr: Vol.Atr<N>, factor: N, bar: Bar.HLC<N>, result: Queue.State<N> & Maybe<&2, Bands<N>>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
   match result:
-    case (prices, range): chande.atr(~N, ~from, ~add, ~sub, ~mul, ~div, ~min, ~max, prices, stops, factor, range, Vol.atr.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~max, atr, bar))
+    case (prices, range): chande.atr(~N, ~from, ~add, ~sub, ~mul, ~div, ~lt, ~max, prices, stops, factor, range, Vol.atr.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~max, atr, bar))
 
-def chande.bar(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~min: N -> N -> N, ~max: N -> N -> N, prices: Window.State<Bar.HL<N>>, stops: Window.State<Bar.HL<N>>, atr: Vol.Atr<N>, factor: N, bar: Bar.HLC<N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
+def chande.bar(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~lt: N -> N -> Bool, ~max: N -> N -> N, prices: Queue.State<N>, stops: Queue.State<N>, atr: Vol.Atr<N>, factor: N, bar: Bar.HLC<N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
   match bar:
-    case Bar.HLC{+h, +l, c}: chande.range(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~min, ~max, stops, atr, factor, Bar.HLC{h, l, c}, channel.next(~N, ~from, ~add, ~div, ~min, ~max, prices, Bar.HL{h, l}))
+    case Bar.HLC{+h, +l, c}: chande.range(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~lt, ~max, stops, atr, factor, Bar.HLC{h, l, c}, channel.next(~N, ~from, ~add, ~div, ~lt, prices, Bar.HL{h, l}))
 
-def chande.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~min: N -> N -> N, ~max: N -> N -> N, state: ChandeKroll<N>, bar: Bar.HLC<N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
+def chande.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~lt: N -> N -> Bool, ~max: N -> N -> N, state: ChandeKroll<N>, bar: Bar.HLC<N>) -> ChandeKroll<N> & Maybe<&2, Stops<N>>:
   match state:
-    case ChandeKroll{prices, stops, atr, factor}: chande.bar(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~min, ~max, prices, stops, atr, factor, bar)
+    case ChandeKroll{prices, stops, atr, factor}: chande.bar(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~lt, ~max, prices, stops, atr, factor, bar)
 
 
 def midpoint(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, value: Extrema.Value<N>) -> N:
   match value:
     case Extrema.Range{low, high}: div(add(low, high), from(2))
+
+def midpoint.cached(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, value: Queue.Value<N>) -> N:
+  match value:
+    case Queue.Value{low, high, low_age, high_age, size}: midpoint(~N, ~from, ~add, ~div, Extrema.Range{low, high})

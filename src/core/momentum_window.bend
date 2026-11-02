@@ -1,9 +1,10 @@
 import Base
+import ./extrema_queue.bend as Queue
 import ./bar.bend as Bar
 import ./window.bend as Window
 
 type Box<-N: Data> is Type:
-  Box{period: U32, window: Window.State<Bar.HLC<N>>}
+  Box{period: U32, range: Queue.State<N>}
 
 type Bounds<-N: Data> is Data:
   Bounds{size: U32, high: N, low: N, up: U32, down: U32, close: N}
@@ -12,33 +13,16 @@ type Aroon<-N: Data> is Data:
   Aroon{down: N, up: N}
 
 def box.init(~N: Data, ~from: U32 -> N, +period: U32, depth: Nat) -> Box<N>:
-  +zero = from(0)
-  Box{period, Window.init(~Bar.HLC<N>, period, depth, Bar.HLC{zero, zero, zero})}
+  Box{period, Queue.init(~N, ~from, period, depth)}
 
-def bounds.step(~N: Data, ~ge: N -> N -> Bool, ~le: N -> N -> Bool, u: Unit, acc: Maybe<&2, Bounds<N>>, bar: Bar.HLC<N>) -> Maybe<&2, Bounds<N>>:
-  match acc bar:
-    case None{} Bar.HLC{high, low, close}: Some{Bounds{1, high, low, 0, 0, close}}
-    case Some{Bounds{+size, +high, +low, up, down, old}} Bar.HLC{+h, +l, close}:
-      +higher = ge(h, high)
-      +lower = le(l, low)
-      Some{Bounds{U32.add(size, 1), Bool.pick(N, higher, h, high), Bool.pick(N, lower, l, low), Bool.pick(U32, higher, size, up), Bool.pick(U32, lower, size, down), close}}
-
-def box.folded(~N: Data, +period: U32, result: Window.State<Bar.HLC<N>> & Maybe<&2, Bounds<N>>) -> Box<N> & Maybe<&2, Bounds<N>>:
+def box.output(~N: Data, period: U32, close: N, result: Queue.State<N> & Maybe<&2, Queue.Value<N>>) -> Box<N> & Maybe<&2, Bounds<N>>:
   match result:
-    case (window, value): (Box{period, window}, value)
-
-def box.read(~N: Data, ~ge: N -> N -> Bool, ~le: N -> N -> Bool, +period: U32, result: Window.State<Bar.HLC<N>> & Bool) -> Box<N> & Maybe<&2, Bounds<N>>:
-  match result:
-    case (window, False{}): (Box{period, window}, None{})
-    case (window, True{}): box.folded(~N, period, Window.fold(~Bar.HLC<N>, ~Unit, ~Maybe<&2, Bounds<N>>, ~(u => a => b => bounds.step(~N, ~ge, ~le, u, a, b)), window, Unit{}, None{}))
-
-def box.pushed(~N: Data, ~ge: N -> N -> Bool, ~le: N -> N -> Bool, +period: U32, result: Window.State<Bar.HLC<N>> & Maybe<&2, Bar.HLC<N>>) -> Box<N> & Maybe<&2, Bounds<N>>:
-  match result:
-    case (window, old): box.read(~N, ~ge, ~le, period, Window.full(~Bar.HLC<N>, window))
+    case (range, None{}): (Box{period, range}, None{})
+    case (range, Some{Queue.Value{low, high, low_age, high_age, +size}}): (Box{period, range}, Some{Bounds{size, high, low, U32.sub(U32.sub(size, 1), high_age), U32.sub(U32.sub(size, 1), low_age), close}})
 
 def box.next(~N: Data, ~ge: N -> N -> Bool, ~le: N -> N -> Bool, state: Box<N>, bar: Bar.HLC<N>) -> Box<N> & Maybe<&2, Bounds<N>>:
-  match state:
-    case Box{period, window}: box.pushed(~N, ~ge, ~le, period, Window.push(~Bar.HLC<N>, window, bar))
+  match state bar:
+    case Box{period, range} Bar.HLC{high, low, close}: box.output(~N, period, close, Queue.next(~N, ~le, ~ge, range, low, high))
 
 def scaled_zero(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +value: N, +a: N, +b: N) -> Bool:
   le(abs(value), mul(div(from(1), mul(from(10000000), from(10000000))), add(abs(a), abs(b))))

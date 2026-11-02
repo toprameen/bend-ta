@@ -1,0 +1,209 @@
+{
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "cpu": "Apple M3 Max",
+  "ram_bytes": 68719476736,
+  "node": "v25.8.2",
+  "base": "7c66197abf62448439874f64924b5f3afd57cc68",
+  "compiler": "Bend2.0.39",
+  "source_hashes": {
+    "src/core/adaptive_window.bend": "4ee6b67cfa09b1dcc9f9715549f698c5c384b072bd3ffa61188d6028df121b3a",
+    "src/core/advanced_oscillator.bend": "94292ca27bac90729ceb2528337de741bad409baf4da3abd46b8fc2d347dafb6",
+    "src/core/bar.bend": "283caa7ea79644b7a808e6ae923099eecdb845d1e4f0ac7807eab8029e3ab88c",
+    "src/core/candle.bend": "cefceaaf68d68a07f44df41564a4b4ec1621680698b24b1e2646b2685f5d8a4c",
+    "src/core/change.bend": "7fcbbcecafcca32f90bc94231818052b40fcfd1a41ab085713ff48f7f0dc374a",
+    "src/core/config.bend": "e1cd8945674578708b6dfb783b58c935299190a4e037d571e37d4729c199d693",
+    "src/core/directional.bend": "a1b60888563cef6bd1421590309aa2dd746d339ceb34c3d709b9402d83e48933",
+    "src/core/ema.bend": "be95a71c001b1761b5257258d2ccef9cfaa9f4cfeeb0e64307f0ce49b6e65954",
+    "src/core/extrema.bend": "3b116bb5682e7a05a69df6eacd750994d23c140092bbd19a882eddbc7d375d56",
+    "src/core/extrema_queue.bend": "f1ebce280a5ceab5878e43594af603fe82fa60cfa709e07a36ae820842b7f3dc",
+    "src/core/filters.bend": "bf1b6bafc7c2df8ff09693343debae2eb0f23d8fb62fa191cf05db953abddc06",
+    "src/core/hikkake.bend": "ab14f9ab3784f88dc2b295de1d7c504890779749e750818ae4f8f958782f2816",
+    "src/core/hilbert.bend": "399c851e6b37575c916bec98e73f4eef3a323f27f42b0bc8ff995d2503a376ee",
+    "src/core/ma.bend": "d2b19235d442684dfb56bc7aca8b799ac2b23e7562370e3eed845e9af9a90b2e",
+    "src/core/mama.bend": "b79e89b007ae67f2901e5643bd27195d74ec2212b58263515713e95c45db129b",
+    "src/core/market_state.bend": "eaa250c7f2a335ece6f90e4a7216d7b663c29caa9a38ccc5dc989b9c76066f54",
+    "src/core/moments.bend": "9b3ca3d15ddbe8d97785e5831fd9134e1c2c79bc8c35853f51c2fb82da4de1b5",
+    "src/core/momentum.bend": "9ab89d4463ce4a01208c3364dc509308fef5f487171b0980e040b9d58e62c54e",
+    "src/core/momentum_composite.bend": "3b2a16837e64e4ba270adef9bf0c5d24452b564cf4bc1ccd09b808a714c1ffc2",
+    "src/core/momentum_init.bend": "9e5ece8233ad723f55eaab839e82626b842a70379d25aa2315e848055c71d436",
+    "src/core/momentum_market.bend": "579f706a761a059f5faefbc2c49aee6f4b5c26dd39f024ad052937a29ed92ae9",
+    "src/core/momentum_smooth.bend": "5c223c60ea18f2e13d470cae426f5acba256cc1b21680e99c7b406f0bb390afc",
+    "src/core/momentum_window.bend": "bb6052e8b201b02bba39bfc839e67af5859286443c524e88429a17378fd1ef08",
+    "src/core/ordered.bend": "302231d6764bf53a2cf81d18d437f9b47a7c909155c04a1c4793f594f2ca9d72",
+    "src/core/overlap.bend": "bd51f918b355f5add5f997adec4e45a83218aedf7d0e43b3ab6032da31e46b7f",
+    "src/core/parameters.bend": "4ec4f2adf23845f017cfab1a249f82d6941a9250061b8b31ae2a77e9d45aef81",
+    "src/core/pattern_state.bend": "4a764fecee55223f88ba2b65bb3d4c0fd9ad05fad4a75da7c67bcf9d075a0088",
+    "src/core/patterns.bend": "fea243d163b355b4dfd87af54e81ed2bbc8690451a31aadc1b571e8543a7ffea",
+    "src/core/rolling.bend": "e9d37d6ca312e1ad101ed1fcea03729c22c4998abf33fb591edbadd4a19befe9",
+    "src/core/series.bend": "6c9ce3078e36bbdb9e81b5cf8d319897a9c75232eccaade7d365db0bba473ba8",
+    "src/core/sma.bend": "d87ca2585a7be3b0afa306306aa4f0d05842561a76c1b4894e78afe448218022",
+    "src/core/smoothing.bend": "13ba05bae2b444d8d8a8f4837d718751858a5cd37756aa4eab9151d9c5949dac",
+    "src/core/squeeze.bend": "7b318a0c11c08ea2317054ff780a347d2df4d5cc652060ef2e72e1f689f17727",
+    "src/core/statistics.bend": "bf21dec30bc9ba35eefe29ca4b35b4fff60ae9e170e3ed02431174599e4e7425",
+    "src/core/statistics_window.bend": "6daa52a5e5b1b3542b6545b6d64fac5be61947fcf3cf93a919c5f3521ae5a228",
+    "src/core/transform.bend": "8ce560c9b4d68ddef44b8989535c4e781768a23325b27d0ee4f98a10e16042ac",
+    "src/core/trend_composite.bend": "2aa5f9c81512558287fc0b5a92cdccf8b508317afab3b822a8f22c26031e82dd",
+    "src/core/trend_state.bend": "920a7b68c944d7c9357d9e5bceac74e320fb63f61ea587c45b122ed0c6512a5a",
+    "src/core/variable.bend": "9b292278287dbf48d5e9ce1a654558d65d223095c611e51559189ca484b50b1a",
+    "src/core/vidya.bend": "c8c48ec73eb4d346a6a0a5f769c7dcfaeb14c69d02fe57638d863ba40b4105d7",
+    "src/core/volatility.bend": "6fb36f86e7b5d2f0b039321a2b2354a2a70d6b86e23637752ab6a3109f4b8dc2",
+    "src/core/volatility_window.bend": "a3127fcf68eedf4ecd6f10ece98318c8cf0a63d4956e534f768273db22400433",
+    "src/core/volume.bend": "4e5bc1f2c434e8944e688ee961e90ef7af040d88c9139831186e26153f723edf",
+    "src/core/volume_filter.bend": "7e22c87e4b5db70b77648b1fd6a21500fe004ff7857b3accd8d82f85e629a0a7",
+    "src/core/window.bend": "c2b6c707c70fdbdabb139a53a1fd5955a8fdeacb5c69aa2d9d75c481188e33d7",
+    "src/core/window_signals.bend": "b1f83d6f2e3a398d754a5a2f3898d423dcb107c73eabb06a90f7fcd4483d43f3",
+    "src/f32.bend": "9ad6962d35275d117b48e7f4fd3d3b7c344fccdfe6f060229db3f62a3814f4bd",
+    "benchmarks/rolling.bend": "31e4371b4aa8cc33e93f1bd83e2229b4cb18216a49298854dbb4267e132465a2"
+  },
+  "benchmark_sha256": "31e4371b4aa8cc33e93f1bd83e2229b4cb18216a49298854dbb4267e132465a2",
+  "cases": 68,
+  "samples_taken": 504,
+  "elapsed_seconds": 443.3769910335541,
+  "method": "One warm-up history (min(samples,period+1024)), then one fresh measured stream per process. All output slots consumed in checksum. Three/five/seven repeated pairs, process order alternates before-after/after-before. Internal Bend IO.now integer milliseconds; no concurrent agent/build/test load.",
+  "date": "2026-11-01",
+  "units": {
+    "elapsed": "milliseconds",
+    "memory": "bytes"
+  },
+  "native_peak_memory": {
+    "method": "macOS /usr/bin/time -l maximum resident set size in bytes, fresh processes, warm-up then measured stream; 3 alternating-order matched pairs. Includes runtime and both histories, not just live state. Count/checksum parity enforced excluding elapsed time.",
+    "summary": [
+      {
+        "indicator": "MINMAXINDEX",
+        "period": 100000,
+        "samples": 100003,
+        "shape": 1,
+        "repetitions": 3,
+        "before_peak_rss_median_bytes": 5914624,
+        "after_peak_rss_median_bytes": 8011776,
+        "before_range_bytes": [
+          5914624,
+          5914624
+        ],
+        "after_range_bytes": [
+          8011776,
+          8011776
+        ]
+      },
+      {
+        "indicator": "MINMAXINDEX",
+        "period": 100000,
+        "samples": 100003,
+        "shape": 2,
+        "repetitions": 3,
+        "before_peak_rss_median_bytes": 5914624,
+        "after_peak_rss_median_bytes": 8011776,
+        "before_range_bytes": [
+          5914624,
+          5914624
+        ],
+        "after_range_bytes": [
+          8011776,
+          8011776
+        ]
+      },
+      {
+        "indicator": "DONCHIAN",
+        "period": 100000,
+        "samples": 100003,
+        "shape": 1,
+        "repetitions": 3,
+        "before_peak_rss_median_bytes": 7487488,
+        "after_peak_rss_median_bytes": 8011776,
+        "before_range_bytes": [
+          7487488,
+          7487488
+        ],
+        "after_range_bytes": [
+          8011776,
+          8011776
+        ]
+      },
+      {
+        "indicator": "DONCHIAN",
+        "period": 100000,
+        "samples": 100003,
+        "shape": 2,
+        "repetitions": 3,
+        "before_peak_rss_median_bytes": 7487488,
+        "after_peak_rss_median_bytes": 8011776,
+        "before_range_bytes": [
+          7487488,
+          7487488
+        ],
+        "after_range_bytes": [
+          8011776,
+          8011776
+        ]
+      }
+    ]
+  },
+  "native_isolated_controls": {
+    "method": "Same warmed Bend harness restricted to WMA and MA-SMA instantiations; 7 alternating-order pairs, native; all counts/checksums match. No library source edits. Matching relative import paths in complete source copies; no other build/test/measurement load.",
+    "summary": [
+      {
+        "indicator": "WMA",
+        "period": 32,
+        "samples": 200000,
+        "before_ms": 150,
+        "after_ms": 151,
+        "before_range": [
+          149,
+          152
+        ],
+        "after_range": [
+          150,
+          159
+        ]
+      },
+      {
+        "indicator": "WMA",
+        "period": 511,
+        "samples": 40000,
+        "before_ms": 437,
+        "after_ms": 438,
+        "before_range": [
+          436,
+          443
+        ],
+        "after_range": [
+          436,
+          441
+        ]
+      },
+      {
+        "indicator": "MA_SMA",
+        "period": 32,
+        "samples": 200000,
+        "before_ms": 131,
+        "after_ms": 131,
+        "before_range": [
+          130,
+          131
+        ],
+        "after_range": [
+          130,
+          131
+        ]
+      },
+      {
+        "indicator": "MA_SMA",
+        "period": 511,
+        "samples": 40000,
+        "before_ms": 382,
+        "after_ms": 382,
+        "before_range": [
+          380,
+          383
+        ],
+        "after_range": [
+          379,
+          383
+        ]
+      }
+    ],
+    "generated_c_byte_identical": false,
+    "interpretation": "Unchanged WMA/MA-SMA medians differ by less than 1% in restricted builds. Combined native program controls are 7-8% slower; retained in CSV. Generated specialization/dispatch ordering differs. This supports a combined-program compilation effect but does not establish its exact cause."
+  },
+  "compiler_binary_sha256": "fdd7d89be0904c4beb87c8daf7dc141eb95c0e082c4990df9d7f912097490680"
+}

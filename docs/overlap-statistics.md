@@ -144,11 +144,17 @@ the current raw OHLC average.
 All algorithms retain bounded state, and batch retains O(n) output slots.
 EMA/RMA and cascades use O(1) work and state per sample. MA-selected SMA, ACCBANDS and WMA/TRIMA/KAMA use
 O(period) scans and storage; HMA composes three such windows. ALMA has O(period)
-initialization, scan and storage. Regression, moments, extrema, AVGDEV,
-VWMA, channels and stop windows use fresh O(period) scans. MEDIAN/PERCENTILE
+initialization, scan and storage. Regression, moments, AVGDEV and
+VWMA use fresh O(period) scans. MEDIAN/PERCENTILE
 sort a fresh window in O(period log period) time and O(period) storage.
-These implementations do not claim constant-time rolling extrema or order
-statistics.
+MAX/MIN/MINMAX and their indexed variants, MIDPOINT/MIDPRICE, DONCHIAN and
+CKSP's price/stop windows use owned monotonic queues. Updates have amortized
+constant work with an O(period) worst-case prune burst and O(period) storage.
+The two candidate buffers use more payload storage than a single scalar ring;
+see [benchmarks and storage tradeoffs](../benchmarks/README.md). Latest equal
+extrema are selected by the indexed family. Midpoint/channel high ties retain
+the earliest equal value, preserving Base min/max signed-zero behavior.
+Order statistics retain their fresh sort costs.
 
 Finite inputs in arrival order are assumed. Malformed bars, negative volumes,
 missing values and nonfinite recovery are not separately validated. F32

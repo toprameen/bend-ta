@@ -1,4 +1,5 @@
 import Base
+import ./extrema_queue.bend as Queue
 import ./window.bend as Window
 import ./moments.bend as Moments
 import ./ordered.bend as Ordered
@@ -49,35 +50,19 @@ type Extrema<-N: Data> is Data:
   Extrema{low: N, high: N, low_index: U32, high_index: U32}
 
 type Extremes<-N: Data> is Type:
-  Extremes{window: Window.State<N>, seen: U32}
+  Extremes{range: Queue.State<N>, seen: U32}
 
-type ExtremeScan<-N: Data> is Data:
-  ExtremeScan{at: U32, value: Maybe<&2, Extrema<N>>}
+def extreme.init(~N: Data, ~from: U32 -> N, period: U32, depth: Nat) -> Extremes<N>:
+  Extremes{Queue.init(~N, ~from, period, depth), 0}
 
-def extreme.step(~N: Data, ~le: N -> N -> Bool, u: Unit, acc: ExtremeScan<N>, +x: N) -> ExtremeScan<N>:
-  match acc:
-    case ExtremeScan{+at, None{}}: ExtremeScan{U32.add(at, 1), Some{Extrema{x, x, at, at}}}
-    case ExtremeScan{+at, Some{Extrema{+low, +high, low_index, high_index}}}:
-      +lower = le(x, low)
-      +higher = le(high, x)
-      ExtremeScan{U32.add(at, 1), Some{Extrema{Bool.pick(N, lower, x, low), Bool.pick(N, higher, x, high), Bool.pick(U32, lower, at, low_index), Bool.pick(U32, higher, at, high_index)}}}
-
-def extreme.finish(~N: Data, seen: U32, result: Window.State<N> & ExtremeScan<N>) -> Extremes<N> & Maybe<&2, Extrema<N>>:
+def extreme.output(~N: Data, +seen: U32, result: Queue.State<N> & Maybe<&2, Queue.Value<N>>) -> Extremes<N> & Maybe<&2, Extrema<N>>:
   match result:
-    case (window, ExtremeScan{at, value}): (Extremes{window, seen}, value)
+    case (range, None{}): (Extremes{range, seen}, None{})
+    case (range, Some{Queue.Value{low, high, low_age, high_age, size}}): (Extremes{range, seen}, Some{Extrema{low, high, U32.sub(U32.sub(seen, 1), low_age), U32.sub(U32.sub(seen, 1), high_age)}})
 
-def extreme.ready(~N: Data, ~le: N -> N -> Bool, +seen: U32, result: Window.State<N> & Bool) -> Extremes<N> & Maybe<&2, Extrema<N>>:
-  match result:
-    case (window, False{}): (Extremes{window, seen}, None{})
-    case (Window.Window{buffer, +period, size, pos}, True{}): extreme.finish(~N, seen, Window.fold(~N, ~Unit, ~ExtremeScan<N>, ~(u => a => x => extreme.step(~N, ~le, u, a, x)), Window.Window{buffer, period, size, pos}, Unit{}, ExtremeScan{U32.sub(seen, period), None{}}))
-
-def extreme.pushed(~N: Data, ~le: N -> N -> Bool, seen: U32, result: Window.State<N> & Maybe<&2, N>) -> Extremes<N> & Maybe<&2, Extrema<N>>:
-  match result:
-    case (window, old): extreme.ready(~N, ~le, seen, Window.full(~N, window))
-
-def extreme.next(~N: Data, ~le: N -> N -> Bool, state: Extremes<N>, price: N) -> Extremes<N> & Maybe<&2, Extrema<N>>:
+def extreme.next(~N: Data, ~le: N -> N -> Bool, state: Extremes<N>, +price: N) -> Extremes<N> & Maybe<&2, Extrema<N>>:
   match state:
-    case Extremes{window, seen}: extreme.pushed(~N, ~le, U32.add(seen, 1), Window.push(~N, window, price))
+    case Extremes{range, seen}: extreme.output(~N, U32.add(seen, 1), Queue.next(~N, ~le, ~(a => b => le(b, a)), range, price, price))
 
 def list.step(~N: Data, u: Unit, xs: List<&2, N>, x: N) -> List<&2, N>:
   x <> xs

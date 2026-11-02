@@ -75,8 +75,9 @@ variance, divided by the period. `Moments.stddev` derives the square root when
 needed, so the generic moments core does not require a square-root operation.
 Period 1 emits the sample's numerical mean and zero variance.
 
-Each read uses fresh O(period) scans and O(period) stored samples. Extrema does
-not yet use a monotonic queue. Moments uses a recent observation as an origin,
+Each general-window read uses fresh O(period) scans and O(period) stored
+samples. `Extrema.read/next` accepts an arbitrary Window and retains that scan.
+Moments uses a recent observation as an origin,
 computes the average difference, and squares centered differences in a second
 pass. It does **not** square distances from the rounded emitted mean: that
 would lose accuracy when the mean itself is unrepresentable in F32.
@@ -133,9 +134,11 @@ adapter fixture exercises new window/moments code without claiming F64 support.
 
 Specialized modules add order statistics, covariance/regression, Hilbert and
 adaptive filters, dynamic MA banks and confirmation states. Monotonic extrema
-queues remain an optional performance improvement; current scans have explicit
-costs in the family guides. Reference compatibility needs pinned seeds, unstable
-settings, arithmetic policy, boundaries and meaningful numerical fixtures.
+queues now serve indicator-specific extrema state. The general Window-based
+`Extrema.read/next` interface retains its fresh scan, because it accepts arbitrary
+shared rolling windows. Costs are explicit in the family guides. Reference
+compatibility needs pinned seeds, unstable settings, arithmetic policy,
+boundaries and meaningful numerical fixtures.
 Use compact tests through these interfaces; temporary numerical matrices and
 mutations need not become permanent suites.
 
