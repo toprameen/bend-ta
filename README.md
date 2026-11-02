@@ -30,6 +30,9 @@ pass each observation to `next` with the state returned by the previous call.
 Batch calculations use the same transitions and retain one output slot per
 observation. `None` denotes warm-up; its duration depends on the indicator.
 Stateless transforms operate directly on observations.
+Use `lookback` to query startup alignment, `clone` to branch a state, and
+`preview` to inspect one update without committing it; see the
+[state guide](docs/state.md) for ownership and cost.
 
 ## Indicator reference
 

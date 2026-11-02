@@ -7,6 +7,7 @@ import ./momentum_smooth.bend as Smooth
 import ./momentum_window.bend as Box
 import ./momentum_market.bend as Market
 import ./statistics.bend as Stats
+import ./rolling_average.bend as Average
 import ./parameters.bend as Parameters
 
 def mfi.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~gt: N -> N -> Bool, state: Mom.Flow<N>, bar: Bar.HLCV<N>) -> Mom.Flow<N> & Maybe<&2, Mom.Flows<N>>:
@@ -98,24 +99,24 @@ def tsi.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~m
       tsi.numerator(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~gt, ~atan, denominator, price, change, Smooth.pipeline.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, numerator, change))
 
 type Forecast<-N: Data> is Type:
-  Forecast{window: Window.State<N>, previous: Maybe<&2, N>, origin: Maybe<&2, N>}
+  Forecast{window: Average.State<N>, previous: Maybe<&2, N>, origin: Maybe<&2, N>}
 
 def forecast.value(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, previous: Maybe<&2, N>, relative: N, +price: N) -> Maybe<&2, N>:
   match previous:
     case None{}: None{}
     case Some{prediction}: Some{Bool.pick(N, eq(price, from(0)), from(0), div(mul(from(100), sub(relative, prediction)), price))}
 
-def forecast.finish(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, origin: N, previous: Maybe<&2, N>, relative: N, price: N, result: Window.State<N> & Maybe<&2, Stats.Regression<N>>) -> Forecast<N> & Maybe<&2, N>:
+def forecast.finish(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, origin: N, previous: Maybe<&2, N>, relative: N, price: N, result: Average.State<N> & Maybe<&2, Stats.Regression<N>>) -> Forecast<N> & Maybe<&2, N>:
   match result:
     case (window, None{}): (Forecast{window, None{}, Some{origin}}, None{})
     case (window, Some{Stats.Regression{intercept, slope, endpoint, prediction}}): (Forecast{window, Some{prediction}, Some{origin}}, forecast.value(~N, ~from, ~sub, ~mul, ~div, ~eq, previous, relative, price))
 
-def forecast.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, state: Forecast<N>, +price: N) -> Forecast<N> & Maybe<&2, N>:
+def forecast.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, ~abs: N -> N, ~le: N -> N -> Bool, state: Forecast<N>, +price: N) -> Forecast<N> & Maybe<&2, N>:
   match state:
-    case Forecast{window, previous, None{}}: forecast.finish(~N, ~from, ~sub, ~mul, ~div, ~eq, price, previous, from(0), price, Stats.regress.next(~N, ~from, ~add, ~sub, ~mul, ~div, window, from(0)))
+    case Forecast{window, previous, None{}}: forecast.finish(~N, ~from, ~sub, ~mul, ~div, ~eq, price, previous, from(0), price, Stats.regress.cached(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, window, from(0)))
     case Forecast{window, previous, Some{+origin}}:
       +relative = sub(price, origin)
-      forecast.finish(~N, ~from, ~sub, ~mul, ~div, ~eq, origin, previous, relative, price, Stats.regress.next(~N, ~from, ~add, ~sub, ~mul, ~div, window, relative))
+      forecast.finish(~N, ~from, ~sub, ~mul, ~div, ~eq, origin, previous, relative, price, Stats.regress.cached(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, window, relative))
 
 type RocLeg<-N: Data> is Type:
   RocLeg{history: Window.State<N>, average: Ma.State<N>, weight: N}

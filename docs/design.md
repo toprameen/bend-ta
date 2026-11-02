@@ -44,6 +44,9 @@ EMA uses an SMA seed at sample `period` (accumulated as centered differences), t
 SMA emits its rolling sum divided by the period once the window is complete.
 The first complete window is included in both outputs.
 
+The [state guide](state.md) specifies checked lookbacks, independent cloning
+and noncommitting previews across the named interfaces.
+
 ## Owned rolling storage
 
 SMA owns an array whose capacity is the next power of two at least as large as

@@ -1,4 +1,8 @@
 import Base
+import ./core/rolling_average.bend as Average
+import ./core/variable_shared.bend as VariableShared
+import ./core/clone.bend as Clone
+import ./core/lookback.bend as Lookbacks
 import ./core/extrema_queue.bend as RangeQueue
 import ./core/hilbert.bend as Hilbert
 import ./core/filters.bend as Filters
@@ -480,8 +484,11 @@ def volume.CMF.valid(+period: U32, valid: Bool) -> Result<&2, &1, Params.Error, 
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Volume.cmf.init(~F32, ~U32.to_f32, period, volume.depth(period))}
 
+def parameters.CMF(+period: U32) -> Bool:
+  Bool.and(Params.period(period), U32.is_ge(period, 2))
+
 def CMF.init(+period: U32) -> Result<&2, &1, Params.Error, CMF.State()>:
-  volume.CMF.valid(period, Bool.and(Params.period(period), U32.is_ge(period, 2)))
+  volume.CMF.valid(period, parameters.CMF(period))
 
 def CMF.next(state: CMF.State(), bar: Bars.HLCV<F32>) -> CMF.State() & Maybe<&2, F32>:
   Volume.cmf.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_gt, state, bar)
@@ -497,8 +504,11 @@ def volume.EFI.valid(+period: U32, valid: Bool) -> Result<&2, &1, Params.Error, 
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Volume.force.init(~F32, ~U32.to_f32, ~F32.div, period)}
 
+def parameters.EFI(+period: U32) -> Bool:
+  Bool.and(Params.period(period), U32.is_ge(period, 1))
+
 def EFI.init(+period: U32) -> Result<&2, &1, Params.Error, EFI.State()>:
-  volume.EFI.valid(period, Bool.and(Params.period(period), U32.is_ge(period, 1)))
+  volume.EFI.valid(period, parameters.EFI(period))
 
 def EFI.next(state: EFI.State(), bar: Bars.CV<F32>) -> EFI.State() & Maybe<&2, F32>:
   Volume.force.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, bar)
@@ -514,8 +524,11 @@ def volume.ADR.valid(+period: U32, valid: Bool) -> Result<&2, &1, Params.Error, 
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Sma.init(~F32, ~U32.to_f32, period, volume.depth(period))}
 
+def parameters.ADR(+period: U32) -> Bool:
+  Bool.and(Params.period(period), U32.is_ge(period, 1))
+
 def ADR.init(+period: U32) -> Result<&2, &1, Params.Error, ADR.State()>:
-  volume.ADR.valid(period, Bool.and(Params.period(period), U32.is_ge(period, 1)))
+  volume.ADR.valid(period, parameters.ADR(period))
 
 def ADR.next(state: ADR.State(), bar: Bars.HL<F32>) -> ADR.State() & Maybe<&2, F32>:
   Volatility.adr.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, state, bar)
@@ -531,8 +544,11 @@ def volume.ATR.valid(+period: U32, valid: Bool) -> Result<&2, &1, Params.Error, 
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Volatility.atr.init(~F32, ~U32.to_f32, ~F32.div, period)}
 
+def parameters.ATR(+period: U32) -> Bool:
+  Bool.and(Params.period(period), U32.is_ge(period, 1))
+
 def ATR.init(+period: U32) -> Result<&2, &1, Params.Error, ATR.State()>:
-  volume.ATR.valid(period, Bool.and(Params.period(period), U32.is_ge(period, 1)))
+  volume.ATR.valid(period, parameters.ATR(period))
 
 def ATR.next(state: ATR.State(), bar: Bars.HLC<F32>) -> ATR.State() & Maybe<&2, F32>:
   Volatility.atr.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, state, bar)
@@ -548,8 +564,11 @@ def volume.NATR.valid(+period: U32, valid: Bool) -> Result<&2, &1, Params.Error,
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Volatility.natr.init(~F32, ~U32.to_f32, ~F32.div, period)}
 
+def parameters.NATR(+period: U32) -> Bool:
+  Bool.and(Params.period(period), U32.is_ge(period, 1))
+
 def NATR.init(+period: U32) -> Result<&2, &1, Params.Error, NATR.State()>:
-  volume.NATR.valid(period, Bool.and(Params.period(period), U32.is_ge(period, 1)))
+  volume.NATR.valid(period, parameters.NATR(period))
 
 def NATR.next(state: NATR.State(), bar: Bars.HLC<F32>) -> NATR.State() & Maybe<&2, F32>:
   Volatility.natr.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, ~F32.is_eq, state, bar)
@@ -565,11 +584,14 @@ def volume.EMV.valid(+period: U32, divisor: F32, valid: Bool) -> Result<&2, &1, 
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Volume.ease.init(~F32, ~U32.to_f32, period, volume.depth(period), divisor)}
 
+def parameters.EMV(+period: U32, +divisor: F32) -> Bool:
+  Bool.and(Params.period(period), Bool.and(is_finite(divisor), Bool.and(F32.is_ge(divisor, 1.0), F32.is_le(divisor, 3.0e37))))
+
 def EMV.init(+period: U32, +divisor: F32) -> Result<&2, &1, Params.Error, EMV.State()>:
-  volume.EMV.valid(period, divisor, Bool.and(Params.period(period), Bool.and(is_finite(divisor), Bool.and(F32.is_ge(divisor, 1.0), F32.is_le(divisor, 3.0e37)))))
+  volume.EMV.valid(period, divisor, parameters.EMV(period, divisor))
 
 def EMV.next(state: EMV.State(), bar: Bars.HLV<F32>) -> EMV.State() & Maybe<&2, F32>:
-  Volume.ease.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, state, bar)
+  Volume.ease.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.abs, ~F32.is_le, state, bar)
 
 def EMV.batch(xs: List<&2, Bars.HLV<F32>>, period: U32, divisor: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~Bars.HLV<F32>, ~F32, ~EMV.State(), ~Params.Error, ~EMV.next, xs, EMV.init(period, divisor))
@@ -582,8 +604,11 @@ def volume.CVI.valid(period: U32, +lag: U32, valid: Bool) -> Result<&2, &1, Para
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Volatility.cvi.init(~F32, ~U32.to_f32, ~F32.div, period, lag, volume.depth(lag))}
 
+def parameters.CVI(+period: U32, +lag: U32) -> Bool:
+  Bool.and(Params.periods([period, lag]), U32.is_ge(period, 2))
+
 def CVI.init(+period: U32, +lag: U32) -> Result<&2, &1, Params.Error, CVI.State()>:
-  volume.CVI.valid(period, lag, Bool.and(Params.periods([period, lag]), U32.is_ge(period, 2)))
+  volume.CVI.valid(period, lag, parameters.CVI(period, lag))
 
 def CVI.next(state: CVI.State(), bar: Bars.HL<F32>) -> CVI.State() & Maybe<&2, F32>:
   Volatility.cvi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, state, bar)
@@ -599,8 +624,11 @@ def volume.MASSI.valid(fast: U32, +slow: U32, valid: Bool) -> Result<&2, &1, Par
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Volatility.mass.init(~F32, ~U32.to_f32, ~F32.div, fast, slow, volume.depth(slow))}
 
+def parameters.MASSI(+fast: U32, +slow: U32) -> Bool:
+  Bool.and(Params.periods([fast, slow]), Bool.and(U32.is_ge(fast, 2), U32.is_ge(slow, 2)))
+
 def MASSI.init(+fast: U32, +slow: U32) -> Result<&2, &1, Params.Error, MASSI.State()>:
-  volume.MASSI.valid(fast, slow, Bool.and(Params.periods([fast, slow]), Bool.and(U32.is_ge(fast, 2), U32.is_ge(slow, 2))))
+  volume.MASSI.valid(fast, slow, parameters.MASSI(fast, slow))
 
 def MASSI.next(state: MASSI.State(), bar: Bars.HL<F32>) -> MASSI.State() & Maybe<&2, F32>:
   Volatility.mass.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, state, bar)
@@ -1361,8 +1389,11 @@ def vidya.init.checked(+period: U32, +cmo: U32, valid: Bool) -> Result<&2, &1, P
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Vidya.init(~F32, ~U32.to_f32, ~F32.div, period, cmo, volume.depth(cmo))}
 
+def parameters.VIDYA(+period: U32, +cmo: U32) -> Bool:
+  Bool.and(Params.periods([period, cmo]), U32.is_ge(cmo, 2))
+
 def VIDYA.init(+period: U32, +cmo: U32) -> Result<&2, &1, Params.Error, VIDYA.State()>:
-  vidya.init.checked(period, cmo, Bool.and(Params.periods([period, cmo]), U32.is_ge(cmo, 2)))
+  vidya.init.checked(period, cmo, parameters.VIDYA(period, cmo))
 
 def VIDYA.next(state: VIDYA.State(), price: F32) -> VIDYA.State() & Maybe<&2, F32>:
   Vidya.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, price)
@@ -1384,9 +1415,12 @@ def MAMA.init.checked(fast: F32, slow: F32, valid: Bool) -> Result<&2, &1, MAMA.
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Done{Mama.init(~F32, ~U32.to_f32, ~F32.div, fast, slow)}
 
+def parameters.MAMA(+fast: F32, +slow: F32) -> Bool:
+  Bool.and(Bool.and(is_finite(fast), is_finite(slow)),
+    Bool.and(Bool.and(F32.is_ge(fast, 0.01), F32.is_le(fast, 0.99)), Bool.and(F32.is_ge(slow, 0.01), F32.is_le(slow, 0.99))))
+
 def MAMA.init(+fast: F32, +slow: F32) -> Result<&2, &1, MAMA.Error(), MAMA.State()>:
-  MAMA.init.checked(fast, slow, Bool.and(Bool.and(is_finite(fast), is_finite(slow)),
-    Bool.and(Bool.and(F32.is_ge(fast, 0.01), F32.is_le(fast, 0.99)), Bool.and(F32.is_ge(slow, 0.01), F32.is_le(slow, 0.99)))))
+  MAMA.init.checked(fast, slow, parameters.MAMA(fast, slow))
 
 def MAMA.next(state: MAMA.State(), price: F32) -> MAMA.State() & Maybe<&2, MAMA.Value()>:
   Mama.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_le, ~F32.atan, state, price)
@@ -1509,8 +1543,11 @@ def ZLEMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, 
 def T3.State() -> Type:
   MA.State()
 
+def parameters.T3(+period: U32, +factor: F32) -> Bool:
+  Bool.and(overlap.valid(period, 1), Bool.and(is_finite(factor), Bool.and(F32.is_ge(factor, 0.0), F32.is_le(factor, 1.0))))
+
 def T3.init(+period: U32, +factor: F32) -> Result<&2, &1, Params.Error, T3.State()>:
-  overlap.init(~T3.State(), Bool.and(overlap.valid(period, 1), Bool.and(is_finite(factor), Bool.and(F32.is_ge(factor, 0.0), F32.is_le(factor, 1.0)))), u => Ma.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), 8, factor))
+  overlap.init(~T3.State(), parameters.T3(period, factor), u => Ma.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), 8, factor))
 
 def T3.next(state: T3.State(), price: F32) -> T3.State() & Maybe<&2, F32>:
   MA.next(state, price)
@@ -1521,8 +1558,11 @@ def T3.batch(xs: List<&2, F32>, period: U32, factor: F32) -> Result<&2, &2, Para
 def ALMA.State() -> Type:
   MA.State()
 
+def parameters.ALMA(+period: U32, +sigma: F32, +offset: F32) -> Bool:
+  Bool.and(overlap.valid(period, 1), Bool.and(Bool.and(is_finite(sigma), Bool.and(F32.is_ge(sigma, 0.01), F32.is_le(sigma, 3.0e37))), Bool.and(is_finite(offset), Bool.and(F32.is_ge(offset, 0.0), F32.is_le(offset, 1.0)))))
+
 def ALMA.init(+period: U32, +sigma: F32, +offset: F32) -> Result<&2, &1, Params.Error, ALMA.State()>:
-  overlap.init(~ALMA.State(), Bool.and(overlap.valid(period, 1), Bool.and(Bool.and(is_finite(sigma), Bool.and(F32.is_ge(sigma, 0.01), F32.is_le(sigma, 3.0e37))), Bool.and(is_finite(offset), Bool.and(F32.is_ge(offset, 0.0), F32.is_le(offset, 1.0))))), u => Ma.gaussian.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), sigma, offset))
+  overlap.init(~ALMA.State(), parameters.ALMA(period, sigma, offset), u => Ma.gaussian.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), sigma, offset))
 
 def ALMA.next(state: ALMA.State(), price: F32) -> ALMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
@@ -1538,13 +1578,13 @@ def stats.LINEARREG(value: Statistics.Regression<F32>) -> F32:
     case Statistics.Regression{intercept, slope, endpoint, forecast}: endpoint
 
 def LINEARREG.State() -> Type:
-  Window.State()
+  Average.State<F32>
 
 def LINEARREG.init(+period: U32) -> Result<&2, &1, Params.Error, LINEARREG.State()>:
-  overlap.init(~LINEARREG.State(), overlap.valid(period, 2), u => overlap.window(period))
+  overlap.init(~LINEARREG.State(), overlap.valid(period, 2), u => Statistics.regress.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def LINEARREG.next(state: LINEARREG.State(), price: F32) -> LINEARREG.State() & Maybe<&2, F32>:
-  overlap.project(~LINEARREG.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG, Statistics.regress.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, price))
+  overlap.project(~LINEARREG.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG, Statistics.regress.cached(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, price))
 
 def LINEARREG.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~LINEARREG.State(), ~Params.Error, ~LINEARREG.next, xs, LINEARREG.init(period))
@@ -1554,13 +1594,13 @@ def stats.LINEARREG_SLOPE(value: Statistics.Regression<F32>) -> F32:
     case Statistics.Regression{intercept, slope, endpoint, forecast}: slope
 
 def LINEARREG_SLOPE.State() -> Type:
-  Window.State()
+  Average.State<F32>
 
 def LINEARREG_SLOPE.init(+period: U32) -> Result<&2, &1, Params.Error, LINEARREG_SLOPE.State()>:
-  overlap.init(~LINEARREG_SLOPE.State(), overlap.valid(period, 2), u => overlap.window(period))
+  overlap.init(~LINEARREG_SLOPE.State(), overlap.valid(period, 2), u => Statistics.regress.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def LINEARREG_SLOPE.next(state: LINEARREG_SLOPE.State(), price: F32) -> LINEARREG_SLOPE.State() & Maybe<&2, F32>:
-  overlap.project(~LINEARREG_SLOPE.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG_SLOPE, Statistics.regress.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, price))
+  overlap.project(~LINEARREG_SLOPE.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG_SLOPE, Statistics.regress.cached(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, price))
 
 def LINEARREG_SLOPE.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~LINEARREG_SLOPE.State(), ~Params.Error, ~LINEARREG_SLOPE.next, xs, LINEARREG_SLOPE.init(period))
@@ -1570,13 +1610,13 @@ def stats.LINEARREG_INTERCEPT(value: Statistics.Regression<F32>) -> F32:
     case Statistics.Regression{intercept, slope, endpoint, forecast}: intercept
 
 def LINEARREG_INTERCEPT.State() -> Type:
-  Window.State()
+  Average.State<F32>
 
 def LINEARREG_INTERCEPT.init(+period: U32) -> Result<&2, &1, Params.Error, LINEARREG_INTERCEPT.State()>:
-  overlap.init(~LINEARREG_INTERCEPT.State(), overlap.valid(period, 2), u => overlap.window(period))
+  overlap.init(~LINEARREG_INTERCEPT.State(), overlap.valid(period, 2), u => Statistics.regress.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def LINEARREG_INTERCEPT.next(state: LINEARREG_INTERCEPT.State(), price: F32) -> LINEARREG_INTERCEPT.State() & Maybe<&2, F32>:
-  overlap.project(~LINEARREG_INTERCEPT.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG_INTERCEPT, Statistics.regress.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, price))
+  overlap.project(~LINEARREG_INTERCEPT.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG_INTERCEPT, Statistics.regress.cached(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, price))
 
 def LINEARREG_INTERCEPT.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~LINEARREG_INTERCEPT.State(), ~Params.Error, ~LINEARREG_INTERCEPT.next, xs, LINEARREG_INTERCEPT.init(period))
@@ -1585,13 +1625,13 @@ def stats.LINEARREG_ANGLE(value: Statistics.Regression<F32>) -> F32:
   Statistics.angle(~F32, ~U32.to_f32, ~F32.mul, ~F32.div, ~F32.atan, value)
 
 def LINEARREG_ANGLE.State() -> Type:
-  Window.State()
+  Average.State<F32>
 
 def LINEARREG_ANGLE.init(+period: U32) -> Result<&2, &1, Params.Error, LINEARREG_ANGLE.State()>:
-  overlap.init(~LINEARREG_ANGLE.State(), overlap.valid(period, 2), u => overlap.window(period))
+  overlap.init(~LINEARREG_ANGLE.State(), overlap.valid(period, 2), u => Statistics.regress.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def LINEARREG_ANGLE.next(state: LINEARREG_ANGLE.State(), price: F32) -> LINEARREG_ANGLE.State() & Maybe<&2, F32>:
-  overlap.project(~LINEARREG_ANGLE.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG_ANGLE, Statistics.regress.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, price))
+  overlap.project(~LINEARREG_ANGLE.State(), ~Statistics.Regression<F32>, ~F32, ~stats.LINEARREG_ANGLE, Statistics.regress.cached(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, price))
 
 def LINEARREG_ANGLE.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~LINEARREG_ANGLE.State(), ~Params.Error, ~LINEARREG_ANGLE.next, xs, LINEARREG_ANGLE.init(period))
@@ -1601,13 +1641,13 @@ def stats.TSF(value: Statistics.Regression<F32>) -> F32:
     case Statistics.Regression{intercept, slope, endpoint, forecast}: forecast
 
 def TSF.State() -> Type:
-  Window.State()
+  Average.State<F32>
 
 def TSF.init(+period: U32) -> Result<&2, &1, Params.Error, TSF.State()>:
-  overlap.init(~TSF.State(), overlap.valid(period, 2), u => overlap.window(period))
+  overlap.init(~TSF.State(), overlap.valid(period, 2), u => Statistics.regress.init(~F32, ~U32.to_f32, period, Config.depth(period)))
 
 def TSF.next(state: TSF.State(), price: F32) -> TSF.State() & Maybe<&2, F32>:
-  overlap.project(~TSF.State(), ~Statistics.Regression<F32>, ~F32, ~stats.TSF, Statistics.regress.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, price))
+  overlap.project(~TSF.State(), ~Statistics.Regression<F32>, ~F32, ~stats.TSF, Statistics.regress.cached(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, price))
 
 def TSF.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~TSF.State(), ~Params.Error, ~TSF.next, xs, TSF.init(period))
@@ -1729,8 +1769,11 @@ def MINMAXINDEX.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.E
 def MEDIAN.State() -> Type:
   Window.State()
 
+def parameters.MEDIAN(+period: U32) -> Bool:
+  Bool.and(overlap.valid(period, 2), U32.is_le(period, 10000))
+
 def MEDIAN.init(+period: U32) -> Result<&2, &1, Params.Error, MEDIAN.State()>:
-  overlap.init(~MEDIAN.State(), Bool.and(overlap.valid(period, 2), U32.is_le(period, 10000)), u => overlap.window(period))
+  overlap.init(~MEDIAN.State(), parameters.MEDIAN(period), u => overlap.window(period))
 
 def MEDIAN.next(state: MEDIAN.State(), price: F32) -> MEDIAN.State() & Maybe<&2, F32>:
   Statistics.quantile.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_le, state, price, 50.0)
@@ -1741,8 +1784,11 @@ def MEDIAN.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error,
 def PERCENTRANK.State() -> Type:
   Window.State()
 
+def parameters.PERCENTRANK(+period: U32) -> Bool:
+  Bool.and(overlap.valid(period, 2), U32.is_le(period, 10000))
+
 def PERCENTRANK.init(+period: U32) -> Result<&2, &1, Params.Error, PERCENTRANK.State()>:
-  overlap.init(~PERCENTRANK.State(), Bool.and(overlap.valid(period, 2), U32.is_le(period, 10000)), u => overlap.window(period))
+  overlap.init(~PERCENTRANK.State(), parameters.PERCENTRANK(period), u => overlap.window(period))
 
 def PERCENTRANK.next(state: PERCENTRANK.State(), price: F32) -> PERCENTRANK.State() & Maybe<&2, F32>:
   Statistics.rank.next(~F32, ~U32.to_f32, ~F32.mul, ~F32.div, ~F32.is_lt, state, price)
@@ -1753,8 +1799,11 @@ def PERCENTRANK.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.E
 def AVGDEV.State() -> Type:
   Window.State()
 
+def parameters.AVGDEV(+period: U32) -> Bool:
+  Bool.and(overlap.valid(period, 2), U32.is_le(period, 100000))
+
 def AVGDEV.init(+period: U32) -> Result<&2, &1, Params.Error, AVGDEV.State()>:
-  overlap.init(~AVGDEV.State(), Bool.and(overlap.valid(period, 2), U32.is_le(period, 100000)), u => overlap.window(period))
+  overlap.init(~AVGDEV.State(), parameters.AVGDEV(period), u => overlap.window(period))
 
 def AVGDEV.next(state: AVGDEV.State(), price: F32) -> AVGDEV.State() & Maybe<&2, F32>:
   Statistics.deviation.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, ~F32.abs, state, price)
@@ -1765,8 +1814,11 @@ def AVGDEV.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error,
 def STDDEV.State() -> Type:
   Statistics.ParameterWindow<F32>
 
+def parameters.STDDEV(+period: U32, +factor: F32) -> Bool:
+  Bool.and(overlap.valid(period, 2), Bool.and(is_finite(factor), F32.is_le(F32.abs(factor), 3.0e37)))
+
 def STDDEV.init(+period: U32, +factor: F32) -> Result<&2, &1, Params.Error, STDDEV.State()>:
-  overlap.init(~STDDEV.State(), Bool.and(overlap.valid(period, 2), Bool.and(is_finite(factor), F32.is_le(F32.abs(factor), 3.0e37))), u => Statistics.ParameterWindow{overlap.window(period), factor})
+  overlap.init(~STDDEV.State(), parameters.STDDEV(period, factor), u => Statistics.ParameterWindow{overlap.window(period), factor})
 
 def STDDEV.next(state: STDDEV.State(), price: F32) -> STDDEV.State() & Maybe<&2, F32>:
   Statistics.standard.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, state, price)
@@ -1777,8 +1829,11 @@ def STDDEV.batch(xs: List<&2, F32>, period: U32, factor: F32) -> Result<&2, &2, 
 def PERCENTILE.State() -> Type:
   Statistics.ParameterWindow<F32>
 
+def parameters.PERCENTILE(+period: U32, +percent: F32) -> Bool:
+  Bool.and(overlap.valid(period, 2), Bool.and(U32.is_le(period, 10000), Bool.and(is_finite(percent), Bool.and(F32.is_ge(percent, 0.0), F32.is_le(percent, 100.0)))))
+
 def PERCENTILE.init(+period: U32, +percent: F32) -> Result<&2, &1, Params.Error, PERCENTILE.State()>:
-  overlap.init(~PERCENTILE.State(), Bool.and(overlap.valid(period, 2), Bool.and(U32.is_le(period, 10000), Bool.and(is_finite(percent), Bool.and(F32.is_ge(percent, 0.0), F32.is_le(percent, 100.0))))), u => Statistics.ParameterWindow{overlap.window(period), percent})
+  overlap.init(~PERCENTILE.State(), parameters.PERCENTILE(period, percent), u => Statistics.ParameterWindow{overlap.window(period), percent})
 
 def PERCENTILE.next(state: PERCENTILE.State(), price: F32) -> PERCENTILE.State() & Maybe<&2, F32>:
   Statistics.percentile.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_le, state, price)
@@ -1847,8 +1902,11 @@ def BBANDS.init.checked(+period: U32, up: F32, down: F32, +kind: U32, valid: Boo
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Overlap.bollinger.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), up, down, kind)
 
+def parameters.BBANDS(+period: U32, +up: F32, +down: F32) -> Bool:
+  Bool.and(overlap.valid(period, 2), Bool.and(Bool.and(is_finite(up), F32.is_le(F32.abs(up), 3.0e37)), Bool.and(is_finite(down), F32.is_le(F32.abs(down), 3.0e37))))
+
 def BBANDS.init(+period: U32, +up: F32, +down: F32, kind: U32) -> Result<&2, &1, Params.Error, BBANDS.State()>:
-  BBANDS.init.checked(period, up, down, kind, Bool.and(overlap.valid(period, 2), Bool.and(Bool.and(is_finite(up), F32.is_le(F32.abs(up), 3.0e37)), Bool.and(is_finite(down), F32.is_le(F32.abs(down), 3.0e37)))))
+  BBANDS.init.checked(period, up, down, kind, parameters.BBANDS(period, up, down))
 
 def overlap.bands(value: Overlap.BollingerValue<F32>) -> BBANDS.Value():
   match value:
@@ -1905,7 +1963,7 @@ def ACCBANDS.init(+period: U32) -> Result<&2, &1, Params.Error, ACCBANDS.State()
   overlap.init(~ACCBANDS.State(), overlap.valid(period, 2), u => Overlap.accbands.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)))
 
 def ACCBANDS.next(state: ACCBANDS.State(), bar: Bars.HLC<F32>) -> ACCBANDS.State() & Maybe<&2, ACCBANDS.Value()>:
-  Overlap.acceleration.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, state, bar)
+  Overlap.acceleration.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.abs, ~F32.is_le, state, bar)
 
 def ACCBANDS.batch(xs: List<&2, Bars.HLC<F32>>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, ACCBANDS.Value()>>>:
   Series.initialized(~Bars.HLC<F32>, ~ACCBANDS.Value(), ~ACCBANDS.State(), ~Params.Error, ~ACCBANDS.next, xs, ACCBANDS.init(period))
@@ -1943,8 +2001,11 @@ def KC.Value() -> Data:
 def KC.State() -> Data:
   Overlap.Keltner<F32>
 
+def parameters.KC(+period: U32, +atr_period: U32, +deviation: F32) -> Bool:
+  Bool.and(Bool.and(overlap.valid(period, 2), overlap.valid(atr_period, 1)), Bool.and(is_finite(deviation), F32.is_le(F32.abs(deviation), 3.0e37)))
+
 def KC.init(+period: U32, +atr_period: U32, +deviation: F32) -> Result<&2, &1, Params.Error, KC.State()>:
-  overlap.init(~KC.State(), Bool.and(Bool.and(overlap.valid(period, 2), overlap.valid(atr_period, 1)), Bool.and(is_finite(deviation), F32.is_le(F32.abs(deviation), 3.0e37))), u => Overlap.keltner.init(~F32, ~U32.to_f32, ~F32.div, period, atr_period, deviation))
+  overlap.init(~KC.State(), parameters.KC(period, atr_period, deviation), u => Overlap.keltner.init(~F32, ~U32.to_f32, ~F32.div, period, atr_period, deviation))
 
 def KC.next(state: KC.State(), bar: Bars.HLC<F32>) -> KC.State() & Maybe<&2, KC.Value()>:
   Overlap.keltner.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, state, bar)
@@ -1958,8 +2019,11 @@ def CKSP.Value() -> Data:
 def CKSP.State() -> Type:
   Overlap.ChandeKroll<F32>
 
+def parameters.CKSP(+period: U32, +multiplier: F32, +stop_period: U32) -> Bool:
+  Bool.and(Bool.and(overlap.valid(period, 2), overlap.valid(stop_period, 1)), Bool.and(is_finite(multiplier), Bool.and(F32.is_ge(multiplier, 0.0), F32.is_le(multiplier, 3.0e37))))
+
 def CKSP.init(+period: U32, +multiplier: F32, +stop_period: U32) -> Result<&2, &1, Params.Error, CKSP.State()>:
-  overlap.init(~CKSP.State(), Bool.and(Bool.and(overlap.valid(period, 2), overlap.valid(stop_period, 1)), Bool.and(is_finite(multiplier), Bool.and(F32.is_ge(multiplier, 0.0), F32.is_le(multiplier, 3.0e37)))), u => Overlap.chande.init(~F32, ~U32.to_f32, ~F32.div, period, Ma.buffer_depth(period), multiplier, stop_period, Ma.buffer_depth(stop_period)))
+  overlap.init(~CKSP.State(), parameters.CKSP(period, multiplier, stop_period), u => Overlap.chande.init(~F32, ~U32.to_f32, ~F32.div, period, Ma.buffer_depth(period), multiplier, stop_period, Ma.buffer_depth(stop_period)))
 
 def CKSP.next(state: CKSP.State(), bar: Bars.HLC<F32>) -> CKSP.State() & Maybe<&2, CKSP.Value()>:
   Overlap.chande.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_lt, ~F32.max, state, bar)
@@ -2123,8 +2187,11 @@ def ADXR.batch(xs: List<&2, Bars.HLC<F32>>, +period: U32) -> Result<&2, &2, Mome
 def SI.State() -> Type:
   MomentumWindow.Swing<F32>
 
+def parameters.SI(+limit: F32) -> Bool:
+  Bool.and(is_finite(limit), Bool.and(F32.is_ge(limit, 0.00000001), F32.is_le(limit, 30000000000000000000000000000000000000.0)))
+
 def SI.init(+limit: F32) -> Result<&2, &1, Momentum.Error(), SI.State()>:
-  Momentum.configure(~SI.State(), Bool.and(is_finite(limit), Bool.and(F32.is_ge(limit, 0.00000001), F32.is_le(limit, 30000000000000000000000000000000000000.0))), u => Done{MomentumWindow.swing.init(~F32, ~U32.to_f32, limit)})
+  Momentum.configure(~SI.State(), parameters.SI(limit), u => Done{MomentumWindow.swing.init(~F32, ~U32.to_f32, limit)})
 
 def SI.next(state: SI.State(), value: Bars.OHLC<F32>) -> SI.State() & Maybe<&2, F32>:
   MomentumWindow.swing.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, ~F32.is_eq, state, value, False{})
@@ -2135,8 +2202,11 @@ def SI.batch(xs: List<&2, Bars.OHLC<F32>>, +limit: F32) -> Result<&2, &2, Moment
 def ASI.State() -> Type:
   MomentumWindow.Swing<F32>
 
+def parameters.ASI(+limit: F32) -> Bool:
+  Bool.and(is_finite(limit), Bool.and(F32.is_ge(limit, 0.00000001), F32.is_le(limit, 30000000000000000000000000000000000000.0)))
+
 def ASI.init(+limit: F32) -> Result<&2, &1, Momentum.Error(), ASI.State()>:
-  Momentum.configure(~ASI.State(), Bool.and(is_finite(limit), Bool.and(F32.is_ge(limit, 0.00000001), F32.is_le(limit, 30000000000000000000000000000000000000.0))), u => Done{MomentumWindow.swing.init(~F32, ~U32.to_f32, limit)})
+  Momentum.configure(~ASI.State(), parameters.ASI(limit), u => Done{MomentumWindow.swing.init(~F32, ~U32.to_f32, limit)})
 
 def ASI.next(state: ASI.State(), value: Bars.OHLC<F32>) -> ASI.State() & Maybe<&2, F32>:
   MomentumWindow.swing.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, ~F32.is_eq, state, value, True{})
@@ -2275,8 +2345,11 @@ def VORTEX.Value() -> Data:
 def APO.State() -> Type:
   MomentumSmooth.Dual<F32>
 
+def parameters.APO(+fast: U32, +slow: U32, +kind: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Ma.supported(kind))
+
 def APO.init(+fast: U32, +slow: U32, +kind: U32) -> Result<&2, &1, Momentum.Error(), APO.State()>:
-  Momentum.configure(~APO.State(), Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Ma.supported(kind)), u => MomentumInit.apo(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, kind))
+  Momentum.configure(~APO.State(), parameters.APO(fast, slow, kind), u => MomentumInit.apo(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, kind))
 
 def APO.next(state: APO.State(), value: F32) -> APO.State() & Maybe<&2, F32>:
   MomentumSmooth.dual.difference(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~Momentum.ppo_zero, MomentumSmooth.dual.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value), False{})
@@ -2287,8 +2360,11 @@ def APO.batch(xs: List<&2, F32>, +fast: U32, +slow: U32, +kind: U32) -> Result<&
 def PPO.State() -> Type:
   MomentumSmooth.Dual<F32>
 
+def parameters.PPO(+fast: U32, +slow: U32, +kind: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Ma.supported(kind))
+
 def PPO.init(+fast: U32, +slow: U32, +kind: U32) -> Result<&2, &1, Momentum.Error(), PPO.State()>:
-  Momentum.configure(~PPO.State(), Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Ma.supported(kind)), u => MomentumInit.apo(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, kind))
+  Momentum.configure(~PPO.State(), parameters.PPO(fast, slow, kind), u => MomentumInit.apo(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, kind))
 
 def PPO.next(state: PPO.State(), value: F32) -> PPO.State() & Maybe<&2, F32>:
   MomentumSmooth.dual.difference(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~Momentum.ppo_zero, MomentumSmooth.dual.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value), True{})
@@ -2299,8 +2375,11 @@ def PPO.batch(xs: List<&2, F32>, +fast: U32, +slow: U32, +kind: U32) -> Result<&
 def AO.State() -> Type:
   MomentumSmooth.Dual<F32>
 
+def parameters.AO(+fast: U32, +slow: U32) -> Bool:
+  Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2))
+
 def AO.init(+fast: U32, +slow: U32) -> Result<&2, &1, Momentum.Error(), AO.State()>:
-  Momentum.configure(~AO.State(), Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), u => MomentumInit.ao(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow))
+  Momentum.configure(~AO.State(), parameters.AO(fast, slow), u => MomentumInit.ao(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow))
 
 def AO.next(state: AO.State(), value: Bars.HL<F32>) -> AO.State() & Maybe<&2, F32>:
   MomentumSmooth.ao.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, ~Momentum.ppo_zero, state, value)
@@ -2311,8 +2390,11 @@ def AO.batch(xs: List<&2, Bars.HL<F32>>, +fast: U32, +slow: U32) -> Result<&2, &
 def AC.State() -> Type:
   MomentumSmooth.MACD<F32>
 
+def parameters.AC(+fast: U32, +slow: U32, +signal: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 2))
+
 def AC.init(+fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Momentum.Error(), AC.State()>:
-  Momentum.configure(~AC.State(), Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 2)), u => MomentumInit.ac(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, signal))
+  Momentum.configure(~AC.State(), parameters.AC(fast, slow, signal), u => MomentumInit.ac(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, signal))
 
 def AC.next(state: AC.State(), value: Bars.HL<F32>) -> AC.State() & Maybe<&2, F32>:
   MomentumSmooth.ac.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value)
@@ -2323,8 +2405,11 @@ def AC.batch(xs: List<&2, Bars.HL<F32>>, +fast: U32, +slow: U32, +signal: U32) -
 def MACD.State() -> Type:
   MomentumSmooth.MACD<F32>
 
+def parameters.MACD(+fast: U32, +slow: U32, +signal: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1))
+
 def MACD.init(+fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Momentum.Error(), MACD.State()>:
-  Momentum.configure(~MACD.State(), Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1)), u => MomentumInit.macd(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, signal))
+  Momentum.configure(~MACD.State(), parameters.MACD(fast, slow, signal), u => MomentumInit.macd(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, signal))
 
 def MACD.next(state: MACD.State(), value: F32) -> MACD.State() & Maybe<&2, MACD.Value()>:
   MomentumSmooth.macd.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value)
@@ -2347,8 +2432,11 @@ def MACDFIX.batch(xs: List<&2, F32>, +signal: U32) -> Result<&2, &2, Momentum.Er
 def STOCH.State() -> Type:
   MomentumSmooth.Stoch<F32>
 
+def parameters.STOCH(+kperiod: U32, +slowk: U32, +ktype: U32, +dperiod: U32, +dtype: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Momentum.period(kperiod, 1), Momentum.period(slowk, 1)), Momentum.period(dperiod, 1)), Bool.and(Momentum.selector(slowk, ktype), Momentum.selector(dperiod, dtype)))
+
 def STOCH.init(+kperiod: U32, +slowk: U32, +ktype: U32, +dperiod: U32, +dtype: U32) -> Result<&2, &1, Momentum.Error(), STOCH.State()>:
-  Momentum.configure(~STOCH.State(), Bool.and(Bool.and(Bool.and(Momentum.period(kperiod, 1), Momentum.period(slowk, 1)), Momentum.period(dperiod, 1)), Bool.and(Momentum.selector(slowk, ktype), Momentum.selector(dperiod, dtype))), u => MomentumInit.stoch(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, slowk, ktype, dperiod, dtype))
+  Momentum.configure(~STOCH.State(), parameters.STOCH(kperiod, slowk, ktype, dperiod, dtype), u => MomentumInit.stoch(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, slowk, ktype, dperiod, dtype))
 
 def STOCH.next(state: STOCH.State(), value: Bars.HLC<F32>) -> STOCH.State() & Maybe<&2, STOCH.Value()>:
   MomentumSmooth.stoch.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_ge, ~F32.atan, state, value)
@@ -2359,8 +2447,11 @@ def STOCH.batch(xs: List<&2, Bars.HLC<F32>>, +kperiod: U32, +slowk: U32, +ktype:
 def KDJ.State() -> Type:
   MomentumSmooth.Stoch<F32>
 
+def parameters.KDJ(+kperiod: U32, +slowk: U32, +ktype: U32, +dperiod: U32, +dtype: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Momentum.period(kperiod, 1), Momentum.period(slowk, 1)), Momentum.period(dperiod, 1)), Bool.and(Momentum.selector(slowk, ktype), Momentum.selector(dperiod, dtype)))
+
 def KDJ.init(+kperiod: U32, +slowk: U32, +ktype: U32, +dperiod: U32, +dtype: U32) -> Result<&2, &1, Momentum.Error(), KDJ.State()>:
-  Momentum.configure(~KDJ.State(), Bool.and(Bool.and(Bool.and(Momentum.period(kperiod, 1), Momentum.period(slowk, 1)), Momentum.period(dperiod, 1)), Bool.and(Momentum.selector(slowk, ktype), Momentum.selector(dperiod, dtype))), u => MomentumInit.stoch(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, slowk, ktype, dperiod, dtype))
+  Momentum.configure(~KDJ.State(), parameters.KDJ(kperiod, slowk, ktype, dperiod, dtype), u => MomentumInit.stoch(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, slowk, ktype, dperiod, dtype))
 
 def KDJ.next(state: KDJ.State(), value: Bars.HLC<F32>) -> KDJ.State() & Maybe<&2, STOCH.Value()>:
   MomentumSmooth.stoch.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_ge, ~F32.atan, state, value)
@@ -2371,8 +2462,11 @@ def KDJ.batch(xs: List<&2, Bars.HLC<F32>>, +kperiod: U32, +slowk: U32, +ktype: U
 def STOCHF.State() -> Type:
   MomentumSmooth.Stoch<F32>
 
+def parameters.STOCHF(+kperiod: U32, +dperiod: U32, +dtype: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(kperiod, 1), Momentum.period(dperiod, 1)), Momentum.selector(dperiod, dtype))
+
 def STOCHF.init(+kperiod: U32, +dperiod: U32, +dtype: U32) -> Result<&2, &1, Momentum.Error(), STOCHF.State()>:
-  Momentum.configure(~STOCHF.State(), Bool.and(Bool.and(Momentum.period(kperiod, 1), Momentum.period(dperiod, 1)), Momentum.selector(dperiod, dtype)), u => MomentumInit.stochf(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, dperiod, dtype))
+  Momentum.configure(~STOCHF.State(), parameters.STOCHF(kperiod, dperiod, dtype), u => MomentumInit.stochf(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, dperiod, dtype))
 
 def STOCHF.next(state: STOCHF.State(), value: Bars.HLC<F32>) -> STOCHF.State() & Maybe<&2, STOCH.Value()>:
   MomentumSmooth.stoch.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_ge, ~F32.atan, state, value)
@@ -2383,8 +2477,11 @@ def STOCHF.batch(xs: List<&2, Bars.HLC<F32>>, +kperiod: U32, +dperiod: U32, +dty
 def STOCHRSI.State() -> Type:
   MomentumComposite.StochRSI<F32>
 
+def parameters.STOCHRSI(+period: U32, +kperiod: U32, +dperiod: U32, +dtype: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(kperiod, 1)), Momentum.period(dperiod, 1)), Momentum.selector(dperiod, dtype))
+
 def STOCHRSI.init(+period: U32, +kperiod: U32, +dperiod: U32, +dtype: U32) -> Result<&2, &1, Momentum.Error(), STOCHRSI.State()>:
-  Momentum.configure(~STOCHRSI.State(), Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(kperiod, 1)), Momentum.period(dperiod, 1)), Momentum.selector(dperiod, dtype)), u => MomentumInit.stochrsi(~F32, ~U32.to_f32, ~Momentum.ma, period, kperiod, dperiod, dtype))
+  Momentum.configure(~STOCHRSI.State(), parameters.STOCHRSI(period, kperiod, dperiod, dtype), u => MomentumInit.stochrsi(~F32, ~U32.to_f32, ~Momentum.ma, period, kperiod, dperiod, dtype))
 
 def STOCHRSI.next(state: STOCHRSI.State(), value: F32) -> STOCHRSI.State() & Maybe<&2, STOCH.Value()>:
   MomentumComposite.stochrsi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_ge, ~F32.is_gt, ~F32.max, ~F32.atan, state, value)
@@ -2407,8 +2504,11 @@ def TRIX.batch(xs: List<&2, F32>, +period: U32) -> Result<&2, &2, Momentum.Error
 def DOSC.State() -> Type:
   MomentumSmooth.Dosc<F32>
 
+def parameters.DOSC(+period: U32, +first: U32, +second: U32, +signal: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(first, 2)), Momentum.period(second, 2)), Momentum.period(signal, 2))
+
 def DOSC.init(+period: U32, +first: U32, +second: U32, +signal: U32) -> Result<&2, &1, Momentum.Error(), DOSC.State()>:
-  Momentum.configure(~DOSC.State(), Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(first, 2)), Momentum.period(second, 2)), Momentum.period(signal, 2)), u => MomentumInit.dosc(~F32, ~U32.to_f32, ~Momentum.ma, period, first, second, signal))
+  Momentum.configure(~DOSC.State(), parameters.DOSC(period, first, second, signal), u => MomentumInit.dosc(~F32, ~U32.to_f32, ~Momentum.ma, period, first, second, signal))
 
 def DOSC.next(state: DOSC.State(), value: F32) -> DOSC.State() & Maybe<&2, F32>:
   MomentumSmooth.dosc.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_gt, ~F32.max, ~F32.atan, state, value)
@@ -2419,8 +2519,11 @@ def DOSC.batch(xs: List<&2, F32>, +period: U32, +first: U32, +second: U32, +sign
 def PSO.State() -> Type:
   MomentumSmooth.Pso<F32>
 
+def parameters.PSO(+kperiod: U32, +period: U32) -> Bool:
+  Bool.and(Momentum.period(kperiod, 1), Momentum.period(period, 1))
+
 def PSO.init(+kperiod: U32, +period: U32) -> Result<&2, &1, Momentum.Error(), PSO.State()>:
-  Momentum.configure(~PSO.State(), Bool.and(Momentum.period(kperiod, 1), Momentum.period(period, 1)), u => MomentumInit.pso(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, period))
+  Momentum.configure(~PSO.State(), parameters.PSO(kperiod, period), u => MomentumInit.pso(~F32, ~U32.to_f32, ~Momentum.ma, kperiod, period))
 
 def PSO.next(state: PSO.State(), value: Bars.HLC<F32>) -> PSO.State() & Maybe<&2, F32>:
   MomentumSmooth.pso.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_ge, ~F32.atan, ~F32.tanh, state, value)
@@ -2431,8 +2534,11 @@ def PSO.batch(xs: List<&2, Bars.HLC<F32>>, +kperiod: U32, +period: U32) -> Resul
 def TSI.State() -> Type:
   MomentumComposite.TSI<F32>
 
+def parameters.TSI(+first: U32, +second: U32) -> Bool:
+  Bool.and(Momentum.period(first, 2), Momentum.period(second, 2))
+
 def TSI.init(+first: U32, +second: U32) -> Result<&2, &1, Momentum.Error(), TSI.State()>:
-  Momentum.configure(~TSI.State(), Bool.and(Momentum.period(first, 2), Momentum.period(second, 2)), u => MomentumInit.tsi(~F32, ~Momentum.ma, first, second))
+  Momentum.configure(~TSI.State(), parameters.TSI(first, second), u => MomentumInit.tsi(~F32, ~Momentum.ma, first, second))
 
 def TSI.next(state: TSI.State(), value: F32) -> TSI.State() & Maybe<&2, F32>:
   MomentumComposite.tsi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_gt, ~F32.atan, state, value)
@@ -2471,7 +2577,7 @@ def FOSC.init(+period: U32) -> Result<&2, &1, Momentum.Error(), FOSC.State()>:
   Momentum.configure(~FOSC.State(), Momentum.period(period, 2), u => Done{MomentumInit.forecast(~F32, ~U32.to_f32, period)})
 
 def FOSC.next(state: FOSC.State(), value: F32) -> FOSC.State() & Maybe<&2, F32>:
-  MomentumComposite.forecast.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, state, value)
+  MomentumComposite.forecast.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.abs, ~F32.is_le, state, value)
 
 def FOSC.batch(xs: List<&2, F32>, +period: U32) -> Result<&2, &2, Momentum.Error(), List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~FOSC.State(), ~Momentum.Error(), ~FOSC.next, xs, FOSC.init(period))
@@ -2555,8 +2661,11 @@ def VORTEX.batch(xs: List<&2, Bars.HLC<F32>>, +period: U32) -> Result<&2, &2, Mo
 def ULTOSC.State() -> Type:
   MomentumComposite.Ultimate<F32>
 
+def parameters.ULTOSC(+first: U32, +second: U32, +third: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(first, 1), Momentum.period(second, 1)), Momentum.period(third, 1))
+
 def ULTOSC.init(+first: U32, +second: U32, +third: U32) -> Result<&2, &1, Momentum.Error(), ULTOSC.State()>:
-  Momentum.configure(~ULTOSC.State(), Bool.and(Bool.and(Momentum.period(first, 1), Momentum.period(second, 1)), Momentum.period(third, 1)), u => Done{MomentumInit.ultimate(~F32, ~U32.to_f32, first, second, third)})
+  Momentum.configure(~ULTOSC.State(), parameters.ULTOSC(first, second, third), u => Done{MomentumInit.ultimate(~F32, ~U32.to_f32, first, second, third)})
 
 def ULTOSC.next(state: ULTOSC.State(), value: Bars.HLC<F32>) -> ULTOSC.State() & Maybe<&2, F32>:
   MomentumComposite.ultimate.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.min, ~F32.max, ~F32.is_gt, state, value)
@@ -2567,8 +2676,11 @@ def ULTOSC.batch(xs: List<&2, Bars.HLC<F32>>, +first: U32, +second: U32, +third:
 def COPPOCK.State() -> Type:
   MomentumComposite.Roc<F32>
 
+def parameters.COPPOCK(+wma: U32, +first: U32, +second: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(wma, 1), Momentum.period(first, 1)), Momentum.period(second, 1))
+
 def COPPOCK.init(+wma: U32, +first: U32, +second: U32) -> Result<&2, &1, Momentum.Error(), COPPOCK.State()>:
-  Momentum.configure(~COPPOCK.State(), Bool.and(Bool.and(Momentum.period(wma, 1), Momentum.period(first, 1)), Momentum.period(second, 1)), u => MomentumInit.coppock(~F32, ~U32.to_f32, ~Momentum.ma, wma, first, second))
+  Momentum.configure(~COPPOCK.State(), parameters.COPPOCK(wma, first, second), u => MomentumInit.coppock(~F32, ~U32.to_f32, ~Momentum.ma, wma, first, second))
 
 def COPPOCK.next(state: COPPOCK.State(), value: F32) -> COPPOCK.State() & Maybe<&2, F32>:
   MomentumComposite.coppock.value(~F32, MomentumComposite.roc.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_eq, ~F32.atan, state, value))
@@ -2579,8 +2691,11 @@ def COPPOCK.batch(xs: List<&2, F32>, +wma: U32, +first: U32, +second: U32) -> Re
 def KST.State() -> Type:
   MomentumComposite.Roc<F32>
 
+def parameters.KST(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +sma1: U32, +sma2: U32, +sma3: U32, +sma4: U32, +signal: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(roc1, 1), Momentum.period(roc2, 1)), Momentum.period(roc3, 1)), Momentum.period(roc4, 1)), Momentum.period(sma1, 1)), Momentum.period(sma2, 1)), Momentum.period(sma3, 1)), Momentum.period(sma4, 1)), Momentum.period(signal, 1))
+
 def KST.init(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +sma1: U32, +sma2: U32, +sma3: U32, +sma4: U32, +signal: U32) -> Result<&2, &1, Momentum.Error(), KST.State()>:
-  Momentum.configure(~KST.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(roc1, 1), Momentum.period(roc2, 1)), Momentum.period(roc3, 1)), Momentum.period(roc4, 1)), Momentum.period(sma1, 1)), Momentum.period(sma2, 1)), Momentum.period(sma3, 1)), Momentum.period(sma4, 1)), Momentum.period(signal, 1)), u => MomentumInit.kst(~F32, ~U32.to_f32, ~Momentum.ma, roc1, roc2, roc3, roc4, sma1, sma2, sma3, sma4, signal))
+  Momentum.configure(~KST.State(), parameters.KST(roc1, roc2, roc3, roc4, sma1, sma2, sma3, sma4, signal), u => MomentumInit.kst(~F32, ~U32.to_f32, ~Momentum.ma, roc1, roc2, roc3, roc4, sma1, sma2, sma3, sma4, signal))
 
 def KST.next(state: KST.State(), value: F32) -> KST.State() & Maybe<&2, KST.Value()>:
   MomentumComposite.roc.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_eq, ~F32.atan, state, value)
@@ -2614,19 +2729,19 @@ def DPO.init(+period: U32) -> Result<&2, &1, Params.Error, DPO.State()>:
   overlap.init(~DPO.State(), overlap.valid(period, 2), u => WindowSignals.dpo.init(~F32, ~U32.to_f32, period))
 
 def DPO.next(state: DPO.State(), price: F32) -> DPO.State() & Maybe<&2, F32>:
-  WindowSignals.dpo.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, state, price)
+  WindowSignals.dpo.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, ~F32.mul, ~F32.abs, ~F32.is_le, state, price)
 
 def DPO.display_shift(period: U32) -> DisplayShift():
   WindowSignals.DisplayShift{True{}, U32.add(U32.div(period, 2), 1)}
 
 def RVOL.State() -> Type:
-  Win.State<F32>
+  Average.State<F32>
 
 def RVOL.init(+period: U32) -> Result<&2, &1, Params.Error, RVOL.State()>:
-  overlap.init(~RVOL.State(), Params.period(period), u => overlap.window(period))
+  overlap.init(~RVOL.State(), Params.period(period), u => Average.init(~F32, ~U32.to_f32, period, Config.depth(period), 0))
 
 def RVOL.next(state: RVOL.State(), volume: F32) -> RVOL.State() & Maybe<&2, F32>:
-  WindowSignals.rvol.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, state, volume)
+  WindowSignals.rvol.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, ~F32.mul, ~F32.abs, ~F32.is_le, state, volume)
 
 def ICHIMOKU.State() -> Type:
   WindowSignals.Cloud<F32>
@@ -2634,8 +2749,11 @@ def ICHIMOKU.State() -> Type:
 def ICHIMOKU.Value() -> Data:
   WindowSignals.CloudValue<F32>
 
+def parameters.ICHIMOKU(+tenkan: U32, +kijun: U32, +span_b: U32) -> Bool:
+  Bool.and(overlap.valid(tenkan, 2), Bool.and(overlap.valid(kijun, 2), overlap.valid(span_b, 2)))
+
 def ICHIMOKU.init(+tenkan: U32, +kijun: U32, +span_b: U32) -> Result<&2, &1, Params.Error, ICHIMOKU.State()>:
-  overlap.init(~ICHIMOKU.State(), Bool.and(overlap.valid(tenkan, 2), Bool.and(overlap.valid(kijun, 2), overlap.valid(span_b, 2))), u => WindowSignals.cloud.init(~F32, ~U32.to_f32, tenkan, kijun, span_b))
+  overlap.init(~ICHIMOKU.State(), parameters.ICHIMOKU(tenkan, kijun, span_b), u => WindowSignals.cloud.init(~F32, ~U32.to_f32, tenkan, kijun, span_b))
 
 def ICHIMOKU.next(state: ICHIMOKU.State(), bar: Bars.HL<F32>) -> ICHIMOKU.State() & Maybe<&2, ICHIMOKU.Value()>:
   WindowSignals.cloud.next(~F32, ~U32.to_f32, ~F32.add, ~F32.div, ~F32.is_lt, state, bar)
@@ -2676,8 +2794,11 @@ def ZIGZAG.State() -> Data:
 def ZIGZAG.Value() -> Data:
   MarketState.ZigValue<F32>
 
+def parameters.ZIGZAG(+sensitivity: F32, +minimum: U32) -> Bool:
+  Bool.and(Params.period(minimum), Bool.and(is_finite(sensitivity), Bool.and(F32.is_ge(sensitivity, 0.0), F32.is_le(sensitivity, 100.0))))
+
 def ZIGZAG.init(+sensitivity: F32, +minimum: U32) -> Result<&2, &1, Params.Error, ZIGZAG.State()>:
-  overlap.init(~ZIGZAG.State(), Bool.and(Params.period(minimum), Bool.and(is_finite(sensitivity), Bool.and(F32.is_ge(sensitivity, 0.0), F32.is_le(sensitivity, 100.0)))), u => MarketState.zigzag.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, sensitivity, minimum))
+  overlap.init(~ZIGZAG.State(), parameters.ZIGZAG(sensitivity, minimum), u => MarketState.zigzag.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.div, sensitivity, minimum))
 
 def ZIGZAG.next(state: ZIGZAG.State(), bar: Bars.HL<F32>) -> ZIGZAG.State() & Maybe<&2, ZIGZAG.Value()>:
   MarketState.zigzag.next(~F32, ~F32.mul, ~F32.min, ~F32.max, ~F32.is_ge, state, bar)
@@ -2688,14 +2809,23 @@ def MAVP.State() -> Type:
 def MAVP.Sample() -> Data:
   Variable.Sample<F32>
 
+def parameters.MAVP(+minimum: U32, +maximum: U32, +kind: U32) -> Bool:
+  Bool.and(Bool.and(U32.is_gt(minimum, 0), U32.is_le(maximum, 10000)), Bool.and(U32.is_le(minimum, maximum), Bool.or(Ma.supported(kind), Bool.and(U32.is_eq(maximum, 1), U32.is_le(kind, 15)))))
+
 def MAVP.init(+minimum: U32, +maximum: U32, +kind: U32) -> Result<&2, &1, Params.Error, MAVP.State()>:
-  overlap.init(~MAVP.State(), Bool.and(Bool.and(U32.is_gt(minimum, 0), U32.is_le(maximum, 10000)), Bool.and(U32.is_le(minimum, maximum), Bool.or(Ma.supported(kind), Bool.and(U32.is_eq(maximum, 1), U32.is_le(kind, 15))))), u => Variable.init(~F32, minimum, maximum, kind))
+  overlap.init(~MAVP.State(), parameters.MAVP(minimum, maximum, kind), u => Variable.init(~F32, minimum, maximum, kind))
 
 def MAVP.average(+period: U32, kind: U32) -> Ma.State<F32>:
   Ma.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Config.depth(period), kind, 0.7)
 
+def MAVP.weights(period: U32) -> List<&2, F32>:
+  Ma.gaussian.coefficients(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, 6.0, 0.85)
+
+def MAVP.shared(state: VariableShared.State<F32>, price: F32, period: U32) -> VariableShared.State<F32> & Maybe<&2, F32>:
+  VariableShared.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~MAVP.weights, state, price, period)
+
 def MAVP.next(state: MAVP.State(), sample: MAVP.Sample()) -> MAVP.State() & Maybe<&2, F32>:
-  Variable.next(~F32, ~U32.to_f32, ~F32.to_u32, ~F32.is_ge, ~F32.is_gt, ~(p => k => MAVP.average(p, k)), ~MA.next, state, sample)
+  Variable.next(~F32, ~U32.to_f32, ~F32.to_u32, ~F32.is_ge, ~F32.is_gt, ~(p => k => MAVP.average(p, k)), ~MA.next, ~MAVP.shared, state, sample)
 
 def DPO.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~DPO.State(), ~Params.Error, ~DPO.next, xs, DPO.init(period))
@@ -2721,8 +2851,11 @@ def Trend.nonnegative(+value: F32) -> Bool:
 def FRAMA.State() -> Type:
   AdaptiveWindow.Frama<F32>
 
+def parameters.FRAMA(+period: U32) -> Bool:
+  Bool.and(Momentum.period(period, 2), U32.is_zero(U32.mod(period, 2)))
+
 def FRAMA.init(+period: U32) -> Result<&2, &1, Params.Error, FRAMA.State()>:
-  Momentum.configure(~FRAMA.State(), Bool.and(Momentum.period(period, 2), U32.is_zero(U32.mod(period, 2))), u => Done{AdaptiveWindow.frama.init(~F32, ~U32.to_f32, period)})
+  Momentum.configure(~FRAMA.State(), parameters.FRAMA(period), u => Done{AdaptiveWindow.frama.init(~F32, ~U32.to_f32, period)})
 
 def FRAMA.next(state: FRAMA.State(), value: Bars.HL<F32>) -> FRAMA.State() & Maybe<&2, F32>:
   AdaptiveWindow.frama.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.min, ~F32.max, ~F32.is_lt, ~F32.log, ~F32.exp, state, value)
@@ -2745,8 +2878,11 @@ def MCGD.batch(xs: List<&2, F32>, +period: U32) -> Result<&2, &2, Params.Error, 
 def SAR.State() -> Type:
   TrendState.Sar<F32>
 
+def parameters.SAR(+acceleration: F32, +maximum: F32) -> Bool:
+  Bool.and(Trend.nonnegative(acceleration), Trend.nonnegative(maximum))
+
 def SAR.init(+acceleration: F32, +maximum: F32) -> Result<&2, &1, Params.Error, SAR.State()>:
-  Momentum.configure(~SAR.State(), Bool.and(Trend.nonnegative(acceleration), Trend.nonnegative(maximum)), u => Done{TrendState.sar.init(~F32, ~F32.min, 0.0, 0.0, acceleration, acceleration, maximum, acceleration, acceleration, maximum, False{})})
+  Momentum.configure(~SAR.State(), parameters.SAR(acceleration, maximum), u => Done{TrendState.sar.init(~F32, ~F32.min, 0.0, 0.0, acceleration, acceleration, maximum, acceleration, acceleration, maximum, False{})})
 
 def SAR.next(state: SAR.State(), value: Bars.HL<F32>) -> SAR.State() & Maybe<&2, F32>:
   TrendState.sar.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.min, ~F32.max, ~F32.is_le, ~F32.is_lt, ~F32.is_eq, ~F32.abs, state, value)
@@ -2757,8 +2893,11 @@ def SAR.batch(xs: List<&2, Bars.HL<F32>>, +acceleration: F32, +maximum: F32) -> 
 def SAREXT.State() -> Type:
   TrendState.Sar<F32>
 
+def parameters.SAREXT(+start: F32, +offset: F32, +long_init: F32, +long_step: F32, +long_max: F32, +short_init: F32, +short_step: F32, +short_max: F32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(is_finite(start), F32.is_le(F32.abs(start), 3.0e37)), Trend.nonnegative(offset)), Trend.nonnegative(long_init)), Trend.nonnegative(long_step)), Trend.nonnegative(long_max)), Trend.nonnegative(short_init)), Trend.nonnegative(short_step)), Trend.nonnegative(short_max))
+
 def SAREXT.init(+start: F32, +offset: F32, +long_init: F32, +long_step: F32, +long_max: F32, +short_init: F32, +short_step: F32, +short_max: F32) -> Result<&2, &1, Params.Error, SAREXT.State()>:
-  Momentum.configure(~SAREXT.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(is_finite(start), F32.is_le(F32.abs(start), 3.0e37)), Trend.nonnegative(offset)), Trend.nonnegative(long_init)), Trend.nonnegative(long_step)), Trend.nonnegative(long_max)), Trend.nonnegative(short_init)), Trend.nonnegative(short_step)), Trend.nonnegative(short_max)), u => Done{TrendState.sar.init(~F32, ~F32.min, start, offset, long_init, long_step, long_max, short_init, short_step, short_max, True{})})
+  Momentum.configure(~SAREXT.State(), parameters.SAREXT(start, offset, long_init, long_step, long_max, short_init, short_step, short_max), u => Done{TrendState.sar.init(~F32, ~F32.min, start, offset, long_init, long_step, long_max, short_init, short_step, short_max, True{})})
 
 def SAREXT.next(state: SAREXT.State(), value: Bars.HL<F32>) -> SAREXT.State() & Maybe<&2, F32>:
   TrendState.sar.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.min, ~F32.max, ~F32.is_le, ~F32.is_lt, ~F32.is_eq, ~F32.abs, state, value)
@@ -2772,8 +2911,11 @@ def SUPERTREND.State() -> Type:
 def SUPERTREND.Value() -> Data:
   TrendState.TrendValue<F32>
 
+def parameters.SUPERTREND(+period: U32, +multiplier: F32) -> Bool:
+  Bool.and(Momentum.period(period, 2), Trend.nonnegative(multiplier))
+
 def SUPERTREND.init(+period: U32, +multiplier: F32) -> Result<&2, &1, Params.Error, SUPERTREND.State()>:
-  Momentum.configure(~SUPERTREND.State(), Bool.and(Momentum.period(period, 2), Trend.nonnegative(multiplier)), u => Done{TrendState.supertrend.init(~F32, ~U32.to_f32, ~F32.div, period, multiplier)})
+  Momentum.configure(~SUPERTREND.State(), parameters.SUPERTREND(period, multiplier), u => Done{TrendState.supertrend.init(~F32, ~U32.to_f32, ~F32.div, period, multiplier)})
 
 def SUPERTREND.next(state: SUPERTREND.State(), value: Bars.HLC<F32>) -> SUPERTREND.State() & Maybe<&2, SUPERTREND.Value()>:
   TrendState.supertrend.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, ~F32.is_lt, state, value)
@@ -2823,8 +2965,11 @@ def FISHER.batch(xs: List<&2, Bars.HL<F32>>, +period: U32) -> Result<&2, &2, Par
 def CRSI.State() -> Type:
   AdvancedOscillator.Crsi<F32>
 
+def parameters.CRSI(+period: U32, +streak: U32, +rank: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(streak, 2)), Momentum.period(rank, 2)), U32.is_le(rank, 10000))
+
 def CRSI.init(+period: U32, +streak: U32, +rank: U32) -> Result<&2, &1, Params.Error, CRSI.State()>:
-  Momentum.configure(~CRSI.State(), Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(streak, 2)), Momentum.period(rank, 2)), U32.is_le(rank, 10000)), u => Done{AdvancedOscillator.crsi.init(~F32, ~U32.to_f32, period, streak, rank)})
+  Momentum.configure(~CRSI.State(), parameters.CRSI(period, streak, rank), u => Done{AdvancedOscillator.crsi.init(~F32, ~U32.to_f32, period, streak, rank)})
 
 def CRSI.next(state: CRSI.State(), value: F32) -> CRSI.State() & Maybe<&2, F32>:
   AdvancedOscillator.crsi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.max, ~F32.is_lt, ~F32.is_eq, state, value)
@@ -2838,8 +2983,11 @@ def SMI.State() -> Type:
 def SMI.Value() -> Data:
   MomentumSmooth.Lines<F32>
 
+def parameters.SMI(+period: U32, +fast: U32, +slow: U32, +signal: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(fast, 2)), Momentum.period(slow, 2)), Momentum.period(signal, 2))
+
 def SMI.init(+period: U32, +fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Params.Error, SMI.State()>:
-  Momentum.configure(~SMI.State(), Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(fast, 2)), Momentum.period(slow, 2)), Momentum.period(signal, 2)), u => Done{AdvancedOscillator.smi.init(~F32, ~U32.to_f32, ~F32.div, period, fast, slow, signal)})
+  Momentum.configure(~SMI.State(), parameters.SMI(period, fast, slow, signal), u => Done{AdvancedOscillator.smi.init(~F32, ~U32.to_f32, ~F32.div, period, fast, slow, signal)})
 
 def SMI.next(state: SMI.State(), value: Bars.HLC<F32>) -> SMI.State() & Maybe<&2, SMI.Value()>:
   AdvancedOscillator.smi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.is_le, state, value)
@@ -2850,8 +2998,11 @@ def SMI.batch(xs: List<&2, Bars.HLC<F32>>, +period: U32, +fast: U32, +slow: U32,
 def STC.State() -> Type:
   AdvancedOscillator.Stc<F32>
 
+def parameters.STC(+fast: U32, +slow: U32, +cycle: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(cycle, 2))
+
 def STC.init(+fast: U32, +slow: U32, +cycle: U32) -> Result<&2, &1, Params.Error, STC.State()>:
-  Momentum.configure(~STC.State(), Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(cycle, 2)), u => AdvancedOscillator.stc.init(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, cycle))
+  Momentum.configure(~STC.State(), parameters.STC(fast, slow, cycle), u => AdvancedOscillator.stc.init(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, cycle))
 
 def STC.next(state: STC.State(), value: F32) -> STC.State() & Maybe<&2, F32>:
   AdvancedOscillator.stc.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_eq, ~F32.is_le, ~F32.atan, state, value)
@@ -2865,11 +3016,14 @@ def WAVETREND.State() -> Type:
 def WAVETREND.Value() -> Data:
   MomentumSmooth.Lines<F32>
 
+def parameters.WAVETREND(+channel: U32, +average: U32, +signal: U32) -> Bool:
+  Bool.and(Bool.and(Momentum.period(channel, 2), Momentum.period(average, 1)), Momentum.period(signal, 1))
+
 def WAVETREND.init(+channel: U32, +average: U32, +signal: U32) -> Result<&2, &1, Params.Error, WAVETREND.State()>:
-  Momentum.configure(~WAVETREND.State(), Bool.and(Bool.and(Momentum.period(channel, 2), Momentum.period(average, 1)), Momentum.period(signal, 1)), u => Done{AdvancedOscillator.wave.init(~F32, ~U32.to_f32, ~F32.div, channel, average, signal)})
+  Momentum.configure(~WAVETREND.State(), parameters.WAVETREND(channel, average, signal), u => Done{AdvancedOscillator.wave.init(~F32, ~U32.to_f32, ~F32.div, channel, average, signal)})
 
 def WAVETREND.next(state: WAVETREND.State(), value: Bars.HLC<F32>) -> WAVETREND.State() & Maybe<&2, WAVETREND.Value()>:
-  AdvancedOscillator.wave.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_eq, state, value)
+  AdvancedOscillator.wave.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_eq, ~F32.is_le, state, value)
 
 def WAVETREND.batch(xs: List<&2, Bars.HLC<F32>>, +channel: U32, +average: U32, +signal: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, WAVETREND.Value()>>>:
   Series.initialized(~Bars.HLC<F32>, ~WAVETREND.Value(), ~WAVETREND.State(), ~Params.Error, ~WAVETREND.next, xs, WAVETREND.init(channel, average, signal))
@@ -2880,8 +3034,11 @@ def MACDEXT.State() -> Type:
 def MACDEXT.Value() -> Data:
   MomentumSmooth.MACDValue<F32>
 
+def parameters.MACDEXT(+fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32, +signal: U32, +signal_kind: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1)), Momentum.selector(fast, fast_kind)), Momentum.selector(slow, slow_kind)), Momentum.selector(signal, signal_kind))
+
 def MACDEXT.init(+fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32, +signal: U32, +signal_kind: U32) -> Result<&2, &1, Params.Error, MACDEXT.State()>:
-  Momentum.configure(~MACDEXT.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1)), Momentum.selector(fast, fast_kind)), Momentum.selector(slow, slow_kind)), Momentum.selector(signal, signal_kind)), u => TrendComposite.macd.init(~F32, ~U32.to_f32, ~Momentum.ma, fast, fast_kind, slow, slow_kind, signal, signal_kind))
+  Momentum.configure(~MACDEXT.State(), parameters.MACDEXT(fast, fast_kind, slow, slow_kind, signal, signal_kind), u => TrendComposite.macd.init(~F32, ~U32.to_f32, ~Momentum.ma, fast, fast_kind, slow, slow_kind, signal, signal_kind))
 
 def MACDEXT.next(state: MACDEXT.State(), value: F32) -> MACDEXT.State() & Maybe<&2, MACDEXT.Value()>:
   TrendComposite.macd.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value)
@@ -2895,8 +3052,11 @@ def KSTEXT.State() -> Type:
 def KSTEXT.Value() -> Data:
   MomentumSmooth.Lines<F32>
 
+def parameters.KSTEXT(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +ma1: U32, +ma2: U32, +ma3: U32, +ma4: U32, +signal: U32, +kind: U32, +signal_kind: U32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(roc1, 1), Momentum.period(roc2, 1)), Momentum.period(roc3, 1)), Momentum.period(roc4, 1)), Momentum.period(ma1, 1)), Momentum.period(ma2, 1)), Momentum.period(ma3, 1)), Momentum.period(ma4, 1)), Momentum.period(signal, 1)), Momentum.selector(ma1, kind)), Momentum.selector(ma2, kind)), Momentum.selector(ma3, kind)), Momentum.selector(ma4, kind)), Momentum.selector(signal, signal_kind))
+
 def KSTEXT.init(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +ma1: U32, +ma2: U32, +ma3: U32, +ma4: U32, +signal: U32, +kind: U32, +signal_kind: U32) -> Result<&2, &1, Params.Error, KSTEXT.State()>:
-  Momentum.configure(~KSTEXT.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(roc1, 1), Momentum.period(roc2, 1)), Momentum.period(roc3, 1)), Momentum.period(roc4, 1)), Momentum.period(ma1, 1)), Momentum.period(ma2, 1)), Momentum.period(ma3, 1)), Momentum.period(ma4, 1)), Momentum.period(signal, 1)), Momentum.selector(ma1, kind)), Momentum.selector(ma2, kind)), Momentum.selector(ma3, kind)), Momentum.selector(ma4, kind)), Momentum.selector(signal, signal_kind)), u => TrendComposite.kst.init(~F32, ~U32.to_f32, ~Momentum.ma, roc1, roc2, roc3, roc4, ma1, ma2, ma3, ma4, signal, kind, signal_kind))
+  Momentum.configure(~KSTEXT.State(), parameters.KSTEXT(roc1, roc2, roc3, roc4, ma1, ma2, ma3, ma4, signal, kind, signal_kind), u => TrendComposite.kst.init(~F32, ~U32.to_f32, ~Momentum.ma, roc1, roc2, roc3, roc4, ma1, ma2, ma3, ma4, signal, kind, signal_kind))
 
 def KSTEXT.next(state: KSTEXT.State(), value: F32) -> KSTEXT.State() & Maybe<&2, KSTEXT.Value()>:
   TrendComposite.kst.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.is_eq, ~F32.atan, state, value)
@@ -2910,8 +3070,11 @@ def SQZMOM.State() -> Type:
 def SQZMOM.Value() -> Data:
   Squeeze.Value<F32>
 
+def parameters.SQZMOM(+bb: U32, +deviations: F32, +kc: U32, +wide: F32, +normal: F32, +narrow: F32) -> Bool:
+  Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(bb, 2), Momentum.period(kc, 2)), Trend.nonnegative(deviations)), Trend.nonnegative(wide)), Trend.nonnegative(normal)), Trend.nonnegative(narrow)), F32.is_le(narrow, normal)), F32.is_le(normal, wide))
+
 def SQZMOM.init(+bb: U32, +deviations: F32, +kc: U32, +wide: F32, +normal: F32, +narrow: F32) -> Result<&2, &1, Params.Error, SQZMOM.State()>:
-  Momentum.configure(~SQZMOM.State(), Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(bb, 2), Momentum.period(kc, 2)), Trend.nonnegative(deviations)), Trend.nonnegative(wide)), Trend.nonnegative(normal)), Trend.nonnegative(narrow)), F32.is_le(narrow, normal)), F32.is_le(normal, wide)), u => Done{Squeeze.init(~F32, ~U32.to_f32, bb, kc, deviations, wide, normal, narrow)})
+  Momentum.configure(~SQZMOM.State(), parameters.SQZMOM(bb, deviations, kc, wide, normal, narrow), u => Done{Squeeze.init(~F32, ~U32.to_f32, bb, kc, deviations, wide, normal, narrow)})
 
 def SQZMOM.next(state: SQZMOM.State(), value: Bars.HLC<F32>) -> SQZMOM.State() & Maybe<&2, SQZMOM.Value()>:
   Squeeze.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, ~F32.is_le, ~F32.is_lt, ~F32.sqrt, state, value)
@@ -2928,8 +3091,11 @@ def KVO.Value() -> Data:
 def ADOSC.State() -> Type:
   VolumeFilter.Adosc<F32>
 
+def parameters.ADOSC(+fast: U32, +slow: U32) -> Bool:
+  Bool.and(overlap.valid(fast, 2), overlap.valid(slow, 2))
+
 def ADOSC.init(+fast: U32, +slow: U32) -> Result<&2, &1, Params.Error, ADOSC.State()>:
-  overlap.init(~ADOSC.State(), Bool.and(overlap.valid(fast, 2), overlap.valid(slow, 2)), u => VolumeFilter.adosc.init(~F32, ~U32.to_f32, ~F32.div, fast, slow))
+  overlap.init(~ADOSC.State(), parameters.ADOSC(fast, slow), u => VolumeFilter.adosc.init(~F32, ~U32.to_f32, ~F32.div, fast, slow))
 
 def ADOSC.next(state: ADOSC.State(), value: Bars.HLCV<F32>) -> ADOSC.State() & Maybe<&2, F32>:
   VolumeFilter.adosc.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_gt, state, value)
@@ -2940,8 +3106,11 @@ def ADOSC.batch(xs: List<&2, Bars.HLCV<F32>>, fast: U32, slow: U32) -> Result<&2
 def KVO.State() -> Type:
   VolumeFilter.Kvo<F32>
 
+def parameters.KVO(+fast: U32, +slow: U32, +signal: U32) -> Bool:
+  Bool.and(overlap.valid(fast, 2), Bool.and(overlap.valid(slow, 2), overlap.valid(signal, 2)))
+
 def KVO.init(+fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Params.Error, KVO.State()>:
-  overlap.init(~KVO.State(), Bool.and(overlap.valid(fast, 2), Bool.and(overlap.valid(slow, 2), overlap.valid(signal, 2))), u => VolumeFilter.kvo.init(~F32, ~U32.to_f32, ~F32.div, fast, slow, signal))
+  overlap.init(~KVO.State(), parameters.KVO(fast, slow, signal), u => VolumeFilter.kvo.init(~F32, ~U32.to_f32, ~F32.div, fast, slow, signal))
 
 def KVO.next(state: KVO.State(), value: Bars.HLCV<F32>) -> KVO.State() & Maybe<&2, KVO.Value()>:
   VolumeFilter.kvo.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_eq, ~F32.is_gt, state, value)
@@ -2952,8 +3121,11 @@ def KVO.batch(xs: List<&2, Bars.HLCV<F32>>, fast: U32, slow: U32, signal: U32) -
 def VAR.State() -> Type:
   Win.State<F32>
 
+def parameters.VAR(+period: U32, +factor: F32) -> Bool:
+  Bool.and(overlap.valid(period, 1), Bool.and(is_finite(factor), F32.is_le(F32.abs(factor), 3.0e37)))
+
 def VAR.init(+period: U32, +factor: F32) -> Result<&2, &1, Params.Error, VAR.State()>:
-  overlap.init(~VAR.State(), Bool.and(overlap.valid(period, 1), Bool.and(is_finite(factor), F32.is_le(F32.abs(factor), 3.0e37))), u => overlap.window(period))
+  overlap.init(~VAR.State(), parameters.VAR(period, factor), u => overlap.window(period))
 
 def VAR.next(state: VAR.State(), value: F32) -> VAR.State() & Maybe<&2, F32>:
   overlap.project(~VAR.State(), ~Stats.Value<F32>, ~F32, ~(v => StatWindow.variance(~F32, v)), Stats.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, value))
@@ -2988,8 +3160,11 @@ def BETA.batch(xs: List<&2, PairValue()>, period: U32) -> Result<&2, &2, Params.
 def KURTOSIS.State() -> Type:
   Win.State<F32>
 
+def parameters.KURTOSIS(+period: U32) -> Bool:
+  Bool.and(U32.is_ge(period, 4), U32.is_le(period, 10000))
+
 def KURTOSIS.init(+period: U32) -> Result<&2, &1, Params.Error, KURTOSIS.State()>:
-  overlap.init(~KURTOSIS.State(), Bool.and(U32.is_ge(period, 4), U32.is_le(period, 10000)), u => overlap.window(period))
+  overlap.init(~KURTOSIS.State(), parameters.KURTOSIS(period), u => overlap.window(period))
 
 def KURTOSIS.next(state: KURTOSIS.State(), value: F32) -> KURTOSIS.State() & Maybe<&2, F32>:
   StatWindow.kurtosis.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, value)
@@ -3000,11 +3175,14 @@ def KURTOSIS.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Erro
 def ROGERSSATCHELL.State() -> Type:
   VolWindow.RogersSatchell<F32>
 
+def parameters.ROGERSSATCHELL(+period: U32, +annualization: F32) -> Bool:
+  Bool.and(overlap.valid(period, 1), Bool.and(is_finite(annualization), Bool.and(F32.is_ge(annualization, 0.0), F32.is_le(annualization, 3.0e37))))
+
 def ROGERSSATCHELL.init(+period: U32, +annualization: F32) -> Result<&2, &1, Params.Error, ROGERSSATCHELL.State()>:
-  overlap.init(~ROGERSSATCHELL.State(), Bool.and(overlap.valid(period, 1), Bool.and(is_finite(annualization), Bool.and(F32.is_ge(annualization, 0.0), F32.is_le(annualization, 3.0e37)))), u => VolWindow.rogerssatchell.init(~F32, ~U32.to_f32, ~F32.sqrt, period, Ma.buffer_depth(period), annualization))
+  overlap.init(~ROGERSSATCHELL.State(), parameters.ROGERSSATCHELL(period, annualization), u => VolWindow.rogerssatchell.init(~F32, ~U32.to_f32, ~F32.sqrt, period, Ma.buffer_depth(period), annualization))
 
 def ROGERSSATCHELL.next(state: ROGERSSATCHELL.State(), value: Bars.OHLC<F32>) -> ROGERSSATCHELL.State() & Maybe<&2, F32>:
-  VolWindow.rogerssatchell.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.log, ~F32.is_gt, state, value)
+  VolWindow.rogerssatchell.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.log, ~F32.is_gt, ~F32.abs, ~F32.is_le, state, value)
 
 def ROGERSSATCHELL.batch(xs: List<&2, Bars.OHLC<F32>>, period: U32, annualization: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~Bars.OHLC<F32>, ~F32, ~ROGERSSATCHELL.State(), ~Params.Error, ~ROGERSSATCHELL.next, xs, ROGERSSATCHELL.init(period, annualization))
@@ -3012,8 +3190,11 @@ def ROGERSSATCHELL.batch(xs: List<&2, Bars.OHLC<F32>>, period: U32, annualizatio
 def RVI.State() -> Type:
   VolWindow.Rvi<F32>
 
+def parameters.RVI(+period: U32, +deviation_period: U32) -> Bool:
+  Bool.and(overlap.valid(period, 1), overlap.valid(deviation_period, 2))
+
 def RVI.init(+period: U32, +deviation_period: U32) -> Result<&2, &1, Params.Error, RVI.State()>:
-  overlap.init(~RVI.State(), Bool.and(overlap.valid(period, 1), overlap.valid(deviation_period, 2)), u => VolWindow.rvi.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
+  overlap.init(~RVI.State(), parameters.RVI(period, deviation_period), u => VolWindow.rvi.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
 
 def RVI.next(state: RVI.State(), value: F32) -> RVI.State() & Maybe<&2, F32>:
   VolWindow.rvi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, state, value)
@@ -3024,8 +3205,11 @@ def RVI.batch(xs: List<&2, F32>, period: U32, deviation_period: U32) -> Result<&
 def RVIR.State() -> Type:
   VolWindow.Rvir<F32>
 
+def parameters.RVIR(+period: U32, +deviation_period: U32) -> Bool:
+  Bool.and(overlap.valid(period, 1), overlap.valid(deviation_period, 2))
+
 def RVIR.init(+period: U32, +deviation_period: U32) -> Result<&2, &1, Params.Error, RVIR.State()>:
-  overlap.init(~RVIR.State(), Bool.and(overlap.valid(period, 1), overlap.valid(deviation_period, 2)), u => VolWindow.rvir.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
+  overlap.init(~RVIR.State(), parameters.RVIR(period, deviation_period), u => VolWindow.rvir.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
 
 def RVIR.next(state: RVIR.State(), value: Bars.HL<F32>) -> RVIR.State() & Maybe<&2, F32>:
   VolWindow.rvir.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, state, value)
@@ -3182,8 +3366,11 @@ def SWAK_2PHP.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Err
 def SWAK_BP.State() -> Data:
   Filters.State<F32>
 
+def parameters.SWAK_BP(+period: U32, +delta: F32) -> Bool:
+  Bool.and(filter.valid(period, 5, 2000), Bool.and(is_finite(delta), Bool.and(F32.is_ge(delta, 0.05), F32.is_le(delta, 0.5))))
+
 def SWAK_BP.init(+period: U32, +delta: F32) -> Result<&2, &1, Params.Error, SWAK_BP.State()>:
-  overlap.init(~SWAK_BP.State(), Bool.and(filter.valid(period, 5, 2000), Bool.and(is_finite(delta), Bool.and(F32.is_ge(delta, 0.05), F32.is_le(delta, 0.5)))), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 3, period, delta))
+  overlap.init(~SWAK_BP.State(), parameters.SWAK_BP(period, delta), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 3, period, delta))
 
 def SWAK_BP.next(state: SWAK_BP.State(), value: F32) -> SWAK_BP.State() & Maybe<&2, F32>:
   Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
@@ -3202,3 +3389,2006 @@ def SWAK_HP.next(state: SWAK_HP.State(), value: F32) -> SWAK_HP.State() & Maybe<
 
 def SWAK_HP.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~SWAK_HP.State(), ~Params.Error, ~SWAK_HP.next, xs, SWAK_HP.init(period))
+
+def Lookback.Result() -> Data:
+  Result<&2, &2, Params.Error, U32>
+
+def Pattern.lookback.checked(+name: Pattern.Name(), +settings: Pattern.Settings(), penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(PatternState.valid(~F32, ~U32.to_f32, ~is_finite, ~F32.is_ge, settings, penetration), Pattern.lookback(name, settings))
+
+def CDLHIKKAKEMOD.lookback.setting(+near: Candles.Setting<F32>) -> Lookback.Result():
+  match near:
+    case Candles.Setting{range, period, factor}:
+      Lookbacks.checked(Patterns.setting.valid(~F32, ~is_finite, ~F32.is_ge, ~U32.to_f32, near), U32.add(U32.max(period, 1), 5))
+
+def AC.lookback(+fast: U32, +slow: U32, +signal: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.AC(fast, slow, signal), U32.sub(U32.add(U32.max(fast, slow), signal), 2))
+
+def ACCBANDS.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def ACOS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def AD.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def ADD.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def ADOSC.lookback(+fast: U32, +slow: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ADOSC(fast, slow), U32.sub(U32.max(fast, slow), 1))
+
+def ADR.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ADR(period), U32.sub(period, 1))
+
+def ADX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(U32.mul(2, period), 1))
+
+def ADXR.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(U32.mul(3, period), 2))
+
+def ALMA.lookback(+period: U32, +sigma: F32, +offset: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ALMA(period, sigma, offset), U32.sub(period, 1))
+
+def AO.lookback(+fast: U32, +slow: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.AO(fast, slow), U32.sub(U32.max(fast, slow), 1))
+
+def APO.lookback(+fast: U32, +slow: U32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.APO(fast, slow, kind), U32.max(Ma.lookback(fast, kind), Ma.lookback(slow, kind)))
+
+def AROON.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def AROONOSC.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def ASI.lookback(+limit: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ASI(limit), 0)
+
+def ASIN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def ATAN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def ATR.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ATR(period), period)
+
+def AVGDEV.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.AVGDEV(period), U32.sub(period, 1))
+
+def AVGPRICE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def BBANDS.lookback(+period: U32, +up: F32, +down: F32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(parameters.BBANDS(period, up, down), Momentum.selector(period, kind)), U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))
+
+def BBW.lookback(+period: U32, +up: F32, +down: F32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(parameters.BBANDS(period, up, down), Momentum.selector(period, kind)), U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))
+
+def BETA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 1), period)
+
+def BOP.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def CCI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
+
+def CDL2CROWS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL2CROWS{}, Pattern.defaults()))
+
+def CDL3BLACKCROWS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3BLACKCROWS{}, Pattern.defaults()))
+
+def CDL3INSIDE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3INSIDE{}, Pattern.defaults()))
+
+def CDL3LINESTRIKE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3LINESTRIKE{}, Pattern.defaults()))
+
+def CDL3OUTSIDE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3OUTSIDE{}, Pattern.defaults()))
+
+def CDL3STARSINSOUTH.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3STARSINSOUTH{}, Pattern.defaults()))
+
+def CDL3WHITESOLDIERS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3WHITESOLDIERS{}, Pattern.defaults()))
+
+def CDLABANDONEDBABY.lookback(+penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLABANDONEDBABY{}, Pattern.defaults()))
+
+def CDLADVANCEBLOCK.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLADVANCEBLOCK{}, Pattern.defaults()))
+
+def CDLBELTHOLD.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLBELTHOLD{}, Pattern.defaults()))
+
+def CDLBREAKAWAY.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLBREAKAWAY{}, Pattern.defaults()))
+
+def CDLCLOSINGMARUBOZU.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLCLOSINGMARUBOZU{}, Pattern.defaults()))
+
+def CDLCONCEALBABYSWALL.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLCONCEALBABYSWALL{}, Pattern.defaults()))
+
+def CDLCOUNTERATTACK.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLCOUNTERATTACK{}, Pattern.defaults()))
+
+def CDLDARKCLOUDCOVER.lookback(+penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLDARKCLOUDCOVER{}, Pattern.defaults()))
+
+def CDLDOJI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLDOJI{}, Pattern.defaults()))
+
+def CDLDOJISTAR.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLDOJISTAR{}, Pattern.defaults()))
+
+def CDLDRAGONFLYDOJI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLDRAGONFLYDOJI{}, Pattern.defaults()))
+
+def CDLENGULFING.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLENGULFING{}, Pattern.defaults()))
+
+def CDLEVENINGDOJISTAR.lookback(+penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLEVENINGDOJISTAR{}, Pattern.defaults()))
+
+def CDLEVENINGSTAR.lookback(+penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLEVENINGSTAR{}, Pattern.defaults()))
+
+def CDLGAPSIDESIDEWHITE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLGAPSIDESIDEWHITE{}, Pattern.defaults()))
+
+def CDLGRAVESTONEDOJI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLGRAVESTONEDOJI{}, Pattern.defaults()))
+
+def CDLHAMMER.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHAMMER{}, Pattern.defaults()))
+
+def CDLHANGINGMAN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHANGINGMAN{}, Pattern.defaults()))
+
+def CDLHARAMI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHARAMI{}, Pattern.defaults()))
+
+def CDLHARAMICROSS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHARAMICROSS{}, Pattern.defaults()))
+
+def CDLHIGHWAVE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHIGHWAVE{}, Pattern.defaults()))
+
+def CDLHIKKAKE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 5)
+
+def CDLHIKKAKEMOD.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 10)
+
+def CDLHOMINGPIGEON.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHOMINGPIGEON{}, Pattern.defaults()))
+
+def CDLIDENTICAL3CROWS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLIDENTICAL3CROWS{}, Pattern.defaults()))
+
+def CDLINNECK.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLINNECK{}, Pattern.defaults()))
+
+def CDLINVERTEDHAMMER.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLINVERTEDHAMMER{}, Pattern.defaults()))
+
+def CDLKICKING.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLKICKING{}, Pattern.defaults()))
+
+def CDLKICKINGBYLENGTH.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLKICKINGBYLENGTH{}, Pattern.defaults()))
+
+def CDLLADDERBOTTOM.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLLADDERBOTTOM{}, Pattern.defaults()))
+
+def CDLLONGLEGGEDDOJI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLLONGLEGGEDDOJI{}, Pattern.defaults()))
+
+def CDLLONGLINE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLLONGLINE{}, Pattern.defaults()))
+
+def CDLMARUBOZU.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLMARUBOZU{}, Pattern.defaults()))
+
+def CDLMATCHINGLOW.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLMATCHINGLOW{}, Pattern.defaults()))
+
+def CDLMATHOLD.lookback(+penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLMATHOLD{}, Pattern.defaults()))
+
+def CDLMORNINGDOJISTAR.lookback(+penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLMORNINGDOJISTAR{}, Pattern.defaults()))
+
+def CDLMORNINGSTAR.lookback(+penetration: F32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLMORNINGSTAR{}, Pattern.defaults()))
+
+def CDLONNECK.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLONNECK{}, Pattern.defaults()))
+
+def CDLPIERCING.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLPIERCING{}, Pattern.defaults()))
+
+def CDLRICKSHAWMAN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLRICKSHAWMAN{}, Pattern.defaults()))
+
+def CDLRISEFALL3METHODS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLRISEFALL3METHODS{}, Pattern.defaults()))
+
+def CDLSEPARATINGLINES.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSEPARATINGLINES{}, Pattern.defaults()))
+
+def CDLSHOOTINGSTAR.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSHOOTINGSTAR{}, Pattern.defaults()))
+
+def CDLSHORTLINE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSHORTLINE{}, Pattern.defaults()))
+
+def CDLSPINNINGTOP.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSPINNINGTOP{}, Pattern.defaults()))
+
+def CDLSTALLEDPATTERN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSTALLEDPATTERN{}, Pattern.defaults()))
+
+def CDLSTICKSANDWICH.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSTICKSANDWICH{}, Pattern.defaults()))
+
+def CDLTAKURI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTAKURI{}, Pattern.defaults()))
+
+def CDLTASUKIGAP.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTASUKIGAP{}, Pattern.defaults()))
+
+def CDLTHRUSTING.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTHRUSTING{}, Pattern.defaults()))
+
+def CDLTRISTAR.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTRISTAR{}, Pattern.defaults()))
+
+def CDLUNIQUE3RIVER.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLUNIQUE3RIVER{}, Pattern.defaults()))
+
+def CDLUPSIDEGAP2CROWS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLUPSIDEGAP2CROWS{}, Pattern.defaults()))
+
+def CDLXSIDEGAP3METHODS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLXSIDEGAP3METHODS{}, Pattern.defaults()))
+
+def CEIL.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def CG.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
+
+def CHOP.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def CHOPTR.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def CKSP.lookback(+period: U32, +multiplier: F32, +stop_period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.CKSP(period, multiplier, stop_period), U32.sub(U32.add(period, stop_period), 1))
+
+def CMF.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.CMF(period), U32.sub(period, 1))
+
+def CMO.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def CMOU.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def COPPOCK.lookback(+wma: U32, +first: U32, +second: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.COPPOCK(wma, first, second), U32.sub(U32.add(U32.max(first, second), wma), 1))
+
+def CORREL.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 1), U32.sub(period, 1))
+
+def COS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def COSH.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def CRSI.lookback(+period: U32, +streak: U32, +rank: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.CRSI(period, streak, rank), U32.max(U32.max(period, U32.add(streak, 1)), U32.add(rank, 1)))
+
+def CTI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
+
+def CUMSUM.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def CVI.lookback(+period: U32, +lag: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.CVI(period, lag), U32.add(U32.sub(period, 1), lag))
+
+def DEMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, 3))
+
+def DIV.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def DONCHIAN.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def DOSC.lookback(+period: U32, +first: U32, +second: U32, +signal: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.DOSC(period, first, second, signal), U32.sub(U32.add(U32.add(U32.add(period, first), second), signal), 3))
+
+def DPO.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.max(U32.sub(period, 1), U32.add(U32.div(period, 2), 1)))
+
+def DX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def EFI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.EFI(period), period)
+
+def EMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), U32.sub(period, 1))
+
+def EMV.lookback(+period: U32, +divisor: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.EMV(period, divisor), period)
+
+def ER.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def ERI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), U32.sub(period, 1))
+
+def EXP.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def FISHER.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
+
+def FLOOR.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def FOSC.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def FRACTAL.lookback(+left: U32, +right: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.periods([left, right]), U32.add(left, right))
+
+def FRAMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.FRAMA(period), period)
+
+def HA.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def HMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, 9))
+
+def HT_DCPERIOD.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 32)
+
+def HT_DCPHASE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 63)
+
+def HT_PHASOR.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 32)
+
+def HT_SINE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 63)
+
+def HT_TRENDLINE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 63)
+
+def HT_TRENDMODE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 63)
+
+def IBS.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def ICHIMOKU.lookback(+tenkan: U32, +kijun: U32, +span_b: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ICHIMOKU(tenkan, kijun, span_b), U32.sub(U32.max(U32.max(tenkan, kijun), span_b), 1))
+
+def IMI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
+
+def KAMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, 6))
+
+def KC.lookback(+period: U32, +atr_period: U32, +deviation: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.KC(period, atr_period, deviation), U32.max(U32.sub(period, 1), atr_period))
+
+def KDJ.lookback(+kperiod: U32, +slowk: U32, +ktype: U32, +dperiod: U32, +dtype: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.KDJ(kperiod, slowk, ktype, dperiod, dtype), U32.add(U32.add(U32.sub(kperiod, 1), Ma.lookback(slowk, ktype)), Ma.lookback(dperiod, dtype)))
+
+def KST.lookback(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +sma1: U32, +sma2: U32, +sma3: U32, +sma4: U32, +signal: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.KST(roc1, roc2, roc3, roc4, sma1, sma2, sma3, sma4, signal), U32.sub(U32.add(U32.max(U32.max(U32.max(U32.sub(U32.add(roc1, sma1), 1), U32.sub(U32.add(roc2, sma2), 1)), U32.sub(U32.add(roc3, sma3), 1)), U32.sub(U32.add(roc4, sma4), 1)), signal), 1))
+
+def KSTEXT.lookback(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +ma1: U32, +ma2: U32, +ma3: U32, +ma4: U32, +signal: U32, +kind: U32, +signal_kind: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.KSTEXT(roc1, roc2, roc3, roc4, ma1, ma2, ma3, ma4, signal, kind, signal_kind), U32.add(U32.max(U32.max(U32.max(U32.add(roc1, Ma.lookback(ma1, kind)), U32.add(roc2, Ma.lookback(ma2, kind))), U32.add(roc3, Ma.lookback(ma3, kind))), U32.add(roc4, Ma.lookback(ma4, kind))), Ma.lookback(signal, signal_kind)))
+
+def KURTOSIS.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.KURTOSIS(period), U32.sub(period, 1))
+
+def KVO.lookback(+fast: U32, +slow: U32, +signal: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.KVO(fast, slow, signal), U32.max(U32.max(fast, slow), signal))
+
+def LINEARREG.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def LINEARREG_ANGLE.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def LINEARREG_INTERCEPT.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def LINEARREG_SLOPE.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def LN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def LOG10.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def MA.lookback(+period: U32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(Ma.valid(period, kind), Ma.lookback(period, kind))
+
+def MACD.lookback(+fast: U32, +slow: U32, +signal: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.MACD(fast, slow, signal), U32.sub(U32.add(U32.max(fast, slow), signal), 2))
+
+def MACDEXT.lookback(+fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32, +signal: U32, +signal_kind: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.MACDEXT(fast, fast_kind, slow, slow_kind, signal, signal_kind), U32.add(U32.max(Ma.lookback(fast, fast_kind), Ma.lookback(slow, slow_kind)), Ma.lookback(signal, signal_kind)))
+
+def MACDFIX.lookback(+signal: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(signal, 1), U32.add(signal, 24))
+
+def MAMA.lookback(+fast: F32, +slow: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.MAMA(fast, slow), 32)
+
+def MARKETFI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def MASSI.lookback(+fast: U32, +slow: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.MASSI(fast, slow), U32.sub(U32.add(U32.mul(2, U32.sub(fast, 1)), slow), 1))
+
+def MAVP.lookback(+minimum: U32, +maximum: U32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.MAVP(minimum, maximum, kind), Ma.lookback(maximum, kind))
+
+def MAX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MAXINDEX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MCGD.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
+
+def MEDIAN.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.MEDIAN(period), U32.sub(period, 1))
+
+def MEDPRICE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def MFI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def MIDPOINT.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MIDPRICE.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MIN.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MININDEX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MINMAX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MINMAXINDEX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def MINUS_DI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), period)
+
+def MINUS_DM.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), U32.max(1, U32.sub(period, 1)))
+
+def MOM.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), period)
+
+def MULT.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def NATR.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.NATR(period), period)
+
+def NVI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def OBV.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def PERCENTB.lookback(+period: U32, +up: F32, +down: F32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(Bool.and(parameters.BBANDS(period, up, down), Momentum.selector(period, kind)), U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))
+
+def PERCENTILE.lookback(+period: U32, +percent: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.PERCENTILE(period, percent), U32.sub(period, 1))
+
+def PERCENTRANK.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.PERCENTRANK(period), period)
+
+def PLUS_DI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), period)
+
+def PLUS_DM.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), U32.max(1, U32.sub(period, 1)))
+
+def PPO.lookback(+fast: U32, +slow: U32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.PPO(fast, slow, kind), U32.max(Ma.lookback(fast, kind), Ma.lookback(slow, kind)))
+
+def PSO.lookback(+kperiod: U32, +period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.PSO(kperiod, period), U32.add(U32.sub(kperiod, 1), U32.mul(2, U32.sub(period, 1))))
+
+def PVI.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def PVO.lookback(+fast: U32, +slow: U32, +kind: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.PPO(fast, slow, kind), U32.max(Ma.lookback(fast, kind), Ma.lookback(slow, kind)))
+
+def PVT.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def QSTICK.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), U32.sub(period, 1))
+
+def RMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), U32.sub(period, 1))
+
+def ROC.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), period)
+
+def ROCP.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), period)
+
+def ROCR.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), period)
+
+def ROCR100.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), period)
+
+def ROGERSSATCHELL.lookback(+period: U32, +annualization: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ROGERSSATCHELL(period, annualization), U32.sub(period, 1))
+
+def RSI.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def RVI.lookback(+period: U32, +deviation_period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.RVI(period, deviation_period), U32.sub(U32.add(deviation_period, period), 2))
+
+def RVIR.lookback(+period: U32, +deviation_period: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.RVIR(period, deviation_period), U32.sub(U32.add(deviation_period, period), 2))
+
+def RVOL.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), period)
+
+def SAR.lookback(+acceleration: F32, +maximum: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.SAR(acceleration, maximum), 1)
+
+def SAREXT.lookback(+start: F32, +offset: F32, +long_init: F32, +long_step: F32, +long_max: F32, +short_init: F32, +short_step: F32, +short_max: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.SAREXT(start, offset, long_init, long_step, long_max, short_init, short_step, short_max), 1)
+
+def SI.lookback(+limit: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.SI(limit), 1)
+
+def SIN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def SINH.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def SMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), U32.sub(period, 1))
+
+def SMI.lookback(+period: U32, +fast: U32, +slow: U32, +signal: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.SMI(period, fast, slow, signal), U32.sub(U32.add(U32.add(U32.add(period, fast), slow), signal), 4))
+
+def SQRT.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def SQZMOM.lookback(+bb: U32, +deviations: F32, +kc: U32, +wide: F32, +normal: F32, +narrow: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.SQZMOM(bb, deviations, kc, wide, normal, narrow), U32.max(U32.sub(bb, 1), U32.sub(U32.mul(2, kc), 2)))
+
+def STC.lookback(+fast: U32, +slow: U32, +cycle: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.STC(fast, slow, cycle), U32.add(U32.sub(U32.max(fast, slow), 1), U32.mul(2, U32.sub(cycle, 1))))
+
+def STDDEV.lookback(+period: U32, +factor: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.STDDEV(period, factor), U32.sub(period, 1))
+
+def STOCH.lookback(+kperiod: U32, +slowk: U32, +ktype: U32, +dperiod: U32, +dtype: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.STOCH(kperiod, slowk, ktype, dperiod, dtype), U32.add(U32.add(U32.sub(kperiod, 1), Ma.lookback(slowk, ktype)), Ma.lookback(dperiod, dtype)))
+
+def STOCHF.lookback(+kperiod: U32, +dperiod: U32, +dtype: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.STOCHF(kperiod, dperiod, dtype), U32.add(U32.sub(kperiod, 1), Ma.lookback(dperiod, dtype)))
+
+def STOCHRSI.lookback(+period: U32, +kperiod: U32, +dperiod: U32, +dtype: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.STOCHRSI(period, kperiod, dperiod, dtype), U32.add(U32.sub(U32.add(period, kperiod), 1), Ma.lookback(dperiod, dtype)))
+
+def SUB.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def SUM.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Config.valid(period), U32.sub(period, 1))
+
+def SUPERTREND.lookback(+period: U32, +multiplier: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.SUPERTREND(period, multiplier), period)
+
+def SWAK_2PHP.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(filter.valid(period, 2, 10000), 0)
+
+def SWAK_BP.lookback(+period: U32, +delta: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.SWAK_BP(period, delta), 0)
+
+def SWAK_BUTTER.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(filter.valid(period, 2, 10000), 0)
+
+def SWAK_GAUSS.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(filter.valid(period, 2, 10000), 0)
+
+def SWAK_HP.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(filter.valid(period, 5, 100000), 0)
+
+def T3.lookback(+period: U32, +factor: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.T3(period, factor), Ma.lookback(period, 8))
+
+def TAN.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def TANH.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def TEMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, 4))
+
+def TRANGE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 1)
+
+def TRIMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, 5))
+
+def TRIX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), U32.add(U32.mul(3, U32.sub(period, 1)), 1))
+
+def TSF.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 2), U32.sub(period, 1))
+
+def TSI.lookback(+first: U32, +second: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.TSI(first, second), U32.sub(U32.add(first, second), 1))
+
+def TYPPRICE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def ULTOSC.lookback(+first: U32, +second: U32, +third: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ULTOSC(first, second, third), U32.max(U32.max(first, second), third))
+
+def VAR.lookback(+period: U32, +factor: F32) -> Lookback.Result():
+  Lookbacks.checked(parameters.VAR(period, factor), U32.sub(period, 1))
+
+def VHF.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), period)
+
+def VIDYA.lookback(+period: U32, +cmo: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.VIDYA(period, cmo), Bool.pick(U32, U32.is_eq(period, 1), 0, cmo))
+
+def VORTEX.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 1), period)
+
+def VWAP.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def VWMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(overlap.valid(period, 1), U32.sub(period, 1))
+
+def WAD.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def WAVETREND.lookback(+channel: U32, +average: U32, +signal: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.WAVETREND(channel, average, signal), U32.sub(U32.add(U32.sub(U32.add(U32.mul(2, U32.sub(channel, 1)), average), 1), signal), 1))
+
+def WCLPRICE.lookback() -> Lookback.Result():
+  Lookbacks.checked(True{}, 0)
+
+def WILLR.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
+
+def WMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, 2))
+
+def ZIGZAG.lookback(+sensitivity: F32, +minimum: U32) -> Lookback.Result():
+  Lookbacks.checked(parameters.ZIGZAG(sensitivity, minimum), minimum)
+
+def ZLEMA.lookback(+period: U32) -> Lookback.Result():
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, 12))
+
+def EMA.clone(state: EMA.State()) -> EMA.State() & EMA.State():
+  Clone.data(~Ema.State<F32>, state)
+
+def SMA.clone(state: SMA.State()) -> SMA.State() & SMA.State():
+  Clone.sma(~F32, state)
+
+def RMA.clone(state: RMA.State()) -> RMA.State() & RMA.State():
+  Clone.data(~Ema.State<F32>, state)
+
+def Window.clone(state: Window.State()) -> Window.State() & Window.State():
+  Clone.window(~F32, state)
+
+def SUM.clone(state: SUM.State()) -> SUM.State() & SUM.State():
+  Clone.rolling(~F32, state)
+
+def Candle.clone(state: Candle.State()) -> Candle.State() & Candle.State():
+  Clone.candle(~F32, state)
+
+def CUMSUM.clone(state: CUMSUM.State()) -> CUMSUM.State() & CUMSUM.State():
+  Clone.data(~F32, state)
+
+def MOM.clone(state: MOM.State()) -> MOM.State() & MOM.State():
+  Clone.window(~F32, state)
+
+def ROC.clone(state: ROC.State()) -> ROC.State() & ROC.State():
+  Clone.window(~F32, state)
+
+def ROCP.clone(state: ROCP.State()) -> ROCP.State() & ROCP.State():
+  Clone.window(~F32, state)
+
+def ROCR.clone(state: ROCR.State()) -> ROCR.State() & ROCR.State():
+  Clone.window(~F32, state)
+
+def ROCR100.clone(state: ROCR100.State()) -> ROCR100.State() & ROCR100.State():
+  Clone.window(~F32, state)
+
+def OBV.clone(state: OBV.State()) -> OBV.State() & OBV.State():
+  Clone.data(~Volume.Index<F32>, state)
+
+def NVI.clone(state: NVI.State()) -> NVI.State() & NVI.State():
+  Clone.data(~Volume.Index<F32>, state)
+
+def PVI.clone(state: PVI.State()) -> PVI.State() & PVI.State():
+  Clone.data(~Volume.Index<F32>, state)
+
+def PVT.clone(state: PVT.State()) -> PVT.State() & PVT.State():
+  Clone.data(~Volume.Index<F32>, state)
+
+def AD.clone(state: AD.State()) -> AD.State() & AD.State():
+  Clone.data(~F32, state)
+
+def TRANGE.clone(state: TRANGE.State()) -> TRANGE.State() & TRANGE.State():
+  Clone.data(~Maybe<&2, F32>, state)
+
+def CMF.clone(state: CMF.State()) -> CMF.State() & CMF.State():
+  Clone.window(~Volume.Flow<F32>, state)
+
+def EFI.clone(state: EFI.State()) -> EFI.State() & EFI.State():
+  Clone.data(~Volume.Force<F32>, state)
+
+def ADR.clone(state: ADR.State()) -> ADR.State() & ADR.State():
+  Clone.sma(~F32, state)
+
+def ATR.clone(state: ATR.State()) -> ATR.State() & ATR.State():
+  Clone.data(~Volatility.Atr<F32>, state)
+
+def NATR.clone(state: NATR.State()) -> NATR.State() & NATR.State():
+  Clone.data(~Volatility.Natr<F32>, state)
+
+def EMV.clone(state: EMV.State()) -> EMV.State() & EMV.State():
+  Clone.volume.ease(~F32, state)
+
+def CVI.clone(state: CVI.State()) -> CVI.State() & CVI.State():
+  Clone.volatility.cvi(~F32, state)
+
+def MASSI.clone(state: MASSI.State()) -> MASSI.State() & MASSI.State():
+  Clone.volatility.mass(~F32, state)
+
+def Pattern.clone(state: Pattern.State()) -> Pattern.State() & Pattern.State():
+  Clone.pattern_state(~F32, state)
+
+def CDL2CROWS.clone(state: CDL2CROWS.State()) -> CDL2CROWS.State() & CDL2CROWS.State():
+  Clone.pattern_state(~F32, state)
+
+def CDL3BLACKCROWS.clone(state: CDL3BLACKCROWS.State()) -> CDL3BLACKCROWS.State() & CDL3BLACKCROWS.State():
+  Clone.pattern_state(~F32, state)
+
+def CDL3INSIDE.clone(state: CDL3INSIDE.State()) -> CDL3INSIDE.State() & CDL3INSIDE.State():
+  Clone.pattern_state(~F32, state)
+
+def CDL3LINESTRIKE.clone(state: CDL3LINESTRIKE.State()) -> CDL3LINESTRIKE.State() & CDL3LINESTRIKE.State():
+  Clone.pattern_state(~F32, state)
+
+def CDL3OUTSIDE.clone(state: CDL3OUTSIDE.State()) -> CDL3OUTSIDE.State() & CDL3OUTSIDE.State():
+  Clone.pattern_state(~F32, state)
+
+def CDL3STARSINSOUTH.clone(state: CDL3STARSINSOUTH.State()) -> CDL3STARSINSOUTH.State() & CDL3STARSINSOUTH.State():
+  Clone.pattern_state(~F32, state)
+
+def CDL3WHITESOLDIERS.clone(state: CDL3WHITESOLDIERS.State()) -> CDL3WHITESOLDIERS.State() & CDL3WHITESOLDIERS.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLABANDONEDBABY.clone(state: CDLABANDONEDBABY.State()) -> CDLABANDONEDBABY.State() & CDLABANDONEDBABY.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLADVANCEBLOCK.clone(state: CDLADVANCEBLOCK.State()) -> CDLADVANCEBLOCK.State() & CDLADVANCEBLOCK.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLBELTHOLD.clone(state: CDLBELTHOLD.State()) -> CDLBELTHOLD.State() & CDLBELTHOLD.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLBREAKAWAY.clone(state: CDLBREAKAWAY.State()) -> CDLBREAKAWAY.State() & CDLBREAKAWAY.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLCLOSINGMARUBOZU.clone(state: CDLCLOSINGMARUBOZU.State()) -> CDLCLOSINGMARUBOZU.State() & CDLCLOSINGMARUBOZU.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLCONCEALBABYSWALL.clone(state: CDLCONCEALBABYSWALL.State()) -> CDLCONCEALBABYSWALL.State() & CDLCONCEALBABYSWALL.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLCOUNTERATTACK.clone(state: CDLCOUNTERATTACK.State()) -> CDLCOUNTERATTACK.State() & CDLCOUNTERATTACK.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLDARKCLOUDCOVER.clone(state: CDLDARKCLOUDCOVER.State()) -> CDLDARKCLOUDCOVER.State() & CDLDARKCLOUDCOVER.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLDOJI.clone(state: CDLDOJI.State()) -> CDLDOJI.State() & CDLDOJI.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLDOJISTAR.clone(state: CDLDOJISTAR.State()) -> CDLDOJISTAR.State() & CDLDOJISTAR.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLDRAGONFLYDOJI.clone(state: CDLDRAGONFLYDOJI.State()) -> CDLDRAGONFLYDOJI.State() & CDLDRAGONFLYDOJI.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLENGULFING.clone(state: CDLENGULFING.State()) -> CDLENGULFING.State() & CDLENGULFING.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLEVENINGDOJISTAR.clone(state: CDLEVENINGDOJISTAR.State()) -> CDLEVENINGDOJISTAR.State() & CDLEVENINGDOJISTAR.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLEVENINGSTAR.clone(state: CDLEVENINGSTAR.State()) -> CDLEVENINGSTAR.State() & CDLEVENINGSTAR.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLGAPSIDESIDEWHITE.clone(state: CDLGAPSIDESIDEWHITE.State()) -> CDLGAPSIDESIDEWHITE.State() & CDLGAPSIDESIDEWHITE.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLGRAVESTONEDOJI.clone(state: CDLGRAVESTONEDOJI.State()) -> CDLGRAVESTONEDOJI.State() & CDLGRAVESTONEDOJI.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLHAMMER.clone(state: CDLHAMMER.State()) -> CDLHAMMER.State() & CDLHAMMER.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLHANGINGMAN.clone(state: CDLHANGINGMAN.State()) -> CDLHANGINGMAN.State() & CDLHANGINGMAN.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLHARAMI.clone(state: CDLHARAMI.State()) -> CDLHARAMI.State() & CDLHARAMI.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLHARAMICROSS.clone(state: CDLHARAMICROSS.State()) -> CDLHARAMICROSS.State() & CDLHARAMICROSS.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLHIGHWAVE.clone(state: CDLHIGHWAVE.State()) -> CDLHIGHWAVE.State() & CDLHIGHWAVE.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLHOMINGPIGEON.clone(state: CDLHOMINGPIGEON.State()) -> CDLHOMINGPIGEON.State() & CDLHOMINGPIGEON.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLIDENTICAL3CROWS.clone(state: CDLIDENTICAL3CROWS.State()) -> CDLIDENTICAL3CROWS.State() & CDLIDENTICAL3CROWS.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLINNECK.clone(state: CDLINNECK.State()) -> CDLINNECK.State() & CDLINNECK.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLINVERTEDHAMMER.clone(state: CDLINVERTEDHAMMER.State()) -> CDLINVERTEDHAMMER.State() & CDLINVERTEDHAMMER.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLKICKING.clone(state: CDLKICKING.State()) -> CDLKICKING.State() & CDLKICKING.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLKICKINGBYLENGTH.clone(state: CDLKICKINGBYLENGTH.State()) -> CDLKICKINGBYLENGTH.State() & CDLKICKINGBYLENGTH.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLLADDERBOTTOM.clone(state: CDLLADDERBOTTOM.State()) -> CDLLADDERBOTTOM.State() & CDLLADDERBOTTOM.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLLONGLEGGEDDOJI.clone(state: CDLLONGLEGGEDDOJI.State()) -> CDLLONGLEGGEDDOJI.State() & CDLLONGLEGGEDDOJI.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLLONGLINE.clone(state: CDLLONGLINE.State()) -> CDLLONGLINE.State() & CDLLONGLINE.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLMARUBOZU.clone(state: CDLMARUBOZU.State()) -> CDLMARUBOZU.State() & CDLMARUBOZU.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLMATCHINGLOW.clone(state: CDLMATCHINGLOW.State()) -> CDLMATCHINGLOW.State() & CDLMATCHINGLOW.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLMATHOLD.clone(state: CDLMATHOLD.State()) -> CDLMATHOLD.State() & CDLMATHOLD.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLMORNINGDOJISTAR.clone(state: CDLMORNINGDOJISTAR.State()) -> CDLMORNINGDOJISTAR.State() & CDLMORNINGDOJISTAR.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLMORNINGSTAR.clone(state: CDLMORNINGSTAR.State()) -> CDLMORNINGSTAR.State() & CDLMORNINGSTAR.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLONNECK.clone(state: CDLONNECK.State()) -> CDLONNECK.State() & CDLONNECK.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLPIERCING.clone(state: CDLPIERCING.State()) -> CDLPIERCING.State() & CDLPIERCING.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLRICKSHAWMAN.clone(state: CDLRICKSHAWMAN.State()) -> CDLRICKSHAWMAN.State() & CDLRICKSHAWMAN.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLRISEFALL3METHODS.clone(state: CDLRISEFALL3METHODS.State()) -> CDLRISEFALL3METHODS.State() & CDLRISEFALL3METHODS.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLSEPARATINGLINES.clone(state: CDLSEPARATINGLINES.State()) -> CDLSEPARATINGLINES.State() & CDLSEPARATINGLINES.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLSHOOTINGSTAR.clone(state: CDLSHOOTINGSTAR.State()) -> CDLSHOOTINGSTAR.State() & CDLSHOOTINGSTAR.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLSHORTLINE.clone(state: CDLSHORTLINE.State()) -> CDLSHORTLINE.State() & CDLSHORTLINE.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLSPINNINGTOP.clone(state: CDLSPINNINGTOP.State()) -> CDLSPINNINGTOP.State() & CDLSPINNINGTOP.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLSTALLEDPATTERN.clone(state: CDLSTALLEDPATTERN.State()) -> CDLSTALLEDPATTERN.State() & CDLSTALLEDPATTERN.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLSTICKSANDWICH.clone(state: CDLSTICKSANDWICH.State()) -> CDLSTICKSANDWICH.State() & CDLSTICKSANDWICH.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLTAKURI.clone(state: CDLTAKURI.State()) -> CDLTAKURI.State() & CDLTAKURI.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLTASUKIGAP.clone(state: CDLTASUKIGAP.State()) -> CDLTASUKIGAP.State() & CDLTASUKIGAP.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLTHRUSTING.clone(state: CDLTHRUSTING.State()) -> CDLTHRUSTING.State() & CDLTHRUSTING.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLTRISTAR.clone(state: CDLTRISTAR.State()) -> CDLTRISTAR.State() & CDLTRISTAR.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLUNIQUE3RIVER.clone(state: CDLUNIQUE3RIVER.State()) -> CDLUNIQUE3RIVER.State() & CDLUNIQUE3RIVER.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLUPSIDEGAP2CROWS.clone(state: CDLUPSIDEGAP2CROWS.State()) -> CDLUPSIDEGAP2CROWS.State() & CDLUPSIDEGAP2CROWS.State():
+  Clone.pattern_state(~F32, state)
+
+def CDLXSIDEGAP3METHODS.clone(state: CDLXSIDEGAP3METHODS.State()) -> CDLXSIDEGAP3METHODS.State() & CDLXSIDEGAP3METHODS.State():
+  Clone.pattern_state(~F32, state)
+
+def VIDYA.clone(state: VIDYA.State()) -> VIDYA.State() & VIDYA.State():
+  Clone.vidya(~F32, state)
+
+def MAMA.clone(state: MAMA.State()) -> MAMA.State() & MAMA.State():
+  Clone.data(~Mama.State<F32>, state)
+
+def MA.clone(state: MA.State()) -> MA.State() & MA.State():
+  Clone.ma(~F32, state)
+
+def WMA.clone(state: WMA.State()) -> WMA.State() & WMA.State():
+  Clone.ma(~F32, state)
+
+def DEMA.clone(state: DEMA.State()) -> DEMA.State() & DEMA.State():
+  Clone.ma(~F32, state)
+
+def TEMA.clone(state: TEMA.State()) -> TEMA.State() & TEMA.State():
+  Clone.ma(~F32, state)
+
+def TRIMA.clone(state: TRIMA.State()) -> TRIMA.State() & TRIMA.State():
+  Clone.ma(~F32, state)
+
+def KAMA.clone(state: KAMA.State()) -> KAMA.State() & KAMA.State():
+  Clone.ma(~F32, state)
+
+def HMA.clone(state: HMA.State()) -> HMA.State() & HMA.State():
+  Clone.ma(~F32, state)
+
+def ZLEMA.clone(state: ZLEMA.State()) -> ZLEMA.State() & ZLEMA.State():
+  Clone.ma(~F32, state)
+
+def T3.clone(state: T3.State()) -> T3.State() & T3.State():
+  Clone.ma(~F32, state)
+
+def ALMA.clone(state: ALMA.State()) -> ALMA.State() & ALMA.State():
+  Clone.ma(~F32, state)
+
+def LINEARREG.clone(state: LINEARREG.State()) -> LINEARREG.State() & LINEARREG.State():
+  Clone.rolling_average(~F32, state)
+
+def LINEARREG_SLOPE.clone(state: LINEARREG_SLOPE.State()) -> LINEARREG_SLOPE.State() & LINEARREG_SLOPE.State():
+  Clone.rolling_average(~F32, state)
+
+def LINEARREG_INTERCEPT.clone(state: LINEARREG_INTERCEPT.State()) -> LINEARREG_INTERCEPT.State() & LINEARREG_INTERCEPT.State():
+  Clone.rolling_average(~F32, state)
+
+def LINEARREG_ANGLE.clone(state: LINEARREG_ANGLE.State()) -> LINEARREG_ANGLE.State() & LINEARREG_ANGLE.State():
+  Clone.rolling_average(~F32, state)
+
+def TSF.clone(state: TSF.State()) -> TSF.State() & TSF.State():
+  Clone.rolling_average(~F32, state)
+
+def MAX.clone(state: MAX.State()) -> MAX.State() & MAX.State():
+  Clone.statistics.extremes(~F32, state)
+
+def MIN.clone(state: MIN.State()) -> MIN.State() & MIN.State():
+  Clone.statistics.extremes(~F32, state)
+
+def MAXINDEX.clone(state: MAXINDEX.State()) -> MAXINDEX.State() & MAXINDEX.State():
+  Clone.statistics.extremes(~F32, state)
+
+def MININDEX.clone(state: MININDEX.State()) -> MININDEX.State() & MININDEX.State():
+  Clone.statistics.extremes(~F32, state)
+
+def MINMAX.clone(state: MINMAX.State()) -> MINMAX.State() & MINMAX.State():
+  Clone.statistics.extremes(~F32, state)
+
+def MINMAXINDEX.clone(state: MINMAXINDEX.State()) -> MINMAXINDEX.State() & MINMAXINDEX.State():
+  Clone.statistics.extremes(~F32, state)
+
+def MEDIAN.clone(state: MEDIAN.State()) -> MEDIAN.State() & MEDIAN.State():
+  Clone.window(~F32, state)
+
+def PERCENTRANK.clone(state: PERCENTRANK.State()) -> PERCENTRANK.State() & PERCENTRANK.State():
+  Clone.window(~F32, state)
+
+def AVGDEV.clone(state: AVGDEV.State()) -> AVGDEV.State() & AVGDEV.State():
+  Clone.window(~F32, state)
+
+def STDDEV.clone(state: STDDEV.State()) -> STDDEV.State() & STDDEV.State():
+  Clone.statistics.parameterwindow(~F32, state)
+
+def PERCENTILE.clone(state: PERCENTILE.State()) -> PERCENTILE.State() & PERCENTILE.State():
+  Clone.statistics.parameterwindow(~F32, state)
+
+def MIDPOINT.clone(state: MIDPOINT.State()) -> MIDPOINT.State() & MIDPOINT.State():
+  Clone.extrema_queue(~F32, state)
+
+def DONCHIAN.clone(state: DONCHIAN.State()) -> DONCHIAN.State() & DONCHIAN.State():
+  Clone.extrema_queue(~F32, state)
+
+def MIDPRICE.clone(state: MIDPRICE.State()) -> MIDPRICE.State() & MIDPRICE.State():
+  Clone.extrema_queue(~F32, state)
+
+def BBANDS.clone(state: BBANDS.State()) -> BBANDS.State() & BBANDS.State():
+  Clone.overlap.bollinger(~F32, state)
+
+def BBW.clone(state: BBW.State()) -> BBW.State() & BBW.State():
+  Clone.overlap.bollinger(~F32, state)
+
+def PERCENTB.clone(state: PERCENTB.State()) -> PERCENTB.State() & PERCENTB.State():
+  Clone.overlap.bollinger(~F32, state)
+
+def ACCBANDS.clone(state: ACCBANDS.State()) -> ACCBANDS.State() & ACCBANDS.State():
+  Clone.overlap.acceleration(~F32, state)
+
+def VWMA.clone(state: VWMA.State()) -> VWMA.State() & VWMA.State():
+  Clone.window(~Bars.CV<F32>, state)
+
+def HA.clone(state: HA.State()) -> HA.State() & HA.State():
+  Clone.data(~Overlap.Heikin<F32>, state)
+
+def KC.clone(state: KC.State()) -> KC.State() & KC.State():
+  Clone.data(~Overlap.Keltner<F32>, state)
+
+def CKSP.clone(state: CKSP.State()) -> CKSP.State() & CKSP.State():
+  Clone.overlap.chandekroll(~F32, state)
+
+def RSI.clone(state: RSI.State()) -> RSI.State() & RSI.State():
+  Clone.data(~MomCore.RSI<F32>, state)
+
+def CMO.clone(state: CMO.State()) -> CMO.State() & CMO.State():
+  Clone.data(~MomCore.RSI<F32>, state)
+
+def CMOU.clone(state: CMOU.State()) -> CMOU.State() & CMOU.State():
+  Clone.momentum.flow(~F32, state)
+
+def IMI.clone(state: IMI.State()) -> IMI.State() & IMI.State():
+  Clone.momentum.flow(~F32, state)
+
+def PLUS_DM.clone(state: PLUS_DM.State()) -> PLUS_DM.State() & PLUS_DM.State():
+  Clone.data(~Directional.State<F32>, state)
+
+def MINUS_DM.clone(state: MINUS_DM.State()) -> MINUS_DM.State() & MINUS_DM.State():
+  Clone.data(~Directional.State<F32>, state)
+
+def PLUS_DI.clone(state: PLUS_DI.State()) -> PLUS_DI.State() & PLUS_DI.State():
+  Clone.data(~Directional.State<F32>, state)
+
+def MINUS_DI.clone(state: MINUS_DI.State()) -> MINUS_DI.State() & MINUS_DI.State():
+  Clone.data(~Directional.State<F32>, state)
+
+def DX.clone(state: DX.State()) -> DX.State() & DX.State():
+  Clone.data(~Directional.State<F32>, state)
+
+def ADX.clone(state: ADX.State()) -> ADX.State() & ADX.State():
+  Clone.data(~Directional.ADX<F32>, state)
+
+def ADXR.clone(state: ADXR.State()) -> ADXR.State() & ADXR.State():
+  Clone.directional.adxr(~F32, state)
+
+def SI.clone(state: SI.State()) -> SI.State() & SI.State():
+  Clone.data(~MomentumWindow.Swing<F32>, state)
+
+def ASI.clone(state: ASI.State()) -> ASI.State() & ASI.State():
+  Clone.data(~MomentumWindow.Swing<F32>, state)
+
+def WAD.clone(state: WAD.State()) -> WAD.State() & WAD.State():
+  Clone.data(~MomentumWindow.WAD<F32>, state)
+
+def WILLR.clone(state: WILLR.State()) -> WILLR.State() & WILLR.State():
+  Clone.momentum_window.box(~F32, state)
+
+def AROON.clone(state: AROON.State()) -> AROON.State() & AROON.State():
+  Clone.momentum_window.box(~F32, state)
+
+def AROONOSC.clone(state: AROONOSC.State()) -> AROONOSC.State() & AROONOSC.State():
+  Clone.momentum_window.box(~F32, state)
+
+def ER.clone(state: ER.State()) -> ER.State() & ER.State():
+  Clone.momentum_window.prices(~F32, state)
+
+def VHF.clone(state: VHF.State()) -> VHF.State() & VHF.State():
+  Clone.momentum_window.prices(~F32, state)
+
+def APO.clone(state: APO.State()) -> APO.State() & APO.State():
+  Clone.momentum_smooth.dual(~F32, state)
+
+def PPO.clone(state: PPO.State()) -> PPO.State() & PPO.State():
+  Clone.momentum_smooth.dual(~F32, state)
+
+def AO.clone(state: AO.State()) -> AO.State() & AO.State():
+  Clone.momentum_smooth.dual(~F32, state)
+
+def AC.clone(state: AC.State()) -> AC.State() & AC.State():
+  Clone.momentum_smooth.macd(~F32, state)
+
+def MACD.clone(state: MACD.State()) -> MACD.State() & MACD.State():
+  Clone.momentum_smooth.macd(~F32, state)
+
+def MACDFIX.clone(state: MACDFIX.State()) -> MACDFIX.State() & MACDFIX.State():
+  Clone.momentum_smooth.macd(~F32, state)
+
+def STOCH.clone(state: STOCH.State()) -> STOCH.State() & STOCH.State():
+  Clone.momentum_smooth.stoch(~F32, state)
+
+def KDJ.clone(state: KDJ.State()) -> KDJ.State() & KDJ.State():
+  Clone.momentum_smooth.stoch(~F32, state)
+
+def STOCHF.clone(state: STOCHF.State()) -> STOCHF.State() & STOCHF.State():
+  Clone.momentum_smooth.stoch(~F32, state)
+
+def STOCHRSI.clone(state: STOCHRSI.State()) -> STOCHRSI.State() & STOCHRSI.State():
+  Clone.momentum_composite.stochrsi(~F32, state)
+
+def TRIX.clone(state: TRIX.State()) -> TRIX.State() & TRIX.State():
+  Clone.momentum_smooth.trix(~F32, state)
+
+def DOSC.clone(state: DOSC.State()) -> DOSC.State() & DOSC.State():
+  Clone.momentum_smooth.dosc(~F32, state)
+
+def PSO.clone(state: PSO.State()) -> PSO.State() & PSO.State():
+  Clone.momentum_smooth.pso(~F32, state)
+
+def TSI.clone(state: TSI.State()) -> TSI.State() & TSI.State():
+  Clone.momentum_composite.tsi(~F32, state)
+
+def QSTICK.clone(state: QSTICK.State()) -> QSTICK.State() & QSTICK.State():
+  Clone.ma(~F32, state)
+
+def ERI.clone(state: ERI.State()) -> ERI.State() & ERI.State():
+  Clone.momentum_smooth.eri(~F32, state)
+
+def FOSC.clone(state: FOSC.State()) -> FOSC.State() & FOSC.State():
+  Clone.momentum_composite.forecast(~F32, state)
+
+def CCI.clone(state: CCI.State()) -> CCI.State() & CCI.State():
+  Clone.momentum_market.cci(~F32, state)
+
+def MFI.clone(state: MFI.State()) -> MFI.State() & MFI.State():
+  Clone.momentum.flow(~F32, state)
+
+def CHOP.clone(state: CHOP.State()) -> CHOP.State() & CHOP.State():
+  Clone.momentum_market.market(~F32, state)
+
+def CHOPTR.clone(state: CHOPTR.State()) -> CHOPTR.State() & CHOPTR.State():
+  Clone.momentum_market.market(~F32, state)
+
+def VORTEX.clone(state: VORTEX.State()) -> VORTEX.State() & VORTEX.State():
+  Clone.momentum_market.market(~F32, state)
+
+def ULTOSC.clone(state: ULTOSC.State()) -> ULTOSC.State() & ULTOSC.State():
+  Clone.momentum_composite.ultimate(~F32, state)
+
+def COPPOCK.clone(state: COPPOCK.State()) -> COPPOCK.State() & COPPOCK.State():
+  Clone.momentum_composite.roc(~F32, state)
+
+def KST.clone(state: KST.State()) -> KST.State() & KST.State():
+  Clone.momentum_composite.roc(~F32, state)
+
+def PVO.clone(state: PVO.State()) -> PVO.State() & PVO.State():
+  Clone.momentum_smooth.dual(~F32, state)
+
+def DPO.clone(state: DPO.State()) -> DPO.State() & DPO.State():
+  Clone.window_signals.detrended(~F32, state)
+
+def RVOL.clone(state: RVOL.State()) -> RVOL.State() & RVOL.State():
+  Clone.rolling_average(~F32, state)
+
+def ICHIMOKU.clone(state: ICHIMOKU.State()) -> ICHIMOKU.State() & ICHIMOKU.State():
+  Clone.window_signals.cloud(~F32, state)
+
+def FRACTAL.clone(state: FRACTAL.State()) -> FRACTAL.State() & FRACTAL.State():
+  Clone.window_signals.fractal(~F32, state)
+
+def VWAP.clone(state: VWAP.State()) -> VWAP.State() & VWAP.State():
+  Clone.data(~MarketState.Anchored<F32>, state)
+
+def ZIGZAG.clone(state: ZIGZAG.State()) -> ZIGZAG.State() & ZIGZAG.State():
+  Clone.data(~MarketState.ZigZag<F32>, state)
+
+def MAVP.clone(state: MAVP.State()) -> MAVP.State() & MAVP.State():
+  Clone.variable(~F32, state)
+
+def FRAMA.clone(state: FRAMA.State()) -> FRAMA.State() & FRAMA.State():
+  Clone.adaptive_window.frama(~F32, state)
+
+def MCGD.clone(state: MCGD.State()) -> MCGD.State() & MCGD.State():
+  Clone.data(~TrendState.McGinley<F32>, state)
+
+def SAR.clone(state: SAR.State()) -> SAR.State() & SAR.State():
+  Clone.data(~TrendState.Sar<F32>, state)
+
+def SAREXT.clone(state: SAREXT.State()) -> SAREXT.State() & SAREXT.State():
+  Clone.data(~TrendState.Sar<F32>, state)
+
+def SUPERTREND.clone(state: SUPERTREND.State()) -> SUPERTREND.State() & SUPERTREND.State():
+  Clone.data(~TrendState.Supertrend<F32>, state)
+
+def CG.clone(state: CG.State()) -> CG.State() & CG.State():
+  Clone.window(~F32, state)
+
+def CTI.clone(state: CTI.State()) -> CTI.State() & CTI.State():
+  Clone.window(~F32, state)
+
+def FISHER.clone(state: FISHER.State()) -> FISHER.State() & FISHER.State():
+  Clone.adaptive_window.fisher(~F32, state)
+
+def CRSI.clone(state: CRSI.State()) -> CRSI.State() & CRSI.State():
+  Clone.advanced_oscillator.crsi(~F32, state)
+
+def SMI.clone(state: SMI.State()) -> SMI.State() & SMI.State():
+  Clone.advanced_oscillator.smi(~F32, state)
+
+def STC.clone(state: STC.State()) -> STC.State() & STC.State():
+  Clone.advanced_oscillator.stc(~F32, state)
+
+def WAVETREND.clone(state: WAVETREND.State()) -> WAVETREND.State() & WAVETREND.State():
+  Clone.advanced_oscillator.wave(~F32, state)
+
+def MACDEXT.clone(state: MACDEXT.State()) -> MACDEXT.State() & MACDEXT.State():
+  Clone.trend_composite.macd(~F32, state)
+
+def KSTEXT.clone(state: KSTEXT.State()) -> KSTEXT.State() & KSTEXT.State():
+  Clone.trend_composite.kst(~F32, state)
+
+def SQZMOM.clone(state: SQZMOM.State()) -> SQZMOM.State() & SQZMOM.State():
+  Clone.squeeze(~F32, state)
+
+def ADOSC.clone(state: ADOSC.State()) -> ADOSC.State() & ADOSC.State():
+  Clone.data(~VolumeFilter.Adosc<F32>, state)
+
+def KVO.clone(state: KVO.State()) -> KVO.State() & KVO.State():
+  Clone.data(~VolumeFilter.Kvo<F32>, state)
+
+def VAR.clone(state: VAR.State()) -> VAR.State() & VAR.State():
+  Clone.window(~F32, state)
+
+def CORREL.clone(state: CORREL.State()) -> CORREL.State() & CORREL.State():
+  Clone.window(~StatWindow.PairValue<F32>, state)
+
+def BETA.clone(state: BETA.State()) -> BETA.State() & BETA.State():
+  Clone.statistics_window.beta(~F32, state)
+
+def KURTOSIS.clone(state: KURTOSIS.State()) -> KURTOSIS.State() & KURTOSIS.State():
+  Clone.window(~F32, state)
+
+def ROGERSSATCHELL.clone(state: ROGERSSATCHELL.State()) -> ROGERSSATCHELL.State() & ROGERSSATCHELL.State():
+  Clone.volatility_window.rogerssatchell(~F32, state)
+
+def RVI.clone(state: RVI.State()) -> RVI.State() & RVI.State():
+  Clone.volatility_window.rvi(~F32, state)
+
+def RVIR.clone(state: RVIR.State()) -> RVIR.State() & RVIR.State():
+  Clone.volatility_window.rvir(~F32, state)
+
+def CDLHIKKAKE.clone(state: CDLHIKKAKE.State()) -> CDLHIKKAKE.State() & CDLHIKKAKE.State():
+  Clone.hikkake(~F32, state)
+
+def CDLHIKKAKEMOD.clone(state: CDLHIKKAKEMOD.State()) -> CDLHIKKAKEMOD.State() & CDLHIKKAKEMOD.State():
+  Clone.hikkake(~F32, state)
+
+def HT_DCPERIOD.clone(state: HT_DCPERIOD.State()) -> HT_DCPERIOD.State() & HT_DCPERIOD.State():
+  Clone.hilbert(~F32, state)
+
+def HT_PHASOR.clone(state: HT_PHASOR.State()) -> HT_PHASOR.State() & HT_PHASOR.State():
+  Clone.hilbert(~F32, state)
+
+def HT_TRENDLINE.clone(state: HT_TRENDLINE.State()) -> HT_TRENDLINE.State() & HT_TRENDLINE.State():
+  Clone.hilbert(~F32, state)
+
+def HT_DCPHASE.clone(state: HT_DCPHASE.State()) -> HT_DCPHASE.State() & HT_DCPHASE.State():
+  Clone.hilbert(~F32, state)
+
+def HT_SINE.clone(state: HT_SINE.State()) -> HT_SINE.State() & HT_SINE.State():
+  Clone.hilbert(~F32, state)
+
+def HT_TRENDMODE.clone(state: HT_TRENDMODE.State()) -> HT_TRENDMODE.State() & HT_TRENDMODE.State():
+  Clone.hilbert(~F32, state)
+
+def SWAK_BUTTER.clone(state: SWAK_BUTTER.State()) -> SWAK_BUTTER.State() & SWAK_BUTTER.State():
+  Clone.data(~Filters.State<F32>, state)
+
+def SWAK_GAUSS.clone(state: SWAK_GAUSS.State()) -> SWAK_GAUSS.State() & SWAK_GAUSS.State():
+  Clone.data(~Filters.State<F32>, state)
+
+def SWAK_2PHP.clone(state: SWAK_2PHP.State()) -> SWAK_2PHP.State() & SWAK_2PHP.State():
+  Clone.data(~Filters.State<F32>, state)
+
+def SWAK_BP.clone(state: SWAK_BP.State()) -> SWAK_BP.State() & SWAK_BP.State():
+  Clone.data(~Filters.State<F32>, state)
+
+def SWAK_HP.clone(state: SWAK_HP.State()) -> SWAK_HP.State() & SWAK_HP.State():
+  Clone.data(~Filters.State<F32>, state)
+
+def EMA.preview(state: EMA.State(), price: F32) -> EMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~EMA.State(), ~EMA.clone, ~EMA.next, state, price)
+
+def SMA.preview(state: SMA.State(), price: F32) -> SMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~SMA.State(), ~SMA.clone, ~SMA.next, state, price)
+
+def RMA.preview(state: RMA.State(), price: F32) -> RMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~RMA.State(), ~RMA.clone, ~RMA.next, state, price)
+
+def SUM.preview(state: SUM.State(), price: F32) -> SUM.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~SUM.State(), ~SUM.clone, ~SUM.next, state, price)
+
+def Candle.preview(state: Candle.State(), bar: Bars.OHLC<F32>) -> Candle.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.OHLC<F32>, ~F32, ~Candle.State(), ~Candle.clone, ~Candle.next, state, bar)
+
+def CUMSUM.preview(state: CUMSUM.State(), value: F32) -> CUMSUM.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~CUMSUM.State(), ~CUMSUM.clone, ~CUMSUM.next, state, value)
+
+def MOM.preview(state: MOM.State(), value: F32) -> MOM.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~MOM.State(), ~MOM.clone, ~MOM.next, state, value)
+
+def ROC.preview(state: ROC.State(), value: F32) -> ROC.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~ROC.State(), ~ROC.clone, ~ROC.next, state, value)
+
+def ROCP.preview(state: ROCP.State(), value: F32) -> ROCP.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~ROCP.State(), ~ROCP.clone, ~ROCP.next, state, value)
+
+def ROCR.preview(state: ROCR.State(), value: F32) -> ROCR.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~ROCR.State(), ~ROCR.clone, ~ROCR.next, state, value)
+
+def ROCR100.preview(state: ROCR100.State(), value: F32) -> ROCR100.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~ROCR100.State(), ~ROCR100.clone, ~ROCR100.next, state, value)
+
+def OBV.preview(state: OBV.State(), bar: Bars.CV<F32>) -> OBV.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.CV<F32>, ~F32, ~OBV.State(), ~OBV.clone, ~OBV.next, state, bar)
+
+def NVI.preview(state: NVI.State(), bar: Bars.CV<F32>) -> NVI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.CV<F32>, ~F32, ~NVI.State(), ~NVI.clone, ~NVI.next, state, bar)
+
+def PVI.preview(state: PVI.State(), bar: Bars.CV<F32>) -> PVI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.CV<F32>, ~F32, ~PVI.State(), ~PVI.clone, ~PVI.next, state, bar)
+
+def PVT.preview(state: PVT.State(), bar: Bars.CV<F32>) -> PVT.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.CV<F32>, ~F32, ~PVT.State(), ~PVT.clone, ~PVT.next, state, bar)
+
+def AD.preview(state: AD.State(), bar: Bars.HLCV<F32>) -> AD.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLCV<F32>, ~F32, ~AD.State(), ~AD.clone, ~AD.next, state, bar)
+
+def TRANGE.preview(state: TRANGE.State(), bar: Bars.HLC<F32>) -> TRANGE.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~TRANGE.State(), ~TRANGE.clone, ~TRANGE.next, state, bar)
+
+def CMF.preview(state: CMF.State(), bar: Bars.HLCV<F32>) -> CMF.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLCV<F32>, ~F32, ~CMF.State(), ~CMF.clone, ~CMF.next, state, bar)
+
+def EFI.preview(state: EFI.State(), bar: Bars.CV<F32>) -> EFI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.CV<F32>, ~F32, ~EFI.State(), ~EFI.clone, ~EFI.next, state, bar)
+
+def ADR.preview(state: ADR.State(), bar: Bars.HL<F32>) -> ADR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~ADR.State(), ~ADR.clone, ~ADR.next, state, bar)
+
+def ATR.preview(state: ATR.State(), bar: Bars.HLC<F32>) -> ATR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~ATR.State(), ~ATR.clone, ~ATR.next, state, bar)
+
+def NATR.preview(state: NATR.State(), bar: Bars.HLC<F32>) -> NATR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~NATR.State(), ~NATR.clone, ~NATR.next, state, bar)
+
+def EMV.preview(state: EMV.State(), bar: Bars.HLV<F32>) -> EMV.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLV<F32>, ~F32, ~EMV.State(), ~EMV.clone, ~EMV.next, state, bar)
+
+def CVI.preview(state: CVI.State(), bar: Bars.HL<F32>) -> CVI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~CVI.State(), ~CVI.clone, ~CVI.next, state, bar)
+
+def MASSI.preview(state: MASSI.State(), bar: Bars.HL<F32>) -> MASSI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~MASSI.State(), ~MASSI.clone, ~MASSI.next, state, bar)
+
+def Pattern.preview(state: Pattern.State(), bar: Bars.OHLC<F32>) -> Pattern.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~Pattern.State(), ~Pattern.clone, ~Pattern.next, state, bar)
+
+def CDL2CROWS.preview(state: CDL2CROWS.State(), bar: Bars.OHLC<F32>) -> CDL2CROWS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDL2CROWS.State(), ~CDL2CROWS.clone, ~CDL2CROWS.next, state, bar)
+
+def CDL3BLACKCROWS.preview(state: CDL3BLACKCROWS.State(), bar: Bars.OHLC<F32>) -> CDL3BLACKCROWS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDL3BLACKCROWS.State(), ~CDL3BLACKCROWS.clone, ~CDL3BLACKCROWS.next, state, bar)
+
+def CDL3INSIDE.preview(state: CDL3INSIDE.State(), bar: Bars.OHLC<F32>) -> CDL3INSIDE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDL3INSIDE.State(), ~CDL3INSIDE.clone, ~CDL3INSIDE.next, state, bar)
+
+def CDL3LINESTRIKE.preview(state: CDL3LINESTRIKE.State(), bar: Bars.OHLC<F32>) -> CDL3LINESTRIKE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDL3LINESTRIKE.State(), ~CDL3LINESTRIKE.clone, ~CDL3LINESTRIKE.next, state, bar)
+
+def CDL3OUTSIDE.preview(state: CDL3OUTSIDE.State(), bar: Bars.OHLC<F32>) -> CDL3OUTSIDE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDL3OUTSIDE.State(), ~CDL3OUTSIDE.clone, ~CDL3OUTSIDE.next, state, bar)
+
+def CDL3STARSINSOUTH.preview(state: CDL3STARSINSOUTH.State(), bar: Bars.OHLC<F32>) -> CDL3STARSINSOUTH.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDL3STARSINSOUTH.State(), ~CDL3STARSINSOUTH.clone, ~CDL3STARSINSOUTH.next, state, bar)
+
+def CDL3WHITESOLDIERS.preview(state: CDL3WHITESOLDIERS.State(), bar: Bars.OHLC<F32>) -> CDL3WHITESOLDIERS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDL3WHITESOLDIERS.State(), ~CDL3WHITESOLDIERS.clone, ~CDL3WHITESOLDIERS.next, state, bar)
+
+def CDLABANDONEDBABY.preview(state: CDLABANDONEDBABY.State(), bar: Bars.OHLC<F32>) -> CDLABANDONEDBABY.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLABANDONEDBABY.State(), ~CDLABANDONEDBABY.clone, ~CDLABANDONEDBABY.next, state, bar)
+
+def CDLADVANCEBLOCK.preview(state: CDLADVANCEBLOCK.State(), bar: Bars.OHLC<F32>) -> CDLADVANCEBLOCK.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLADVANCEBLOCK.State(), ~CDLADVANCEBLOCK.clone, ~CDLADVANCEBLOCK.next, state, bar)
+
+def CDLBELTHOLD.preview(state: CDLBELTHOLD.State(), bar: Bars.OHLC<F32>) -> CDLBELTHOLD.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLBELTHOLD.State(), ~CDLBELTHOLD.clone, ~CDLBELTHOLD.next, state, bar)
+
+def CDLBREAKAWAY.preview(state: CDLBREAKAWAY.State(), bar: Bars.OHLC<F32>) -> CDLBREAKAWAY.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLBREAKAWAY.State(), ~CDLBREAKAWAY.clone, ~CDLBREAKAWAY.next, state, bar)
+
+def CDLCLOSINGMARUBOZU.preview(state: CDLCLOSINGMARUBOZU.State(), bar: Bars.OHLC<F32>) -> CDLCLOSINGMARUBOZU.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLCLOSINGMARUBOZU.State(), ~CDLCLOSINGMARUBOZU.clone, ~CDLCLOSINGMARUBOZU.next, state, bar)
+
+def CDLCONCEALBABYSWALL.preview(state: CDLCONCEALBABYSWALL.State(), bar: Bars.OHLC<F32>) -> CDLCONCEALBABYSWALL.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLCONCEALBABYSWALL.State(), ~CDLCONCEALBABYSWALL.clone, ~CDLCONCEALBABYSWALL.next, state, bar)
+
+def CDLCOUNTERATTACK.preview(state: CDLCOUNTERATTACK.State(), bar: Bars.OHLC<F32>) -> CDLCOUNTERATTACK.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLCOUNTERATTACK.State(), ~CDLCOUNTERATTACK.clone, ~CDLCOUNTERATTACK.next, state, bar)
+
+def CDLDARKCLOUDCOVER.preview(state: CDLDARKCLOUDCOVER.State(), bar: Bars.OHLC<F32>) -> CDLDARKCLOUDCOVER.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLDARKCLOUDCOVER.State(), ~CDLDARKCLOUDCOVER.clone, ~CDLDARKCLOUDCOVER.next, state, bar)
+
+def CDLDOJI.preview(state: CDLDOJI.State(), bar: Bars.OHLC<F32>) -> CDLDOJI.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLDOJI.State(), ~CDLDOJI.clone, ~CDLDOJI.next, state, bar)
+
+def CDLDOJISTAR.preview(state: CDLDOJISTAR.State(), bar: Bars.OHLC<F32>) -> CDLDOJISTAR.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLDOJISTAR.State(), ~CDLDOJISTAR.clone, ~CDLDOJISTAR.next, state, bar)
+
+def CDLDRAGONFLYDOJI.preview(state: CDLDRAGONFLYDOJI.State(), bar: Bars.OHLC<F32>) -> CDLDRAGONFLYDOJI.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLDRAGONFLYDOJI.State(), ~CDLDRAGONFLYDOJI.clone, ~CDLDRAGONFLYDOJI.next, state, bar)
+
+def CDLENGULFING.preview(state: CDLENGULFING.State(), bar: Bars.OHLC<F32>) -> CDLENGULFING.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLENGULFING.State(), ~CDLENGULFING.clone, ~CDLENGULFING.next, state, bar)
+
+def CDLEVENINGDOJISTAR.preview(state: CDLEVENINGDOJISTAR.State(), bar: Bars.OHLC<F32>) -> CDLEVENINGDOJISTAR.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLEVENINGDOJISTAR.State(), ~CDLEVENINGDOJISTAR.clone, ~CDLEVENINGDOJISTAR.next, state, bar)
+
+def CDLEVENINGSTAR.preview(state: CDLEVENINGSTAR.State(), bar: Bars.OHLC<F32>) -> CDLEVENINGSTAR.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLEVENINGSTAR.State(), ~CDLEVENINGSTAR.clone, ~CDLEVENINGSTAR.next, state, bar)
+
+def CDLGAPSIDESIDEWHITE.preview(state: CDLGAPSIDESIDEWHITE.State(), bar: Bars.OHLC<F32>) -> CDLGAPSIDESIDEWHITE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLGAPSIDESIDEWHITE.State(), ~CDLGAPSIDESIDEWHITE.clone, ~CDLGAPSIDESIDEWHITE.next, state, bar)
+
+def CDLGRAVESTONEDOJI.preview(state: CDLGRAVESTONEDOJI.State(), bar: Bars.OHLC<F32>) -> CDLGRAVESTONEDOJI.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLGRAVESTONEDOJI.State(), ~CDLGRAVESTONEDOJI.clone, ~CDLGRAVESTONEDOJI.next, state, bar)
+
+def CDLHAMMER.preview(state: CDLHAMMER.State(), bar: Bars.OHLC<F32>) -> CDLHAMMER.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHAMMER.State(), ~CDLHAMMER.clone, ~CDLHAMMER.next, state, bar)
+
+def CDLHANGINGMAN.preview(state: CDLHANGINGMAN.State(), bar: Bars.OHLC<F32>) -> CDLHANGINGMAN.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHANGINGMAN.State(), ~CDLHANGINGMAN.clone, ~CDLHANGINGMAN.next, state, bar)
+
+def CDLHARAMI.preview(state: CDLHARAMI.State(), bar: Bars.OHLC<F32>) -> CDLHARAMI.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHARAMI.State(), ~CDLHARAMI.clone, ~CDLHARAMI.next, state, bar)
+
+def CDLHARAMICROSS.preview(state: CDLHARAMICROSS.State(), bar: Bars.OHLC<F32>) -> CDLHARAMICROSS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHARAMICROSS.State(), ~CDLHARAMICROSS.clone, ~CDLHARAMICROSS.next, state, bar)
+
+def CDLHIGHWAVE.preview(state: CDLHIGHWAVE.State(), bar: Bars.OHLC<F32>) -> CDLHIGHWAVE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHIGHWAVE.State(), ~CDLHIGHWAVE.clone, ~CDLHIGHWAVE.next, state, bar)
+
+def CDLHOMINGPIGEON.preview(state: CDLHOMINGPIGEON.State(), bar: Bars.OHLC<F32>) -> CDLHOMINGPIGEON.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHOMINGPIGEON.State(), ~CDLHOMINGPIGEON.clone, ~CDLHOMINGPIGEON.next, state, bar)
+
+def CDLIDENTICAL3CROWS.preview(state: CDLIDENTICAL3CROWS.State(), bar: Bars.OHLC<F32>) -> CDLIDENTICAL3CROWS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLIDENTICAL3CROWS.State(), ~CDLIDENTICAL3CROWS.clone, ~CDLIDENTICAL3CROWS.next, state, bar)
+
+def CDLINNECK.preview(state: CDLINNECK.State(), bar: Bars.OHLC<F32>) -> CDLINNECK.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLINNECK.State(), ~CDLINNECK.clone, ~CDLINNECK.next, state, bar)
+
+def CDLINVERTEDHAMMER.preview(state: CDLINVERTEDHAMMER.State(), bar: Bars.OHLC<F32>) -> CDLINVERTEDHAMMER.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLINVERTEDHAMMER.State(), ~CDLINVERTEDHAMMER.clone, ~CDLINVERTEDHAMMER.next, state, bar)
+
+def CDLKICKING.preview(state: CDLKICKING.State(), bar: Bars.OHLC<F32>) -> CDLKICKING.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLKICKING.State(), ~CDLKICKING.clone, ~CDLKICKING.next, state, bar)
+
+def CDLKICKINGBYLENGTH.preview(state: CDLKICKINGBYLENGTH.State(), bar: Bars.OHLC<F32>) -> CDLKICKINGBYLENGTH.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLKICKINGBYLENGTH.State(), ~CDLKICKINGBYLENGTH.clone, ~CDLKICKINGBYLENGTH.next, state, bar)
+
+def CDLLADDERBOTTOM.preview(state: CDLLADDERBOTTOM.State(), bar: Bars.OHLC<F32>) -> CDLLADDERBOTTOM.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLLADDERBOTTOM.State(), ~CDLLADDERBOTTOM.clone, ~CDLLADDERBOTTOM.next, state, bar)
+
+def CDLLONGLEGGEDDOJI.preview(state: CDLLONGLEGGEDDOJI.State(), bar: Bars.OHLC<F32>) -> CDLLONGLEGGEDDOJI.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLLONGLEGGEDDOJI.State(), ~CDLLONGLEGGEDDOJI.clone, ~CDLLONGLEGGEDDOJI.next, state, bar)
+
+def CDLLONGLINE.preview(state: CDLLONGLINE.State(), bar: Bars.OHLC<F32>) -> CDLLONGLINE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLLONGLINE.State(), ~CDLLONGLINE.clone, ~CDLLONGLINE.next, state, bar)
+
+def CDLMARUBOZU.preview(state: CDLMARUBOZU.State(), bar: Bars.OHLC<F32>) -> CDLMARUBOZU.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLMARUBOZU.State(), ~CDLMARUBOZU.clone, ~CDLMARUBOZU.next, state, bar)
+
+def CDLMATCHINGLOW.preview(state: CDLMATCHINGLOW.State(), bar: Bars.OHLC<F32>) -> CDLMATCHINGLOW.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLMATCHINGLOW.State(), ~CDLMATCHINGLOW.clone, ~CDLMATCHINGLOW.next, state, bar)
+
+def CDLMATHOLD.preview(state: CDLMATHOLD.State(), bar: Bars.OHLC<F32>) -> CDLMATHOLD.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLMATHOLD.State(), ~CDLMATHOLD.clone, ~CDLMATHOLD.next, state, bar)
+
+def CDLMORNINGDOJISTAR.preview(state: CDLMORNINGDOJISTAR.State(), bar: Bars.OHLC<F32>) -> CDLMORNINGDOJISTAR.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLMORNINGDOJISTAR.State(), ~CDLMORNINGDOJISTAR.clone, ~CDLMORNINGDOJISTAR.next, state, bar)
+
+def CDLMORNINGSTAR.preview(state: CDLMORNINGSTAR.State(), bar: Bars.OHLC<F32>) -> CDLMORNINGSTAR.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLMORNINGSTAR.State(), ~CDLMORNINGSTAR.clone, ~CDLMORNINGSTAR.next, state, bar)
+
+def CDLONNECK.preview(state: CDLONNECK.State(), bar: Bars.OHLC<F32>) -> CDLONNECK.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLONNECK.State(), ~CDLONNECK.clone, ~CDLONNECK.next, state, bar)
+
+def CDLPIERCING.preview(state: CDLPIERCING.State(), bar: Bars.OHLC<F32>) -> CDLPIERCING.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLPIERCING.State(), ~CDLPIERCING.clone, ~CDLPIERCING.next, state, bar)
+
+def CDLRICKSHAWMAN.preview(state: CDLRICKSHAWMAN.State(), bar: Bars.OHLC<F32>) -> CDLRICKSHAWMAN.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLRICKSHAWMAN.State(), ~CDLRICKSHAWMAN.clone, ~CDLRICKSHAWMAN.next, state, bar)
+
+def CDLRISEFALL3METHODS.preview(state: CDLRISEFALL3METHODS.State(), bar: Bars.OHLC<F32>) -> CDLRISEFALL3METHODS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLRISEFALL3METHODS.State(), ~CDLRISEFALL3METHODS.clone, ~CDLRISEFALL3METHODS.next, state, bar)
+
+def CDLSEPARATINGLINES.preview(state: CDLSEPARATINGLINES.State(), bar: Bars.OHLC<F32>) -> CDLSEPARATINGLINES.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLSEPARATINGLINES.State(), ~CDLSEPARATINGLINES.clone, ~CDLSEPARATINGLINES.next, state, bar)
+
+def CDLSHOOTINGSTAR.preview(state: CDLSHOOTINGSTAR.State(), bar: Bars.OHLC<F32>) -> CDLSHOOTINGSTAR.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLSHOOTINGSTAR.State(), ~CDLSHOOTINGSTAR.clone, ~CDLSHOOTINGSTAR.next, state, bar)
+
+def CDLSHORTLINE.preview(state: CDLSHORTLINE.State(), bar: Bars.OHLC<F32>) -> CDLSHORTLINE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLSHORTLINE.State(), ~CDLSHORTLINE.clone, ~CDLSHORTLINE.next, state, bar)
+
+def CDLSPINNINGTOP.preview(state: CDLSPINNINGTOP.State(), bar: Bars.OHLC<F32>) -> CDLSPINNINGTOP.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLSPINNINGTOP.State(), ~CDLSPINNINGTOP.clone, ~CDLSPINNINGTOP.next, state, bar)
+
+def CDLSTALLEDPATTERN.preview(state: CDLSTALLEDPATTERN.State(), bar: Bars.OHLC<F32>) -> CDLSTALLEDPATTERN.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLSTALLEDPATTERN.State(), ~CDLSTALLEDPATTERN.clone, ~CDLSTALLEDPATTERN.next, state, bar)
+
+def CDLSTICKSANDWICH.preview(state: CDLSTICKSANDWICH.State(), bar: Bars.OHLC<F32>) -> CDLSTICKSANDWICH.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLSTICKSANDWICH.State(), ~CDLSTICKSANDWICH.clone, ~CDLSTICKSANDWICH.next, state, bar)
+
+def CDLTAKURI.preview(state: CDLTAKURI.State(), bar: Bars.OHLC<F32>) -> CDLTAKURI.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLTAKURI.State(), ~CDLTAKURI.clone, ~CDLTAKURI.next, state, bar)
+
+def CDLTASUKIGAP.preview(state: CDLTASUKIGAP.State(), bar: Bars.OHLC<F32>) -> CDLTASUKIGAP.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLTASUKIGAP.State(), ~CDLTASUKIGAP.clone, ~CDLTASUKIGAP.next, state, bar)
+
+def CDLTHRUSTING.preview(state: CDLTHRUSTING.State(), bar: Bars.OHLC<F32>) -> CDLTHRUSTING.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLTHRUSTING.State(), ~CDLTHRUSTING.clone, ~CDLTHRUSTING.next, state, bar)
+
+def CDLTRISTAR.preview(state: CDLTRISTAR.State(), bar: Bars.OHLC<F32>) -> CDLTRISTAR.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLTRISTAR.State(), ~CDLTRISTAR.clone, ~CDLTRISTAR.next, state, bar)
+
+def CDLUNIQUE3RIVER.preview(state: CDLUNIQUE3RIVER.State(), bar: Bars.OHLC<F32>) -> CDLUNIQUE3RIVER.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLUNIQUE3RIVER.State(), ~CDLUNIQUE3RIVER.clone, ~CDLUNIQUE3RIVER.next, state, bar)
+
+def CDLUPSIDEGAP2CROWS.preview(state: CDLUPSIDEGAP2CROWS.State(), bar: Bars.OHLC<F32>) -> CDLUPSIDEGAP2CROWS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLUPSIDEGAP2CROWS.State(), ~CDLUPSIDEGAP2CROWS.clone, ~CDLUPSIDEGAP2CROWS.next, state, bar)
+
+def CDLXSIDEGAP3METHODS.preview(state: CDLXSIDEGAP3METHODS.State(), bar: Bars.OHLC<F32>) -> CDLXSIDEGAP3METHODS.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLXSIDEGAP3METHODS.State(), ~CDLXSIDEGAP3METHODS.clone, ~CDLXSIDEGAP3METHODS.next, state, bar)
+
+def VIDYA.preview(state: VIDYA.State(), price: F32) -> VIDYA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~VIDYA.State(), ~VIDYA.clone, ~VIDYA.next, state, price)
+
+def MAMA.preview(state: MAMA.State(), price: F32) -> MAMA.State() & Maybe<&2, MAMA.Value()>:
+  Clone.preview(~F32, ~MAMA.Value(), ~MAMA.State(), ~MAMA.clone, ~MAMA.next, state, price)
+
+def MA.preview(state: MA.State(), price: F32) -> MA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~MA.State(), ~MA.clone, ~MA.next, state, price)
+
+def WMA.preview(state: WMA.State(), price: F32) -> WMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~WMA.State(), ~WMA.clone, ~WMA.next, state, price)
+
+def DEMA.preview(state: DEMA.State(), price: F32) -> DEMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~DEMA.State(), ~DEMA.clone, ~DEMA.next, state, price)
+
+def TEMA.preview(state: TEMA.State(), price: F32) -> TEMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~TEMA.State(), ~TEMA.clone, ~TEMA.next, state, price)
+
+def TRIMA.preview(state: TRIMA.State(), price: F32) -> TRIMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~TRIMA.State(), ~TRIMA.clone, ~TRIMA.next, state, price)
+
+def KAMA.preview(state: KAMA.State(), price: F32) -> KAMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~KAMA.State(), ~KAMA.clone, ~KAMA.next, state, price)
+
+def HMA.preview(state: HMA.State(), price: F32) -> HMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~HMA.State(), ~HMA.clone, ~HMA.next, state, price)
+
+def ZLEMA.preview(state: ZLEMA.State(), price: F32) -> ZLEMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~ZLEMA.State(), ~ZLEMA.clone, ~ZLEMA.next, state, price)
+
+def T3.preview(state: T3.State(), price: F32) -> T3.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~T3.State(), ~T3.clone, ~T3.next, state, price)
+
+def ALMA.preview(state: ALMA.State(), price: F32) -> ALMA.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~ALMA.State(), ~ALMA.clone, ~ALMA.next, state, price)
+
+def LINEARREG.preview(state: LINEARREG.State(), price: F32) -> LINEARREG.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~LINEARREG.State(), ~LINEARREG.clone, ~LINEARREG.next, state, price)
+
+def LINEARREG_SLOPE.preview(state: LINEARREG_SLOPE.State(), price: F32) -> LINEARREG_SLOPE.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~LINEARREG_SLOPE.State(), ~LINEARREG_SLOPE.clone, ~LINEARREG_SLOPE.next, state, price)
+
+def LINEARREG_INTERCEPT.preview(state: LINEARREG_INTERCEPT.State(), price: F32) -> LINEARREG_INTERCEPT.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~LINEARREG_INTERCEPT.State(), ~LINEARREG_INTERCEPT.clone, ~LINEARREG_INTERCEPT.next, state, price)
+
+def LINEARREG_ANGLE.preview(state: LINEARREG_ANGLE.State(), price: F32) -> LINEARREG_ANGLE.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~LINEARREG_ANGLE.State(), ~LINEARREG_ANGLE.clone, ~LINEARREG_ANGLE.next, state, price)
+
+def TSF.preview(state: TSF.State(), price: F32) -> TSF.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~TSF.State(), ~TSF.clone, ~TSF.next, state, price)
+
+def MAX.preview(state: MAX.State(), price: F32) -> MAX.State() & Maybe<&2, MAX.Value()>:
+  Clone.preview(~F32, ~MAX.Value(), ~MAX.State(), ~MAX.clone, ~MAX.next, state, price)
+
+def MIN.preview(state: MIN.State(), price: F32) -> MIN.State() & Maybe<&2, MIN.Value()>:
+  Clone.preview(~F32, ~MIN.Value(), ~MIN.State(), ~MIN.clone, ~MIN.next, state, price)
+
+def MAXINDEX.preview(state: MAXINDEX.State(), price: F32) -> MAXINDEX.State() & Maybe<&2, MAXINDEX.Value()>:
+  Clone.preview(~F32, ~MAXINDEX.Value(), ~MAXINDEX.State(), ~MAXINDEX.clone, ~MAXINDEX.next, state, price)
+
+def MININDEX.preview(state: MININDEX.State(), price: F32) -> MININDEX.State() & Maybe<&2, MININDEX.Value()>:
+  Clone.preview(~F32, ~MININDEX.Value(), ~MININDEX.State(), ~MININDEX.clone, ~MININDEX.next, state, price)
+
+def MINMAX.preview(state: MINMAX.State(), price: F32) -> MINMAX.State() & Maybe<&2, MINMAX.Value()>:
+  Clone.preview(~F32, ~MINMAX.Value(), ~MINMAX.State(), ~MINMAX.clone, ~MINMAX.next, state, price)
+
+def MINMAXINDEX.preview(state: MINMAXINDEX.State(), price: F32) -> MINMAXINDEX.State() & Maybe<&2, MINMAXINDEX.Value()>:
+  Clone.preview(~F32, ~MINMAXINDEX.Value(), ~MINMAXINDEX.State(), ~MINMAXINDEX.clone, ~MINMAXINDEX.next, state, price)
+
+def MEDIAN.preview(state: MEDIAN.State(), price: F32) -> MEDIAN.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~MEDIAN.State(), ~MEDIAN.clone, ~MEDIAN.next, state, price)
+
+def PERCENTRANK.preview(state: PERCENTRANK.State(), price: F32) -> PERCENTRANK.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~PERCENTRANK.State(), ~PERCENTRANK.clone, ~PERCENTRANK.next, state, price)
+
+def AVGDEV.preview(state: AVGDEV.State(), price: F32) -> AVGDEV.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~AVGDEV.State(), ~AVGDEV.clone, ~AVGDEV.next, state, price)
+
+def STDDEV.preview(state: STDDEV.State(), price: F32) -> STDDEV.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~STDDEV.State(), ~STDDEV.clone, ~STDDEV.next, state, price)
+
+def PERCENTILE.preview(state: PERCENTILE.State(), price: F32) -> PERCENTILE.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~PERCENTILE.State(), ~PERCENTILE.clone, ~PERCENTILE.next, state, price)
+
+def MIDPOINT.preview(state: MIDPOINT.State(), price: F32) -> MIDPOINT.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~MIDPOINT.State(), ~MIDPOINT.clone, ~MIDPOINT.next, state, price)
+
+def DONCHIAN.preview(state: DONCHIAN.State(), bar: Bars.HL<F32>) -> DONCHIAN.State() & Maybe<&2, DONCHIAN.Value()>:
+  Clone.preview(~Bars.HL<F32>, ~DONCHIAN.Value(), ~DONCHIAN.State(), ~DONCHIAN.clone, ~DONCHIAN.next, state, bar)
+
+def MIDPRICE.preview(state: MIDPRICE.State(), bar: Bars.HL<F32>) -> MIDPRICE.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~MIDPRICE.State(), ~MIDPRICE.clone, ~MIDPRICE.next, state, bar)
+
+def BBANDS.preview(state: BBANDS.State(), price: F32) -> BBANDS.State() & Maybe<&2, BBANDS.Value()>:
+  Clone.preview(~F32, ~BBANDS.Value(), ~BBANDS.State(), ~BBANDS.clone, ~BBANDS.next, state, price)
+
+def BBW.preview(state: BBW.State(), price: F32) -> BBW.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~BBW.State(), ~BBW.clone, ~BBW.next, state, price)
+
+def PERCENTB.preview(state: PERCENTB.State(), price: F32) -> PERCENTB.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~PERCENTB.State(), ~PERCENTB.clone, ~PERCENTB.next, state, price)
+
+def ACCBANDS.preview(state: ACCBANDS.State(), bar: Bars.HLC<F32>) -> ACCBANDS.State() & Maybe<&2, ACCBANDS.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~ACCBANDS.Value(), ~ACCBANDS.State(), ~ACCBANDS.clone, ~ACCBANDS.next, state, bar)
+
+def VWMA.preview(state: VWMA.State(), bar: Bars.CV<F32>) -> VWMA.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.CV<F32>, ~F32, ~VWMA.State(), ~VWMA.clone, ~VWMA.next, state, bar)
+
+def HA.preview(state: HA.State(), bar: HA.Value()) -> HA.State() & Maybe<&2, HA.Value()>:
+  Clone.preview(~HA.Value(), ~HA.Value(), ~HA.State(), ~HA.clone, ~HA.next, state, bar)
+
+def KC.preview(state: KC.State(), bar: Bars.HLC<F32>) -> KC.State() & Maybe<&2, KC.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~KC.Value(), ~KC.State(), ~KC.clone, ~KC.next, state, bar)
+
+def CKSP.preview(state: CKSP.State(), bar: Bars.HLC<F32>) -> CKSP.State() & Maybe<&2, CKSP.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~CKSP.Value(), ~CKSP.State(), ~CKSP.clone, ~CKSP.next, state, bar)
+
+def RSI.preview(state: RSI.State(), value: F32) -> RSI.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~RSI.State(), ~RSI.clone, ~RSI.next, state, value)
+
+def CMO.preview(state: CMO.State(), value: F32) -> CMO.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~CMO.State(), ~CMO.clone, ~CMO.next, state, value)
+
+def CMOU.preview(state: CMOU.State(), value: F32) -> CMOU.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~CMOU.State(), ~CMOU.clone, ~CMOU.next, state, value)
+
+def IMI.preview(state: IMI.State(), value: Bars.OHLC<F32>) -> IMI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.OHLC<F32>, ~F32, ~IMI.State(), ~IMI.clone, ~IMI.next, state, value)
+
+def PLUS_DM.preview(state: PLUS_DM.State(), value: Bars.HL<F32>) -> PLUS_DM.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~PLUS_DM.State(), ~PLUS_DM.clone, ~PLUS_DM.next, state, value)
+
+def MINUS_DM.preview(state: MINUS_DM.State(), value: Bars.HL<F32>) -> MINUS_DM.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~MINUS_DM.State(), ~MINUS_DM.clone, ~MINUS_DM.next, state, value)
+
+def PLUS_DI.preview(state: PLUS_DI.State(), value: Bars.HLC<F32>) -> PLUS_DI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~PLUS_DI.State(), ~PLUS_DI.clone, ~PLUS_DI.next, state, value)
+
+def MINUS_DI.preview(state: MINUS_DI.State(), value: Bars.HLC<F32>) -> MINUS_DI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~MINUS_DI.State(), ~MINUS_DI.clone, ~MINUS_DI.next, state, value)
+
+def DX.preview(state: DX.State(), value: Bars.HLC<F32>) -> DX.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~DX.State(), ~DX.clone, ~DX.next, state, value)
+
+def ADX.preview(state: ADX.State(), value: Bars.HLC<F32>) -> ADX.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~ADX.State(), ~ADX.clone, ~ADX.next, state, value)
+
+def ADXR.preview(state: ADXR.State(), value: Bars.HLC<F32>) -> ADXR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~ADXR.State(), ~ADXR.clone, ~ADXR.next, state, value)
+
+def SI.preview(state: SI.State(), value: Bars.OHLC<F32>) -> SI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.OHLC<F32>, ~F32, ~SI.State(), ~SI.clone, ~SI.next, state, value)
+
+def ASI.preview(state: ASI.State(), value: Bars.OHLC<F32>) -> ASI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.OHLC<F32>, ~F32, ~ASI.State(), ~ASI.clone, ~ASI.next, state, value)
+
+def WAD.preview(state: WAD.State(), value: Bars.HLC<F32>) -> WAD.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~WAD.State(), ~WAD.clone, ~WAD.next, state, value)
+
+def WILLR.preview(state: WILLR.State(), value: Bars.HLC<F32>) -> WILLR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~WILLR.State(), ~WILLR.clone, ~WILLR.next, state, value)
+
+def AROON.preview(state: AROON.State(), value: Bars.HL<F32>) -> AROON.State() & Maybe<&2, AROON.Value()>:
+  Clone.preview(~Bars.HL<F32>, ~AROON.Value(), ~AROON.State(), ~AROON.clone, ~AROON.next, state, value)
+
+def AROONOSC.preview(state: AROONOSC.State(), value: Bars.HL<F32>) -> AROONOSC.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~AROONOSC.State(), ~AROONOSC.clone, ~AROONOSC.next, state, value)
+
+def ER.preview(state: ER.State(), value: F32) -> ER.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~ER.State(), ~ER.clone, ~ER.next, state, value)
+
+def VHF.preview(state: VHF.State(), value: F32) -> VHF.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~VHF.State(), ~VHF.clone, ~VHF.next, state, value)
+
+def APO.preview(state: APO.State(), value: F32) -> APO.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~APO.State(), ~APO.clone, ~APO.next, state, value)
+
+def PPO.preview(state: PPO.State(), value: F32) -> PPO.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~PPO.State(), ~PPO.clone, ~PPO.next, state, value)
+
+def AO.preview(state: AO.State(), value: Bars.HL<F32>) -> AO.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~AO.State(), ~AO.clone, ~AO.next, state, value)
+
+def AC.preview(state: AC.State(), value: Bars.HL<F32>) -> AC.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~AC.State(), ~AC.clone, ~AC.next, state, value)
+
+def MACD.preview(state: MACD.State(), value: F32) -> MACD.State() & Maybe<&2, MACD.Value()>:
+  Clone.preview(~F32, ~MACD.Value(), ~MACD.State(), ~MACD.clone, ~MACD.next, state, value)
+
+def MACDFIX.preview(state: MACDFIX.State(), value: F32) -> MACDFIX.State() & Maybe<&2, MACD.Value()>:
+  Clone.preview(~F32, ~MACD.Value(), ~MACDFIX.State(), ~MACDFIX.clone, ~MACDFIX.next, state, value)
+
+def STOCH.preview(state: STOCH.State(), value: Bars.HLC<F32>) -> STOCH.State() & Maybe<&2, STOCH.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~STOCH.Value(), ~STOCH.State(), ~STOCH.clone, ~STOCH.next, state, value)
+
+def KDJ.preview(state: KDJ.State(), value: Bars.HLC<F32>) -> KDJ.State() & Maybe<&2, STOCH.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~STOCH.Value(), ~KDJ.State(), ~KDJ.clone, ~KDJ.next, state, value)
+
+def STOCHF.preview(state: STOCHF.State(), value: Bars.HLC<F32>) -> STOCHF.State() & Maybe<&2, STOCH.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~STOCH.Value(), ~STOCHF.State(), ~STOCHF.clone, ~STOCHF.next, state, value)
+
+def STOCHRSI.preview(state: STOCHRSI.State(), value: F32) -> STOCHRSI.State() & Maybe<&2, STOCH.Value()>:
+  Clone.preview(~F32, ~STOCH.Value(), ~STOCHRSI.State(), ~STOCHRSI.clone, ~STOCHRSI.next, state, value)
+
+def TRIX.preview(state: TRIX.State(), value: F32) -> TRIX.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~TRIX.State(), ~TRIX.clone, ~TRIX.next, state, value)
+
+def DOSC.preview(state: DOSC.State(), value: F32) -> DOSC.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~DOSC.State(), ~DOSC.clone, ~DOSC.next, state, value)
+
+def PSO.preview(state: PSO.State(), value: Bars.HLC<F32>) -> PSO.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~PSO.State(), ~PSO.clone, ~PSO.next, state, value)
+
+def TSI.preview(state: TSI.State(), value: F32) -> TSI.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~TSI.State(), ~TSI.clone, ~TSI.next, state, value)
+
+def QSTICK.preview(state: QSTICK.State(), value: Bars.OHLC<F32>) -> QSTICK.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.OHLC<F32>, ~F32, ~QSTICK.State(), ~QSTICK.clone, ~QSTICK.next, state, value)
+
+def ERI.preview(state: ERI.State(), value: Bars.HLC<F32>) -> ERI.State() & Maybe<&2, ERI.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~ERI.Value(), ~ERI.State(), ~ERI.clone, ~ERI.next, state, value)
+
+def FOSC.preview(state: FOSC.State(), value: F32) -> FOSC.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~FOSC.State(), ~FOSC.clone, ~FOSC.next, state, value)
+
+def CCI.preview(state: CCI.State(), value: Bars.HLC<F32>) -> CCI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~CCI.State(), ~CCI.clone, ~CCI.next, state, value)
+
+def MFI.preview(state: MFI.State(), value: Bars.HLCV<F32>) -> MFI.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLCV<F32>, ~F32, ~MFI.State(), ~MFI.clone, ~MFI.next, state, value)
+
+def CHOP.preview(state: CHOP.State(), value: Bars.HLC<F32>) -> CHOP.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~CHOP.State(), ~CHOP.clone, ~CHOP.next, state, value)
+
+def CHOPTR.preview(state: CHOPTR.State(), value: Bars.HLC<F32>) -> CHOPTR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~CHOPTR.State(), ~CHOPTR.clone, ~CHOPTR.next, state, value)
+
+def VORTEX.preview(state: VORTEX.State(), value: Bars.HLC<F32>) -> VORTEX.State() & Maybe<&2, VORTEX.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~VORTEX.Value(), ~VORTEX.State(), ~VORTEX.clone, ~VORTEX.next, state, value)
+
+def ULTOSC.preview(state: ULTOSC.State(), value: Bars.HLC<F32>) -> ULTOSC.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLC<F32>, ~F32, ~ULTOSC.State(), ~ULTOSC.clone, ~ULTOSC.next, state, value)
+
+def COPPOCK.preview(state: COPPOCK.State(), value: F32) -> COPPOCK.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~COPPOCK.State(), ~COPPOCK.clone, ~COPPOCK.next, state, value)
+
+def KST.preview(state: KST.State(), value: F32) -> KST.State() & Maybe<&2, KST.Value()>:
+  Clone.preview(~F32, ~KST.Value(), ~KST.State(), ~KST.clone, ~KST.next, state, value)
+
+def PVO.preview(state: PVO.State(), volume: F32) -> PVO.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~PVO.State(), ~PVO.clone, ~PVO.next, state, volume)
+
+def DPO.preview(state: DPO.State(), price: F32) -> DPO.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~DPO.State(), ~DPO.clone, ~DPO.next, state, price)
+
+def RVOL.preview(state: RVOL.State(), volume: F32) -> RVOL.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~RVOL.State(), ~RVOL.clone, ~RVOL.next, state, volume)
+
+def ICHIMOKU.preview(state: ICHIMOKU.State(), bar: Bars.HL<F32>) -> ICHIMOKU.State() & Maybe<&2, ICHIMOKU.Value()>:
+  Clone.preview(~Bars.HL<F32>, ~ICHIMOKU.Value(), ~ICHIMOKU.State(), ~ICHIMOKU.clone, ~ICHIMOKU.next, state, bar)
+
+def FRACTAL.preview(state: FRACTAL.State(), bar: Bars.HL<F32>) -> FRACTAL.State() & Maybe<&2, FRACTAL.Value()>:
+  Clone.preview(~Bars.HL<F32>, ~FRACTAL.Value(), ~FRACTAL.State(), ~FRACTAL.clone, ~FRACTAL.next, state, bar)
+
+def VWAP.preview(state: VWAP.State(), bar: Bars.HLCV<F32>) -> VWAP.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLCV<F32>, ~F32, ~VWAP.State(), ~VWAP.clone, ~VWAP.next, state, bar)
+
+def ZIGZAG.preview(state: ZIGZAG.State(), bar: Bars.HL<F32>) -> ZIGZAG.State() & Maybe<&2, ZIGZAG.Value()>:
+  Clone.preview(~Bars.HL<F32>, ~ZIGZAG.Value(), ~ZIGZAG.State(), ~ZIGZAG.clone, ~ZIGZAG.next, state, bar)
+
+def MAVP.preview(state: MAVP.State(), sample: MAVP.Sample()) -> MAVP.State() & Maybe<&2, F32>:
+  Clone.preview(~MAVP.Sample(), ~F32, ~MAVP.State(), ~MAVP.clone, ~MAVP.next, state, sample)
+
+def FRAMA.preview(state: FRAMA.State(), value: Bars.HL<F32>) -> FRAMA.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~FRAMA.State(), ~FRAMA.clone, ~FRAMA.next, state, value)
+
+def MCGD.preview(state: MCGD.State(), value: F32) -> MCGD.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~MCGD.State(), ~MCGD.clone, ~MCGD.next, state, value)
+
+def SAR.preview(state: SAR.State(), value: Bars.HL<F32>) -> SAR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~SAR.State(), ~SAR.clone, ~SAR.next, state, value)
+
+def SAREXT.preview(state: SAREXT.State(), value: Bars.HL<F32>) -> SAREXT.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~SAREXT.State(), ~SAREXT.clone, ~SAREXT.next, state, value)
+
+def SUPERTREND.preview(state: SUPERTREND.State(), value: Bars.HLC<F32>) -> SUPERTREND.State() & Maybe<&2, SUPERTREND.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~SUPERTREND.Value(), ~SUPERTREND.State(), ~SUPERTREND.clone, ~SUPERTREND.next, state, value)
+
+def CG.preview(state: CG.State(), value: F32) -> CG.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~CG.State(), ~CG.clone, ~CG.next, state, value)
+
+def CTI.preview(state: CTI.State(), value: F32) -> CTI.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~CTI.State(), ~CTI.clone, ~CTI.next, state, value)
+
+def FISHER.preview(state: FISHER.State(), value: Bars.HL<F32>) -> FISHER.State() & Maybe<&2, FISHER.Value()>:
+  Clone.preview(~Bars.HL<F32>, ~FISHER.Value(), ~FISHER.State(), ~FISHER.clone, ~FISHER.next, state, value)
+
+def CRSI.preview(state: CRSI.State(), value: F32) -> CRSI.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~CRSI.State(), ~CRSI.clone, ~CRSI.next, state, value)
+
+def SMI.preview(state: SMI.State(), value: Bars.HLC<F32>) -> SMI.State() & Maybe<&2, SMI.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~SMI.Value(), ~SMI.State(), ~SMI.clone, ~SMI.next, state, value)
+
+def STC.preview(state: STC.State(), value: F32) -> STC.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~STC.State(), ~STC.clone, ~STC.next, state, value)
+
+def WAVETREND.preview(state: WAVETREND.State(), value: Bars.HLC<F32>) -> WAVETREND.State() & Maybe<&2, WAVETREND.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~WAVETREND.Value(), ~WAVETREND.State(), ~WAVETREND.clone, ~WAVETREND.next, state, value)
+
+def MACDEXT.preview(state: MACDEXT.State(), value: F32) -> MACDEXT.State() & Maybe<&2, MACDEXT.Value()>:
+  Clone.preview(~F32, ~MACDEXT.Value(), ~MACDEXT.State(), ~MACDEXT.clone, ~MACDEXT.next, state, value)
+
+def KSTEXT.preview(state: KSTEXT.State(), value: F32) -> KSTEXT.State() & Maybe<&2, KSTEXT.Value()>:
+  Clone.preview(~F32, ~KSTEXT.Value(), ~KSTEXT.State(), ~KSTEXT.clone, ~KSTEXT.next, state, value)
+
+def SQZMOM.preview(state: SQZMOM.State(), value: Bars.HLC<F32>) -> SQZMOM.State() & Maybe<&2, SQZMOM.Value()>:
+  Clone.preview(~Bars.HLC<F32>, ~SQZMOM.Value(), ~SQZMOM.State(), ~SQZMOM.clone, ~SQZMOM.next, state, value)
+
+def ADOSC.preview(state: ADOSC.State(), value: Bars.HLCV<F32>) -> ADOSC.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HLCV<F32>, ~F32, ~ADOSC.State(), ~ADOSC.clone, ~ADOSC.next, state, value)
+
+def KVO.preview(state: KVO.State(), value: Bars.HLCV<F32>) -> KVO.State() & Maybe<&2, KVO.Value()>:
+  Clone.preview(~Bars.HLCV<F32>, ~KVO.Value(), ~KVO.State(), ~KVO.clone, ~KVO.next, state, value)
+
+def VAR.preview(state: VAR.State(), value: F32) -> VAR.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~VAR.State(), ~VAR.clone, ~VAR.next, state, value)
+
+def CORREL.preview(state: CORREL.State(), value: PairValue()) -> CORREL.State() & Maybe<&2, F32>:
+  Clone.preview(~PairValue(), ~F32, ~CORREL.State(), ~CORREL.clone, ~CORREL.next, state, value)
+
+def BETA.preview(state: BETA.State(), value: PairValue()) -> BETA.State() & Maybe<&2, F32>:
+  Clone.preview(~PairValue(), ~F32, ~BETA.State(), ~BETA.clone, ~BETA.next, state, value)
+
+def KURTOSIS.preview(state: KURTOSIS.State(), value: F32) -> KURTOSIS.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~KURTOSIS.State(), ~KURTOSIS.clone, ~KURTOSIS.next, state, value)
+
+def ROGERSSATCHELL.preview(state: ROGERSSATCHELL.State(), value: Bars.OHLC<F32>) -> ROGERSSATCHELL.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.OHLC<F32>, ~F32, ~ROGERSSATCHELL.State(), ~ROGERSSATCHELL.clone, ~ROGERSSATCHELL.next, state, value)
+
+def RVI.preview(state: RVI.State(), value: F32) -> RVI.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~RVI.State(), ~RVI.clone, ~RVI.next, state, value)
+
+def RVIR.preview(state: RVIR.State(), value: Bars.HL<F32>) -> RVIR.State() & Maybe<&2, F32>:
+  Clone.preview(~Bars.HL<F32>, ~F32, ~RVIR.State(), ~RVIR.clone, ~RVIR.next, state, value)
+
+def CDLHIKKAKE.preview(state: CDLHIKKAKE.State(), bar: Bars.OHLC<F32>) -> CDLHIKKAKE.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHIKKAKE.State(), ~CDLHIKKAKE.clone, ~CDLHIKKAKE.next, state, bar)
+
+def CDLHIKKAKEMOD.preview(state: CDLHIKKAKEMOD.State(), bar: Bars.OHLC<F32>) -> CDLHIKKAKEMOD.State() & Maybe<&2, Pattern.Signal()>:
+  Clone.preview(~Bars.OHLC<F32>, ~Pattern.Signal(), ~CDLHIKKAKEMOD.State(), ~CDLHIKKAKEMOD.clone, ~CDLHIKKAKEMOD.next, state, bar)
+
+def HT_DCPERIOD.preview(state: HT_DCPERIOD.State(), value: F32) -> HT_DCPERIOD.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~HT_DCPERIOD.State(), ~HT_DCPERIOD.clone, ~HT_DCPERIOD.next, state, value)
+
+def HT_PHASOR.preview(state: HT_PHASOR.State(), value: F32) -> HT_PHASOR.State() & Maybe<&2, HT_PHASOR.Value()>:
+  Clone.preview(~F32, ~HT_PHASOR.Value(), ~HT_PHASOR.State(), ~HT_PHASOR.clone, ~HT_PHASOR.next, state, value)
+
+def HT_TRENDLINE.preview(state: HT_TRENDLINE.State(), value: F32) -> HT_TRENDLINE.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~HT_TRENDLINE.State(), ~HT_TRENDLINE.clone, ~HT_TRENDLINE.next, state, value)
+
+def HT_DCPHASE.preview(state: HT_DCPHASE.State(), value: F32) -> HT_DCPHASE.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~HT_DCPHASE.State(), ~HT_DCPHASE.clone, ~HT_DCPHASE.next, state, value)
+
+def HT_SINE.preview(state: HT_SINE.State(), value: F32) -> HT_SINE.State() & Maybe<&2, HT_SINE.Value()>:
+  Clone.preview(~F32, ~HT_SINE.Value(), ~HT_SINE.State(), ~HT_SINE.clone, ~HT_SINE.next, state, value)
+
+def HT_TRENDMODE.preview(state: HT_TRENDMODE.State(), value: F32) -> HT_TRENDMODE.State() & Maybe<&2, U32>:
+  Clone.preview(~F32, ~U32, ~HT_TRENDMODE.State(), ~HT_TRENDMODE.clone, ~HT_TRENDMODE.next, state, value)
+
+def SWAK_BUTTER.preview(state: SWAK_BUTTER.State(), value: F32) -> SWAK_BUTTER.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~SWAK_BUTTER.State(), ~SWAK_BUTTER.clone, ~SWAK_BUTTER.next, state, value)
+
+def SWAK_GAUSS.preview(state: SWAK_GAUSS.State(), value: F32) -> SWAK_GAUSS.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~SWAK_GAUSS.State(), ~SWAK_GAUSS.clone, ~SWAK_GAUSS.next, state, value)
+
+def SWAK_2PHP.preview(state: SWAK_2PHP.State(), value: F32) -> SWAK_2PHP.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~SWAK_2PHP.State(), ~SWAK_2PHP.clone, ~SWAK_2PHP.next, state, value)
+
+def SWAK_BP.preview(state: SWAK_BP.State(), value: F32) -> SWAK_BP.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~SWAK_BP.State(), ~SWAK_BP.clone, ~SWAK_BP.next, state, value)
+
+def SWAK_HP.preview(state: SWAK_HP.State(), value: F32) -> SWAK_HP.State() & Maybe<&2, F32>:
+  Clone.preview(~F32, ~F32, ~SWAK_HP.State(), ~SWAK_HP.clone, ~SWAK_HP.next, state, value)

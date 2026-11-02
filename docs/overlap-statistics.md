@@ -113,10 +113,10 @@ indices. MINMAX and MINMAXINDEX have named two-field records.
 
 DONCHIAN includes the current bar, returning upper/middle/lower fields from
 maximum high and minimum low. MIDPRICE selects its middle. ACCBANDS smooths
-expanded high, close and expanded low with three fresh centered means.
+expanded high, close and expanded low with three centered cached means.
 ACCBANDS and DONCHIAN first emit at period-1; BBANDS/BBW/PERCENTB
 first emit at the later of the selected MA lookback and period-1.
-SMA selected through MA likewise uses a fresh centered mean; the existing
+SMA selected through MA uses the same centered mean cache as ACCBANDS; the
 standalone SMA uses its rolling sum with periodic refreshes. BBANDS returns the same
 band record with independent up/down deviation factors. For SMA-selected
 bands, the center comes from fresh centered moments. BBW and PERCENTB form
@@ -142,11 +142,18 @@ the current raw OHLC average.
 ## Costs and numerical limits
 
 All algorithms retain bounded state, and batch retains O(n) output slots.
-EMA/RMA and cascades use O(1) work and state per sample. MA-selected SMA, ACCBANDS and WMA/TRIMA/KAMA use
-O(period) scans and storage; HMA composes three such windows. ALMA has O(period)
-initialization, scan and storage. Regression, moments, AVGDEV and
-VWMA use fresh O(period) scans. MEDIAN/PERCENTILE
-sort a fresh window in O(period log period) time and O(period) storage.
+EMA/RMA and cascades use O(1) work and state per sample. MA-selected SMA,
+ACCBANDS, WMA/TRIMA and KAMA keep period-sized windows and cached scalar totals.
+Ordinary updates perform fixed numeric work; logical wraps rebuild from the
+window in O(period). Cancellation or nonfinite intermediate guards can also
+trigger fresh scans, so repeated ill-conditioned windows can still cost
+O(period) per sample. HMA composes three weighted caches. The LINEARREG family,
+TSF and FOSC reuse the weighted cache for centered regression, falling back to
+the fresh formula when cancellation makes cached reconstruction unsafe.
+ALMA has O(period) initialization, dot-product work and storage. Moments,
+AVGDEV and VWMA use fresh O(period) scans. MEDIAN/PERCENTILE sort a fresh window
+in O(period log period) time and O(period) storage. PERCENTRANK scans its
+preceding period observations.
 MAX/MIN/MINMAX and their indexed variants, MIDPOINT/MIDPRICE, DONCHIAN and
 CKSP's price/stop windows use owned monotonic queues. Updates have amortized
 constant work with an O(period) worst-case prune burst and O(period) storage.
@@ -161,8 +168,20 @@ missing values and nonfinite recovery are not separately validated. F32
 rounds every operation; sums, ratios and large opposing differences can still
 overflow or lose precision. Weighted means use centered differences and EMA
 cascade combinations use differences to avoid unnecessary overflow on large
-constant inputs. SUM/SMA use amortized constant work with an O(period) refresh
-at each logical wrap; fresh sums still have rounding/overflow limits. An indexed-extrema state accepts at most 4294967295 observations; its last
+constant inputs. Cached means and weighted totals retain a common origin and
+compensated scalar sums, including their chronological rebuilds. Weighted
+recurrences also carry the correction terms from their dependent total and
+half-window sums; discarding those terms can leave a residual after a long
+block expires. These caches add fixed scalar state without another raw window
+per leg. If a compensated rebuild becomes nonfinite, one plain chronological
+fold preserves the fresh formula's overflow category. KAMA separately refreshes
+its cached absolute price changes. Guards rebuild on large cancellation or
+scale changes. Regression also checks reconstructed slope and
+endpoint cancellation and uses its original fresh centered scan when needed.
+These checks preserve recovery properties, not a universal F32 error bound;
+arithmetic regrouping can change result bits. SUM/SMA retain their own rolling
+sum and logical-wrap refresh. Fresh sums still have rounding/overflow limits.
+An indexed-extrema state accepts at most 4294967295 observations; its last
 representable emitted index is 4294967294. Callers must stop or reinitialize
 before another observation would overflow the U32 count. Reinitialization
 starts a new index origin. No absolute-index guarantee applies beyond this

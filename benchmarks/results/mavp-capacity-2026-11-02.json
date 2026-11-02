@@ -1,0 +1,164 @@
+{
+  "scope": "SMA raw price buffers only. Excludes per-period caches, metadata, allocator and runtime overhead. Native F32 scalar payload is 4 bytes. Sharing requires a band width of at least 4. Period 1 uses identity without a Window. Capacity rounds the logical period to a power of two; shared history retains maximum+1 observations. Maximum 10000 broad-bank capacity is modeled without allocating that baseline bank.",
+  "rows": [
+    {
+      "minimum": 63,
+      "maximum": 64,
+      "width": 2,
+      "shared_selected": false,
+      "bank_price_slots": 128,
+      "shared_price_slots": 128,
+      "bank_f32_price_payload_bytes": 512,
+      "shared_f32_price_payload_bytes": 512
+    },
+    {
+      "minimum": 61,
+      "maximum": 64,
+      "width": 4,
+      "shared_selected": true,
+      "bank_price_slots": 256,
+      "shared_price_slots": 128,
+      "bank_f32_price_payload_bytes": 1024,
+      "shared_f32_price_payload_bytes": 512
+    },
+    {
+      "minimum": 1,
+      "maximum": 64,
+      "width": 64,
+      "shared_selected": true,
+      "bank_price_slots": 2730,
+      "shared_price_slots": 128,
+      "bank_f32_price_payload_bytes": 10920,
+      "shared_f32_price_payload_bytes": 512
+    },
+    {
+      "minimum": 255,
+      "maximum": 256,
+      "width": 2,
+      "shared_selected": false,
+      "bank_price_slots": 512,
+      "shared_price_slots": 512,
+      "bank_f32_price_payload_bytes": 2048,
+      "shared_f32_price_payload_bytes": 2048
+    },
+    {
+      "minimum": 253,
+      "maximum": 256,
+      "width": 4,
+      "shared_selected": true,
+      "bank_price_slots": 1024,
+      "shared_price_slots": 512,
+      "bank_f32_price_payload_bytes": 4096,
+      "shared_f32_price_payload_bytes": 2048
+    },
+    {
+      "minimum": 193,
+      "maximum": 256,
+      "width": 64,
+      "shared_selected": true,
+      "bank_price_slots": 16384,
+      "shared_price_slots": 512,
+      "bank_f32_price_payload_bytes": 65536,
+      "shared_f32_price_payload_bytes": 2048
+    },
+    {
+      "minimum": 1,
+      "maximum": 256,
+      "width": 256,
+      "shared_selected": true,
+      "bank_price_slots": 43690,
+      "shared_price_slots": 512,
+      "bank_f32_price_payload_bytes": 174760,
+      "shared_f32_price_payload_bytes": 2048
+    },
+    {
+      "minimum": 1023,
+      "maximum": 1024,
+      "width": 2,
+      "shared_selected": false,
+      "bank_price_slots": 2048,
+      "shared_price_slots": 2048,
+      "bank_f32_price_payload_bytes": 8192,
+      "shared_f32_price_payload_bytes": 8192
+    },
+    {
+      "minimum": 1021,
+      "maximum": 1024,
+      "width": 4,
+      "shared_selected": true,
+      "bank_price_slots": 4096,
+      "shared_price_slots": 2048,
+      "bank_f32_price_payload_bytes": 16384,
+      "shared_f32_price_payload_bytes": 8192
+    },
+    {
+      "minimum": 961,
+      "maximum": 1024,
+      "width": 64,
+      "shared_selected": true,
+      "bank_price_slots": 65536,
+      "shared_price_slots": 2048,
+      "bank_f32_price_payload_bytes": 262144,
+      "shared_f32_price_payload_bytes": 8192
+    },
+    {
+      "minimum": 1,
+      "maximum": 1024,
+      "width": 1024,
+      "shared_selected": true,
+      "bank_price_slots": 699050,
+      "shared_price_slots": 2048,
+      "bank_f32_price_payload_bytes": 2796200,
+      "shared_f32_price_payload_bytes": 8192
+    },
+    {
+      "minimum": 9999,
+      "maximum": 10000,
+      "width": 2,
+      "shared_selected": false,
+      "bank_price_slots": 32768,
+      "shared_price_slots": 16384,
+      "bank_f32_price_payload_bytes": 131072,
+      "shared_f32_price_payload_bytes": 65536
+    },
+    {
+      "minimum": 9997,
+      "maximum": 10000,
+      "width": 4,
+      "shared_selected": true,
+      "bank_price_slots": 65536,
+      "shared_price_slots": 16384,
+      "bank_f32_price_payload_bytes": 262144,
+      "shared_f32_price_payload_bytes": 65536
+    },
+    {
+      "minimum": 9937,
+      "maximum": 10000,
+      "width": 64,
+      "shared_selected": true,
+      "bank_price_slots": 1048576,
+      "shared_price_slots": 16384,
+      "bank_f32_price_payload_bytes": 4194304,
+      "shared_f32_price_payload_bytes": 65536
+    },
+    {
+      "minimum": 1,
+      "maximum": 10000,
+      "width": 10000,
+      "shared_selected": true,
+      "bank_price_slots": 74361514,
+      "shared_price_slots": 16384,
+      "bank_f32_price_payload_bytes": 297446056,
+      "shared_f32_price_payload_bytes": 65536
+    }
+  ],
+  "source_sha256": {
+    "src/core/variable_shared.bend": "a6561f270a6fe22b00069d83852e3264ee3a45edbba7baa23e9a677bd8078b5d",
+    "src/core/variable.bend": "0a389c311173d5a6fb912e70a2fe3dec4fcd5252eacb85ee2aac61156bed13a5",
+    "src/core/window.bend": "c2b6c707c70fdbdabb139a53a1fd5955a8fdeacb5c69aa2d9d75c481188e33d7",
+    "src/core/config.bend": "e8ad05360aecd320acdf63d4e9f5d81a4da27a26d5d798429387cc16c3849105",
+    "src/core/ma.bend": "708e390e68230546779ec710c9596afdd25666406d75c07cb0cd92dc6e295d39",
+    "src/core/rolling_average.bend": "ad416f7c799aec745dc064eec629aa6cb7c3ee252da7d28c398a59b93226dc88"
+  },
+  "baseline_git": "188794a2eb8659c299f0f9e345fe62256e3141c6"
+}

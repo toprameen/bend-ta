@@ -6,6 +6,8 @@ import ../src/core/overlap.bend as Overlap
 import ../src/core/momentum_window.bend as Box
 import ../src/core/momentum_smooth.bend as Smooth
 import ../src/core/parameters.bend as P
+import ../src/core/squeeze.bend as Squeeze
+import ../src/core/variable.bend as Variable
 
 type Summary is Data:
   Summary{ready: U32, checksum: U32}
@@ -39,6 +41,18 @@ def hlv(shape: U32, at: U32) -> Bar.HLV<F32>:
 def ohlc(shape: U32, at: U32) -> Bar.OHLC<F32>:
   +p = price(shape, at)
   Bar.OHLC{p, F32.add(p, 2.0), F32.sub(p, 1.0), F32.add(p, 0.5)}
+
+def variable(shape: U32, at: U32) -> Variable.Sample<F32>:
+  +index = at
+  Variable.Sample{price(shape, index), F32.add(2.0, U32.to_f32(U32.mod(index, 63)))}
+
+def digest.pair(value: Smooth.Lines<F32>) -> U32:
+  match value:
+    case Smooth.Lines{first, second}: U32.add(U32.mul(F32.bits(first), 31), F32.bits(second))
+
+def digest.squeeze(value: Squeeze.Value<F32>) -> U32:
+  match value:
+    case Squeeze.SqueezeValue{momentum, negative, strength}: U32.add(F32.bits(momentum), U32.add(Bool.pick(U32, negative, 31, 0), strength))
 
 def digest.scalar(value: F32) -> U32:
   F32.bits(value)
@@ -88,7 +102,25 @@ def compute(config: Case) -> Result<&2, &2, P.Error, Summary>:
     case Case{5, period, samples, shape}: initialized(~F32, ~F32, ~TA.WMA.State(), ~scalar, ~TA.WMA.next, ~digest.scalar, samples, shape, TA.WMA.init(period))
     case Case{6, period, samples, shape}: initialized(~F32, ~F32, ~TA.MA.State(), ~scalar, ~TA.MA.next, ~digest.scalar, samples, shape, TA.MA.init(period, 0))
     case Case{7, period, samples, shape}: initialized(~Bar.HLV<F32>, ~F32, ~TA.EMV.State(), ~hlv, ~TA.EMV.next, ~digest.scalar, samples, shape, TA.EMV.init(period, 1.0))
-    case Case{kind, period, samples, shape}: initialized(~Bar.OHLC<F32>, ~F32, ~TA.ROGERSSATCHELL.State(), ~ohlc, ~TA.ROGERSSATCHELL.next, ~digest.scalar, samples, shape, TA.ROGERSSATCHELL.init(period, 252.0))
+    case Case{8, period, samples, shape}: initialized(~Bar.OHLC<F32>, ~F32, ~TA.ROGERSSATCHELL.State(), ~ohlc, ~TA.ROGERSSATCHELL.next, ~digest.scalar, samples, shape, TA.ROGERSSATCHELL.init(period, 252.0))
+
+    case Case{9, period, samples, shape}: initialized(~F32, ~F32, ~TA.TRIMA.State(), ~scalar, ~TA.TRIMA.next, ~digest.scalar, samples, shape, TA.TRIMA.init(period))
+    case Case{10, period, samples, shape}: initialized(~F32, ~F32, ~TA.KAMA.State(), ~scalar, ~TA.KAMA.next, ~digest.scalar, samples, shape, TA.KAMA.init(period))
+    case Case{11, period, samples, shape}: initialized(~F32, ~F32, ~TA.HMA.State(), ~scalar, ~TA.HMA.next, ~digest.scalar, samples, shape, TA.HMA.init(period))
+    case Case{12, period, samples, shape}: initialized(~F32, ~F32, ~TA.DPO.State(), ~scalar, ~TA.DPO.next, ~digest.scalar, samples, shape, TA.DPO.init(period))
+    case Case{13, period, samples, shape}: initialized(~F32, ~F32, ~TA.RVOL.State(), ~scalar, ~TA.RVOL.next, ~digest.scalar, samples, shape, TA.RVOL.init(period))
+    case Case{14, period, samples, shape}: initialized(~Bar.HLC<F32>, ~Overlap.Bands<F32>, ~TA.ACCBANDS.State(), ~hlc, ~TA.ACCBANDS.next, ~digest.bands, samples, shape, TA.ACCBANDS.init(period))
+    case Case{15, period, samples, shape}: initialized(~Bar.HLC<F32>, ~Smooth.Lines<F32>, ~TA.WAVETREND.State(), ~hlc, ~TA.WAVETREND.next, ~digest.pair, samples, shape, TA.WAVETREND.init(10, 21, period))
+    case Case{16, +period, samples, shape}: initialized(~Bar.HLC<F32>, ~Squeeze.Value<F32>, ~TA.SQZMOM.State(), ~hlc, ~TA.SQZMOM.next, ~digest.squeeze, samples, shape, TA.SQZMOM.init(period, 2.0, period, 2.0, 1.5, 1.0))
+    case Case{17, period, samples, shape}: initialized(~F32, ~F32, ~TA.LINEARREG.State(), ~scalar, ~TA.LINEARREG.next, ~digest.scalar, samples, shape, TA.LINEARREG.init(period))
+    case Case{18, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 0))
+    case Case{19, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 2))
+    case Case{20, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 5))
+    case Case{21, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 6))
+    case Case{22, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 9))
+    case Case{23, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 12))
+    case Case{24, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 14))
+    case Case{kind, period, samples, shape}: initialized(~Variable.Sample<F32>, ~F32, ~TA.MAVP.State(), ~variable, ~TA.MAVP.next, ~digest.scalar, samples, shape, TA.MAVP.init(2, period, 15))
 
 def finish(config: Case, start: Nat, warm: Summary, result: Result<&2, &2, P.Error, Summary>) -> IO(Unit):
   match config warm result:
@@ -114,18 +146,18 @@ def prepare(+config: Case) -> IO(Unit):
 
 def valid(+config: Case, accepted: Bool) -> IO(Unit):
   match accepted:
-    case False{}: IO.die(Unit, 1, "kind0..8, period2..100000, samples0..4294967295, shape0..3 required")
+    case False{}: IO.die(Unit, 1, "kind0..25, period2..100000, samples0..4294967295, shape0..3; MAVP period<=10000 required")
     case True{}: prepare(config)
 
 def options(kind: Maybe<&2, U32>, period: Maybe<&2, U32>, samples: Maybe<&2, U32>, shape: Maybe<&2, U32>) -> IO(Unit):
   match kind period samples shape:
-    case Some{+k} Some{+p} Some{+n} Some{+s}: valid(Case{k, p, n, s}, Bool.and(Bool.and(U32.is_le(k, 8), U32.is_le(s, 3)), Bool.and(U32.is_ge(p, 2), U32.is_le(p, 100000))))
+    case Some{+k} Some{+p} Some{+n} Some{+s}: valid(Case{k, p, n, s}, Bool.and(Bool.and(U32.is_le(k, 25), U32.is_le(s, 3)), Bool.and(Bool.and(U32.is_ge(p, 2), U32.is_le(p, 100000)), Bool.or(U32.is_lt(k, 18), U32.is_le(p, 10000)))))
     case _ _ _ _: IO.die(Unit, 1, "expected unsigned integer arguments")
 
 def start(args: List<String>) -> IO(Unit):
   match args:
     case name <> kind <> period <> samples <> shape <> Nil{}: options(U32.read(kind), U32.read(period), U32.read(samples), U32.read(shape))
-    case _: IO.die(Unit, 1, "usage: rolling <kind0..8> <period> <samples> <shape0..3>")
+    case _: IO.die(Unit, 1, "usage: rolling <kind0..25> <period> <samples> <shape0..3>")
 
 def main() -> IO(Unit):
   do IO<Unit>:

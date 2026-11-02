@@ -125,7 +125,7 @@ SQZMOM accepts BB period/deviation, KC period, and wide/normal/narrow channel
 factors, ordered `wide >= normal >= narrow >= 0`. It computes close-population
 Bollinger bands, a simple true-range mean, an HL Donchian midpoint and a close
 mean. The close's deviation from the midpoint/mean anchor feeds a KC-period
-endpoint regression. Its first index is `max(BB-1, KC, 2*(KC-1))`.
+endpoint regression. Its first index is `max(BB-1, 2*(KC-1))`.
 
 `SqueezeValue{momentum, negative, strength}` encodes squeeze levels 3 (inside
 narrow), 2 (inside normal), 1 (inside wide), 0 (between), and -1 (released, with
@@ -137,11 +137,14 @@ reuse the centered shared F32 formulas.
 
 SAR, MCGD and the ATR/EMA state use constant space. Windows and lag buffers own
 power-of-two arrays; their logical lengths remain the requested periods. FRAMA,
-CG, CTI and SQZMOM retain fresh chronological scans for their means, moments or
-regressions. Their filled-window work is proportional to the relevant periods.
+CG and CTI retain fresh chronological scans. SQZMOM retains fresh population
+moments, while its close/true-range means and regression use the shared caches.
+WAVETREND uses the same mean cache for its signal. Ordinary cached updates have
+constant amortized work, with O(period) refreshes and guarded fresh fallbacks.
+Repeated ill-conditioned windows can still require a scan on each observation.
 FISHER, SMI and STC range stages use monotonic queues, with amortized constant
 update work and an O(period) worst-case prune burst. SQZMOM also uses queued
-range extrema while retaining its other scans. Stored windows and queues use
+range extrema and retains its population-moments scans. Stored windows and queues use
 space proportional to the sum of their periods. CRSI rank scans its preceding
 return window. MACDEXT and KSTEXT inherit their selected MAs' costs and KSTEXT's ROC lag
 storage. Batch traversal is linear in the number of observations in addition to

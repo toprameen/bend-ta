@@ -2,6 +2,7 @@ import Base
 import ./bar.bend as Bar
 import ./window.bend as Window
 import ./ma.bend as Ma
+import ./rolling_average.bend as Average
 import ./ema.bend as Ema
 import ./statistics.bend as Stats
 import ./momentum.bend as Mom
@@ -23,7 +24,7 @@ type Crsi<-N: Data> is Type:
 
 
 type Wave<-N: Data> is Type:
-  Wave{center: Ema.State<N>, deviation: Ema.State<N>, average: Ema.State<N>, signal: Window.State<N>, previous: Maybe<&2, Smooth.Lines<N>>}
+  Wave{center: Ema.State<N>, deviation: Ema.State<N>, average: Ema.State<N>, signal: Average.State<N>, previous: Maybe<&2, Smooth.Lines<N>>}
 
 
 type Cycle<-N: Data> is Type:
@@ -120,28 +121,28 @@ def crsi.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~
 
 
 def wave.init(~N: Data, ~from: U32 -> N, ~div: N -> N -> N, +channel: U32, average: U32, +signal: U32) -> Wave<N>:
-  Wave{Ema.init(~N, ~from, ~div, channel), Ema.init(~N, ~from, ~div, channel), Ema.init(~N, ~from, ~div, average), Window.init(~N, signal, Ma.buffer_depth(signal), from(0)), None{}}
+  Wave{Ema.init(~N, ~from, ~div, channel), Ema.init(~N, ~from, ~div, channel), Ema.init(~N, ~from, ~div, average), Average.init(~N, ~from, signal, Ma.buffer_depth(signal), 0), None{}}
 
 
-def wave.signal(~N: Data, center: Ema.State<N>, deviation: Ema.State<N>, average: Ema.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, +line: N, result: Window.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
+def wave.signal(~N: Data, center: Ema.State<N>, deviation: Ema.State<N>, average: Ema.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, +line: N, result: Average.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
   match result:
     case (signal, None{}): (Wave{center, deviation, average, signal, previous}, None{})
     case (signal, Some{value}): (Wave{center, deviation, average, signal, previous}, Some{Smooth.Lines{line, value}})
 
 
-def wave.average(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, center: Ema.State<N>, deviation: Ema.State<N>, signal: Window.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, result: Ema.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
+def wave.average(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, center: Ema.State<N>, deviation: Ema.State<N>, signal: Average.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, result: Ema.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
   match result:
     case (average, None{}): (Wave{center, deviation, average, signal, previous}, None{})
-    case (average, Some{+line}): wave.signal(~N, center, deviation, average, previous, line, Ma.mean.next(~N, ~from, ~add, ~sub, ~div, signal, line))
+    case (average, Some{+line}): wave.signal(~N, center, deviation, average, previous, line, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, signal, line))
 
 
-def wave.deviation(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, center: Ema.State<N>, average: Ema.State<N>, signal: Window.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, +num: N, result: Ema.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
+def wave.deviation(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, ~abs: N -> N, ~le: N -> N -> Bool, center: Ema.State<N>, average: Ema.State<N>, signal: Average.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, +num: N, result: Ema.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
   match result:
     case (deviation, None{}): (Wave{center, deviation, average, signal, previous}, None{})
     case (deviation, Some{value}):
       +den = mul(div(from(15), from(1000)), value)
       +ci = Bool.pick(N, eq(den, from(0)), from(0), div(num, den))
-      wave.average(~N, ~from, ~add, ~sub, ~div, center, deviation, signal, previous, Ema.next(~N, ~from, ~add, ~sub, ~mul, ~div, average, ci))
+      wave.average(~N, ~from, ~add, ~sub, ~div, ~mul, ~abs, ~le, center, deviation, signal, previous, Ema.next(~N, ~from, ~add, ~sub, ~mul, ~div, average, ci))
 
 
 def wave.gap(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~eq: N -> N -> Bool, +price: N, +value: N, previous: Maybe<&2, Smooth.Lines<N>>) -> N:
@@ -150,19 +151,19 @@ def wave.gap(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~eq: N -> N -> Bool, 
     case Some{Smooth.Lines{ap, esa}}: Bool.pick(N, Bool.and(eq(price, ap), eq(value, esa)), from(0), sub(price, value))
 
 
-def wave.center(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~eq: N -> N -> Bool, deviation: Ema.State<N>, average: Ema.State<N>, signal: Window.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, +price: N, result: Ema.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
+def wave.center(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~eq: N -> N -> Bool, ~le: N -> N -> Bool, deviation: Ema.State<N>, average: Ema.State<N>, signal: Average.State<N>, previous: Maybe<&2, Smooth.Lines<N>>, +price: N, result: Ema.State<N> & Maybe<&2, N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
   match result:
     case (center, None{}): (Wave{center, deviation, average, signal, previous}, None{})
     case (center, Some{+value}):
       +num = wave.gap(~N, ~from, ~sub, ~eq, price, value, previous)
-      wave.deviation(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, center, average, signal, Some{Smooth.Lines{price, value}}, num, Ema.next(~N, ~from, ~add, ~sub, ~mul, ~div, deviation, abs(num)))
+      wave.deviation(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, ~abs, ~le, center, average, signal, Some{Smooth.Lines{price, value}}, num, Ema.next(~N, ~from, ~add, ~sub, ~mul, ~div, deviation, abs(num)))
 
 
-def wave.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~eq: N -> N -> Bool, state: Wave<N>, bar: Bar.HLC<N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
+def wave.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~eq: N -> N -> Bool, ~le: N -> N -> Bool, state: Wave<N>, bar: Bar.HLC<N>) -> Wave<N> & Maybe<&2, Smooth.Lines<N>>:
   match state bar:
     case Wave{center, deviation, average, signal, previous} Bar.HLC{high, low, close}:
       +price = div(add(add(high, low), close), from(3))
-      wave.center(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~eq, deviation, average, signal, previous, price, Ema.next(~N, ~from, ~add, ~sub, ~mul, ~div, center, price))
+      wave.center(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~eq, ~le, deviation, average, signal, previous, price, Ema.next(~N, ~from, ~add, ~sub, ~mul, ~div, center, price))
 
 
 def cycle.init(~N: Data, ~from: U32 -> N, +period: U32) -> Cycle<N>:

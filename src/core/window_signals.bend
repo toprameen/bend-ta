@@ -3,48 +3,48 @@ import ./extrema_queue.bend as Queue
 import ./bar.bend as Bar
 import ./config.bend as Config
 import ./window.bend as Window
-import ./ma.bend as Ma
+import ./rolling_average.bend as Average
 import ./overlap.bend as Overlap
 
 type DisplayShift is Data:
   DisplayShift{backward: Bool, bars: U32}
 
 type Detrended<-N: Data> is Type:
-  Detrended{average: Window.State<N>, delayed: Window.State<N>, lag: U32}
+  Detrended{average: Average.State<N>, delayed: Window.State<N>, lag: U32}
 
 def dpo.init(~N: Data, ~from: U32 -> N, +period: U32) -> Detrended<N>:
   +lag = U32.add(U32.div(period, 2), 1)
   +size = U32.add(lag, 1)
-  Detrended{Window.init(~N, period, Config.depth(period), from(0)), Window.init(~N, size, Config.depth(size), from(0)), lag}
+  Detrended{Average.init(~N, ~from, period, Config.depth(period), 0), Window.init(~N, size, Config.depth(size), from(0)), lag}
 
-def dpo.output(~N: Data, ~sub: N -> N -> N, average: Window.State<N>, lag: U32, result: Window.State<N> & Maybe<&2, N>, mean: Maybe<&2, N>) -> Detrended<N> & Maybe<&2, N>:
+def dpo.output(~N: Data, ~sub: N -> N -> N, average: Average.State<N>, lag: U32, result: Window.State<N> & Maybe<&2, N>, mean: Maybe<&2, N>) -> Detrended<N> & Maybe<&2, N>:
   match result mean:
     case (delayed, Some{price}) Some{m}: (Detrended{average, delayed, lag}, Some{sub(price, m)})
     case (delayed, _) _: (Detrended{average, delayed, lag}, None{})
 
-def dpo.pushed(~N: Data, ~sub: N -> N -> N, average: Window.State<N>, +lag: U32, mean: Maybe<&2, N>, result: Window.State<N> & Maybe<&2, N>) -> Detrended<N> & Maybe<&2, N>:
+def dpo.pushed(~N: Data, ~sub: N -> N -> N, average: Average.State<N>, +lag: U32, mean: Maybe<&2, N>, result: Window.State<N> & Maybe<&2, N>) -> Detrended<N> & Maybe<&2, N>:
   match result:
     case (delayed, old): dpo.output(~N, ~sub, average, lag, Window.lag(~N, delayed, lag), mean)
 
-def dpo.mean(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, delayed: Window.State<N>, lag: U32, price: N, result: Window.State<N> & Maybe<&2, N>) -> Detrended<N> & Maybe<&2, N>:
+def dpo.mean(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, delayed: Window.State<N>, lag: U32, price: N, result: Average.State<N> & Maybe<&2, N>) -> Detrended<N> & Maybe<&2, N>:
   match result:
     case (average, mean): dpo.pushed(~N, ~sub, average, lag, mean, Window.push(~N, delayed, price))
 
-def dpo.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, state: Detrended<N>, +price: N) -> Detrended<N> & Maybe<&2, N>:
+def dpo.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, state: Detrended<N>, +price: N) -> Detrended<N> & Maybe<&2, N>:
   match state:
-    case Detrended{average, delayed, lag}: dpo.mean(~N, ~from, ~add, ~sub, ~div, delayed, lag, price, Ma.mean.next(~N, ~from, ~add, ~sub, ~div, average, price))
+    case Detrended{average, delayed, lag}: dpo.mean(~N, ~from, ~add, ~sub, ~div, delayed, lag, price, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, average, price))
 
-def rvol.output(~N: Data, ~div: N -> N -> N, volume: N, result: Window.State<N> & Maybe<&2, N>, mean: Maybe<&2, N>) -> Window.State<N> & Maybe<&2, N>:
+def rvol.output(~N: Data, ~div: N -> N -> N, volume: N, result: Average.State<N> & Maybe<&2, N>, mean: Maybe<&2, N>) -> Average.State<N> & Maybe<&2, N>:
   match result mean:
     case (window, old) Some{m}: (window, Some{div(volume, m)})
     case (window, old) None{}: (window, None{})
 
-def rvol.mean(~N: Data, ~div: N -> N -> N, +volume: N, result: Window.State<N> & Maybe<&2, N>) -> Window.State<N> & Maybe<&2, N>:
+def rvol.mean(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +volume: N, result: Average.State<N> & Maybe<&2, N>) -> Average.State<N> & Maybe<&2, N>:
   match result:
-    case (window, mean): rvol.output(~N, ~div, volume, Window.push(~N, window, volume), mean)
+    case (window, mean): rvol.output(~N, ~div, volume, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, window, volume), mean)
 
-def rvol.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, window: Window.State<N>, +volume: N) -> Window.State<N> & Maybe<&2, N>:
-  rvol.mean(~N, ~div, volume, Ma.mean.ready(~N, ~from, ~add, ~sub, ~div, Window.full(~N, window)))
+def rvol.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, window: Average.State<N>, +volume: N) -> Average.State<N> & Maybe<&2, N>:
+  rvol.mean(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, volume, Average.read(~N, ~add, ~div, window))
 
 type Cloud<-N: Data> is Type:
   Cloud{tenkan: Queue.State<N>, kijun: Queue.State<N>, span: Queue.State<N>}

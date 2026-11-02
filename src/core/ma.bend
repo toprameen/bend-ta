@@ -2,21 +2,25 @@ import Base
 import ./config.bend as Config
 import ./parameters.bend as Parameters
 import ./window.bend as Window
+import ./rolling_average.bend as Average
 import ./ema.bend as Ema
 import ./vidya.bend as Vidya
 import ./mama.bend as Mama
+
+type AdaptiveCache<-N: Data> is Data:
+  AdaptiveCache{total: Average.Sum<N>, previous: N}
 
 type State<-N: Data> is Type:
   Cycle{state: Mama.State<N>}
   Variable{state: Vidya.State<N>}
   Identity{}
-  Adaptive{window: Window.State<N>, period: U32, value: Maybe<&2, N>}
+  Adaptive{window: Window.State<N>, period: U32, value: Maybe<&2, N>, cache: Maybe<&2, AdaptiveCache<N>>}
   Gaussian{window: Window.State<N>, weights: List<&2, N>}
   ZeroLag{window: Window.State<N>, state: Ema.State<N>}
-  Hull{fast: Window.State<N>, slow: Window.State<N>, outer: Window.State<N>, half: U32, period: U32, root: U32}
-  Simple{state: Window.State<N>}
+  Hull{fast: Average.State<N>, slow: Average.State<N>, outer: Average.State<N>}
+  Simple{state: Average.State<N>}
   Exponential{state: Ema.State<N>}
-  Weighted{window: Window.State<N>, period: U32, triangular: Bool}
+  Weighted{state: Average.State<N>}
   Cascade{kind: U32, factor: N, stages: List<&2, Ema.State<N>>}
 
 type Weighting<-N: Data> is Data:
@@ -115,7 +119,7 @@ def mean.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N,
 def mean.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, window: Window.State<N>, price: N) -> Window.State<N> & Maybe<&2, N>:
   mean.pushed(~N, ~from, ~add, ~sub, ~div, Window.push(~N, window, price))
 
-def next.simple(~N: Data, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+def next.simple(~N: Data, result: Average.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
     case (state, value): (Simple{state}, value)
 
@@ -136,30 +140,56 @@ def adaptive.base(~N: Data, value: Maybe<&2, N>, fallback: N) -> N:
     case None{}: fallback
     case Some{x}: x
 
+def adaptive.value(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, value: Maybe<&2, N>, +x: N, previous: N, +total: N, +first: N) -> N:
+  +er = Bool.pick(N, le(total, from(0)), from(1), Bool.pick(N, le(abs(sub(x, first)), total), div(abs(sub(x, first)), total), from(1)))
+  +slow = div(from(2), from(31))
+  +sc = add(slow, mul(er, sub(div(from(2), from(3)), slow)))
+  +base = adaptive.base(~N, value, previous)
+  add(base, mul(mul(sc, sc), sub(x, base)))
+
 def adaptive.finish(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +period: U32, value: Maybe<&2, N>, +x: N, previous: N, result: Window.State<N> & Changes<N>) -> State<N> & Maybe<&2, N>:
   match result:
-    case (window, Changes{last, +total, Some{+first}}):
-      +er = Bool.pick(N, le(total, from(0)), from(1), Bool.pick(N, le(abs(sub(x, first)), total), div(abs(sub(x, first)), total), from(1)))
-      +slow = div(from(2), from(31))
-      +sc = add(slow, mul(er, sub(div(from(2), from(3)), slow)))
-      +base = adaptive.base(~N, value, previous)
-      +next = add(base, mul(mul(sc, sc), sub(x, base)))
-      (Adaptive{window, period, Some{next}}, Some{next})
-    case (window, other): (Adaptive{window, period, value}, None{})
+    case (window, Changes{last, +total, Some{first}}):
+      +next = adaptive.value(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, value, x, previous, total, first)
+      (Adaptive{window, period, Some{next}, Some{AdaptiveCache{Average.Sum{total, from(0)}, x}}}, Some{next})
+    case (window, other): (Adaptive{window, period, value, None{}}, None{})
 
 def adaptive.previous(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, period: U32, value: Maybe<&2, N>, x: N, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
-    case (window, None{}): (Adaptive{window, period, value}, None{})
+    case (window, None{}): (Adaptive{window, period, value, None{}}, None{})
     case (window, Some{previous}): adaptive.finish(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, x, previous, Window.fold(~N, ~Unit, ~Changes<N>, ~(u => a => x => adaptive.change(~N, ~add, ~sub, ~abs, u, a, x)), window, Unit{}, Changes{None{}, from(0), None{}}))
 
 def adaptive.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, period: U32, value: Maybe<&2, N>, x: N, result: Window.State<N> & Bool) -> State<N> & Maybe<&2, N>:
   match result:
-    case (window, False{}): (Adaptive{window, period, value}, None{})
+    case (window, False{}): (Adaptive{window, period, value, None{}}, None{})
     case (window, True{}): adaptive.previous(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, x, Window.lag(~N, window, 1))
 
 def adaptive.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, period: U32, value: Maybe<&2, N>, x: N, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
     case (window, old): adaptive.ready(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, x, Window.full(~N, window))
+
+def adaptive.accepted(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +period: U32, value: Maybe<&2, N>, +input: N, previous: N, first: N, +total: Average.Sum<N>, window: Window.State<N>, good: Bool) -> State<N> & Maybe<&2, N>:
+  match good:
+    case True{}:
+      +next = adaptive.value(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, value, input, previous, Average.sum.value(~N, total), first)
+      (Adaptive{window, period, Some{next}, Some{AdaptiveCache{total, input}}}, Some{next})
+    case False{}: adaptive.previous(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, input, Window.lag(~N, window, 1))
+
+def adaptive.first(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, period: U32, value: Maybe<&2, N>, +input: N, old: N, cache: AdaptiveCache<N>, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+  match cache result:
+    case AdaptiveCache{+before, +previous} Tuple{window, Some{+first}}:
+      +total = Average.sum.change(~N, ~from, ~add, ~sub, before, abs(sub(first, old)), abs(sub(input, previous)))
+      adaptive.accepted(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, input, previous, first, total, window, Bool.and(le(from(0), Average.sum.value(~N, total)), Average.stable(~N, ~from, ~sub, ~mul, ~abs, ~le, Average.sum.value(~N, before), Average.sum.value(~N, total))))
+    case other Tuple{window, None{}}: adaptive.ready(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, input, Window.full(~N, window))
+
+def adaptive.chosen(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +period: U32, value: Maybe<&2, N>, cache: Maybe<&2, AdaptiveCache<N>>, removed: Maybe<&2, N>, input: N, window: Window.State<N>, cycle: Bool) -> State<N> & Maybe<&2, N>:
+  match cache removed cycle:
+    case Some{data} Some{old} False{}: adaptive.first(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, input, old, data, Window.lag(~N, window, period))
+    case _ _ _: adaptive.ready(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, input, Window.full(~N, window))
+
+def adaptive.cached(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, period: U32, value: Maybe<&2, N>, cache: Maybe<&2, AdaptiveCache<N>>, input: N, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+  match result:
+    case (Window.Window{buffer, capacity, size, +pos}, old): adaptive.chosen(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, cache, old, input, Window.Window{buffer, capacity, size, pos}, U32.is_zero(pos))
 
 type Dot<-N: Data> is Data:
   Dot{weights: List<&2, N>, sum: N}
@@ -203,26 +233,26 @@ def zerolag.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N ->
   match result:
     case (window, old): zerolag.length(~N, ~from, ~add, ~sub, ~mul, ~div, state, x, Window.full(~N, window))
 
-def weighted.output(~N: Data, period: U32, triangular: Bool, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+def weighted.output(~N: Data, result: Average.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
-    case (window, output): (Weighted{window, period, triangular}, output)
+    case (state, output): (Weighted{state}, output)
 
-def hull.outer(~N: Data, fast: Window.State<N>, slow: Window.State<N>, half: U32, period: U32, root: U32, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+def hull.outer(~N: Data, fast: Average.State<N>, slow: Average.State<N>, result: Average.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
-    case (outer, output): (Hull{fast, slow, outer, half, period, root}, output)
+    case (outer, output): (Hull{fast, slow, outer}, output)
 
-def hull.values(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, half: U32, period: U32, +root: U32, fast: Window.State<N>, slow: Window.State<N>, outer: Window.State<N>, fast_value: Maybe<&2, N>, slow_value: Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+def hull.values(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, fast: Average.State<N>, slow: Average.State<N>, outer: Average.State<N>, fast_value: Maybe<&2, N>, slow_value: Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match fast_value slow_value:
-    case Some{+f} Some{s}: hull.outer(~N, fast, slow, half, period, root, weighted.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, root, False{}, Window.push(~N, outer, add(f, sub(f, s)))))
-    case _ _: (Hull{fast, slow, outer, half, period, root}, None{})
+    case Some{+f} Some{s}: hull.outer(~N, fast, slow, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, outer, add(f, sub(f, s))))
+    case _ _: (Hull{fast, slow, outer}, None{})
 
-def hull.slow(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, half: U32, period: U32, root: U32, fast: Window.State<N>, outer: Window.State<N>, fast_value: Maybe<&2, N>, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+def hull.slow(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, fast: Average.State<N>, outer: Average.State<N>, fast_value: Maybe<&2, N>, result: Average.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
-    case (slow, slow_value): hull.values(~N, ~from, ~add, ~sub, ~mul, ~div, half, period, root, fast, slow, outer, fast_value, slow_value)
+    case (slow, slow_value): hull.values(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, fast, slow, outer, fast_value, slow_value)
 
-def hull.fast(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, half: U32, +period: U32, root: U32, slow: Window.State<N>, outer: Window.State<N>, x: N, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+def hull.fast(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, slow: Average.State<N>, outer: Average.State<N>, x: N, result: Average.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
-    case (fast, value): hull.slow(~N, ~from, ~add, ~sub, ~mul, ~div, half, period, root, fast, outer, value, weighted.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, period, False{}, Window.push(~N, slow, x)))
+    case (fast, value): hull.slow(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, fast, outer, value, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, slow, x))
 
 def next.variable(~N: Data, result: Vidya.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
@@ -238,13 +268,13 @@ def next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: 
     case Cycle{state}: next.cycle(~N, Mama.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, ~atan, state, price))
     case Variable{state}: next.variable(~N, Vidya.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price))
     case Identity{}: (Identity{}, Some{price})
-    case Adaptive{window, period, value}: adaptive.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, price, Window.push(~N, window, price))
+    case Adaptive{window, period, value, cache}: adaptive.cached(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, cache, price, Window.push(~N, window, price))
     case Gaussian{window, weights}: gaussian.pushed(~N, ~from, ~add, ~mul, window, weights, price)
     case ZeroLag{window, state}: zerolag.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, state, price, Window.push(~N, window, price))
-    case Hull{fast, slow, outer, +half, period, root}: hull.fast(~N, ~from, ~add, ~sub, ~mul, ~div, half, period, root, slow, outer, price, weighted.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, half, False{}, Window.push(~N, fast, price)))
-    case Simple{state}: next.simple(~N, mean.next(~N, ~from, ~add, ~sub, ~div, state, price))
+    case Hull{fast, slow, outer}: hull.fast(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, slow, outer, price, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, fast, price))
+    case Simple{state}: next.simple(~N, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price))
     case Exponential{state}: next.exponential(~N, Ema.next(~N, ~from, ~add, ~sub, ~mul, ~div, state, price))
-    case Weighted{window, +period, +triangular}: weighted.output(~N, period, triangular, weighted.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, period, triangular, Window.push(~N, window, price)))
+    case Weighted{state}: weighted.output(~N, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price))
     case Cascade{kind, factor, stages}: cascade.output(~N, ~from, ~add, ~sub, ~mul, kind, factor, cascade.step(~N, ~from, ~add, ~sub, ~mul, ~div, 6n, stages, Some{price}))
 
 def buffer_depth(+period: U32) -> Nat:
@@ -281,9 +311,12 @@ def gaussian.normalize.collect(~N: Data, ~div: N -> N -> N, xs: List<&2, N>, +to
 def gaussian.normalize(~N: Data, ~div: N -> N -> N, xs: List<&2, N>, total: N) -> List<&2, N>:
   gaussian.normalize.collect(~N, ~div, xs, total, Nil{})
 
-def gaussian.window.make(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, depth: Nat, sigma: N, offset: N) -> State<N>:
+def gaussian.coefficients(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, sigma: N, offset: N) -> List<&2, N>:
   +weights = gaussian.weights(~N, ~from, ~sub, ~mul, ~div, ~exp, U32.to_nat(period), 0, floor(mul(offset, from(U32.sub(period, 1)))), div(from(period), sigma))
-  Gaussian{Window.init(~N, period, depth, from(0)), gaussian.normalize(~N, ~div, weights, gaussian.sum(~N, ~add, weights, from(0)))}
+  gaussian.normalize(~N, ~div, weights, gaussian.sum(~N, ~add, weights, from(0)))
+
+def gaussian.window.make(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, depth: Nat, sigma: N, offset: N) -> State<N>:
+  Gaussian{Window.init(~N, period, depth, from(0)), gaussian.coefficients(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, sigma, offset)}
 
 def gaussian.choose(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, period: U32, depth: Nat, sigma: N, offset: N, identity: Bool) -> State<N>:
   match identity:
@@ -294,17 +327,17 @@ def gaussian.make(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> 
   gaussian.choose(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, depth, sigma, offset, U32.is_eq(period, 1))
 
 def hull.make(~N: Data, ~from: U32 -> N, +period: U32, +half: U32, +root: U32) -> State<N>:
-  Hull{Window.init(~N, half, buffer_depth(half), from(0)), Window.init(~N, period, buffer_depth(period), from(0)), Window.init(~N, root, buffer_depth(root), from(0)), half, period, root}
+  Hull{Average.init(~N, ~from, half, buffer_depth(half), 1), Average.init(~N, ~from, period, buffer_depth(period), 1), Average.init(~N, ~from, root, buffer_depth(root), 1)}
 
 def make.kind(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, depth: Nat, +kind: U32, factor: N, selected: Nat) -> State<N>:
   match selected:
-    case 0n: Simple{Window.init(~N, period, depth, from(0))}
+    case 0n: Simple{Average.init(~N, ~from, period, depth, 0)}
     case 1n: Exponential{Ema.init(~N, ~from, ~div, period)}
-    case 2n: Weighted{Window.init(~N, period, depth, from(0)), period, False{}}
+    case 2n: Weighted{Average.init(~N, ~from, period, depth, 1)}
     case 3n: Cascade{kind, factor, cascade.stages(~N, ~from, ~div, 2n, period)}
     case 4n: Cascade{kind, factor, cascade.stages(~N, ~from, ~div, 3n, period)}
-    case 5n: Weighted{Window.init(~N, period, depth, from(0)), period, True{}}
-    case 6n: Adaptive{Window.init(~N, U32.add(period, 1), buffer_depth(U32.add(period, 1)), from(0)), period, None{}}
+    case 5n: Weighted{Average.init(~N, ~from, period, depth, 2)}
+    case 6n: Adaptive{Window.init(~N, U32.add(period, 1), buffer_depth(U32.add(period, 1)), from(0)), period, None{}, None{}}
     case 7n: Cycle{Mama.init(~N, ~from, ~div, div(from(1), from(2)), div(from(1), from(20)))}
     case 8n: Cascade{kind, factor, cascade.stages(~N, ~from, ~div, 6n, period)}
     case 9n: hull.make(~N, ~from, period, U32.max(1, U32.div(period, 2)), root.go(32n, 1, period, period))
@@ -326,8 +359,11 @@ def init.checked(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N
     case False{}: Fail{Parameters.InvalidParameter{}}
     case True{}: Done{make(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, buffer_depth(period), kind, div(from(7), from(10)))}
 
+def valid(+period: U32, +kind: U32) -> Bool:
+  Bool.and(Bool.and(U32.is_gt(period, 0), U32.is_le(period, 100000)), Bool.or(supported(kind), Bool.and(U32.is_eq(period, 1), U32.is_le(kind, 15))))
+
 def init(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, +kind: U32) -> Result<&2, &1, Parameters.Error, State<N>>:
-  init.checked(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, kind, Bool.and(Bool.and(U32.is_gt(period, 0), U32.is_le(period, 100000)), Bool.or(supported(kind), Bool.and(U32.is_eq(period, 1), U32.is_le(kind, 15)))))
+  init.checked(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, kind, valid(period, kind))
 def lookback.selected(+period: U32, kind: Nat) -> U32:
   match kind:
     case 3n: U32.mul(2, U32.sub(period, 1))

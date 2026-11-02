@@ -3,6 +3,7 @@ import ./extrema_queue.bend as Queue
 import ./window.bend as Window
 import ./moments.bend as Moments
 import ./ordered.bend as Ordered
+import ./rolling_average.bend as Average
 
 type Regression<-N: Data> is Data:
   Regression{intercept: N, slope: N, endpoint: N, forecast: N}
@@ -45,6 +46,44 @@ def regress.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N ->
 
 def regress.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, window: Window.State<N>, price: N) -> Window.State<N> & Maybe<&2, Regression<N>>:
   regress.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, Window.push(~N, window, price))
+
+def regress.init(~N: Data, ~from: U32 -> N, period: U32, depth: Nat) -> Average.State<N>:
+  Average.init(~N, ~from, period, depth, 1)
+
+def regress.restore(~N: Data, kind: U32, cache: Maybe<&2, Average.Values<N>>, result: Window.State<N> & Maybe<&2, Regression<N>>) -> Average.State<N> & Maybe<&2, Regression<N>>:
+  match result:
+    case (window, value): (Average.Average{window, kind, cache}, value)
+
+def regress.checked(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, +period: U32, kind: U32, +cache: Average.Values<N>, window: Window.State<N>, origin: N, +center: N, +total: N, xy: N, xx: N, good: Bool) -> Average.State<N> & Maybe<&2, Regression<N>>:
+  match good:
+    case True{}: regress.restore(~N, kind, Some{cache}, regress.finish(~N, ~from, ~add, ~sub, ~mul, ~div, origin, center, (window, RegressSum{period, total, xy, xx})))
+    case False{}: regress.restore(~N, kind, Some{cache}, regress.ready(~N, ~from, ~add, ~sub, ~mul, ~div, Window.full(~N, window)))
+
+def regress.conditioned(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, period: U32, +origin: N, +center: N, total: N, +weight: N, +center_sum: N, +xy: N, xx: N) -> Bool:
+  +mean = add(origin, div(total, from(period)))
+  +slope = div(xy, xx)
+  +offset = mul(slope, center)
+  Bool.and(le(abs(origin), mul(from(8), abs(mean))), Bool.and(Bool.and(Average.stable(~N, ~from, ~sub, ~mul, ~abs, ~le, weight, xy), Average.stable(~N, ~from, ~sub, ~mul, ~abs, ~le, center_sum, xy)), Bool.and(Average.stable(~N, ~from, ~sub, ~mul, ~abs, ~le, mean, sub(mean, offset)), Bool.and(Average.stable(~N, ~from, ~sub, ~mul, ~abs, ~le, mean, add(mean, offset)), Average.stable(~N, ~from, ~sub, ~mul, ~abs, ~le, mean, add(mean, mul(slope, add(center, from(1)))))))))
+
+def regress.values(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +period: U32, kind: U32, +cache: Average.Values<N>, window: Window.State<N>) -> Average.State<N> & Maybe<&2, Regression<N>>:
+  match cache:
+    case Average.Values{+origin, total, weighted, left, divisor}:
+      +count = from(period)
+      +center = div(from(U32.sub(period, 1)), from(2))
+      +sum = Average.sum.value(~N, total)
+      +weight = Average.sum.value(~N, weighted)
+      +center_sum = mul(add(center, from(1)), sum)
+      +xy = sub(weight, center_sum)
+      +xx = div(mul(count, sub(mul(count, count), from(1))), from(12))
+      regress.checked(~N, ~from, ~add, ~sub, ~mul, ~div, period, kind, cache, window, origin, center, sum, xy, xx, regress.conditioned(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, origin, center, sum, weight, center_sum, xy, xx))
+
+def regress.output(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, result: Average.State<N> & Maybe<&2, N>) -> Average.State<N> & Maybe<&2, Regression<N>>:
+  match result:
+    case (Average.Average{window, kind, None{}}, value): (Average.Average{window, kind, None{}}, None{})
+    case (Average.Average{Window.Window{buffer, +period, size, pos}, kind, Some{cache}}, value): regress.values(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, kind, cache, Window.Window{buffer, period, size, pos})
+
+def regress.cached(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, state: Average.State<N>, price: N) -> Average.State<N> & Maybe<&2, Regression<N>>:
+  regress.output(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price))
 
 type Extrema<-N: Data> is Data:
   Extrema{low: N, high: N, low_index: U32, high_index: U32}

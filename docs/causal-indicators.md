@@ -29,8 +29,11 @@ live in `core/bar.bend`, `core/variable.bend` and `core/transform.bend`.
 
 `DPO` subtracts the current period's SMA from the price
 floor(period/2)+1 observations ago. At period 2 it needs an extra observation
-beyond the SMA's own warm-up. A fresh centered mean avoids cumulative F32 sum
-drift; floating arithmetic need not be bitwise equal to TA-Lib's running sum.
+beyond the SMA's own warm-up. Its centered, compensated mean cache refreshes
+after each logical wrap and falls back to a fresh scan when a numerical guard
+rejects an update. Storage is O(period); scheduled refreshes give amortized O(1)
+updates, while a guard fallback can cost O(period). Floating arithmetic need not
+be bitwise equal to TA-Lib's running sum.
 
 `ICHIMOKU.Value()` has `tenkan`, `kijun`, `span_a` and `span_b`. Each midpoint
 uses the highest high and lowest low of its own current window. Span A is the
@@ -74,27 +77,49 @@ MA kinds follow [the moving-average contract](overlap-statistics.md). Kind 11
 the entire bank before reading observations, even if an invalid kind might not
 be requested by particular data. Period 1 retains the underlying identity rule.
 
-Every selectable integer period has an independent fixed-period MA state.
-Its input starts after `lookback(maximum)−lookback(period)` observations; all
-first outputs therefore align at the common maximum-period lookback. Shorter
-recursive averages are seeded from that aligned history, rather than from the
-beginning of the stream or from the first time their period is selected.
-Changing the selected period never changes an existing state's coefficient.
+All selections retain the common maximum-period lookback. Recursive averages
+start after `lookback(maximum)−lookback(period)` observations, so their seeds
+stay aligned when the selected period changes. No recursive state is advanced
+only when selected.
 
-Let R=maximum−minimum+1. Initialization stores O(R) waiting entries; each MA's
-storage is allocated when its aligned input begins. Each update advances the
-whole active bank and costs the sum of the individual MA update costs, plus
-O(R) traversal. Storage is the sum of those states, potentially quadratic in
-maximum for window-based averages. The public limit is a representation bound,
-not a promise that a broad bank fits RAM or is economical. Prefer a narrow
-period range. Batch retains these same bank semantics and costs.
+A shared price window serves banks containing at least four periods. SMA, WMA,
+TRIMA and KAMA retain each period's guarded arithmetic cache and refresh clock,
+using the same calculations as fixed-period MA states. HMA shares its raw
+fast/slow history and retains only each period's square-root-sized outer window.
+VIDYA keeps a scalar recurrence per period; ZLEMA keeps one EMA per period.
+ALMA uses selected-window evaluation when the band contains at least 12 periods,
+constructing its deterministic weights for that output; narrower bands retain
+cached weight banks. Smaller bands keep their ordinary states: the extra
+outgoing-value slot in a shared tape can erase the storage saving for two
+nearby periods. Identity banks need no history.
+
+Let R=maximum−minimum+1 and p be the selected period. SMA/WMA/TRIMA, KAMA and
+ZLEMA use O(maximum+R) storage; HMA uses
+O(maximum+R+sum(sqrt(period))). Their normal cached updates traverse R entries;
+scheduled refreshes and numerical guard fallbacks scan the affected windows.
+The first complete output can seed every period's cache, costing the sum of
+their window lengths. VIDYA uses O(maximum+R) storage but scans the active CMO
+windows on each update. Wide-band ALMA uses O(maximum) storage and O(p) work per
+available output. Other recursive kinds retain independent constant-size states
+and O(R) traversal. No broad bank duplicates every full raw-price window. The
+public limit does not promise that every accepted bank is economical. Batch and
+streaming use the same transitions.
+
+`tests/core/mavp.bend` retains compact pinned-C targets from TA-Lib revision
+`ccd3172940ed1d9daa4e7197f2265810852e8910`, unstable periods zero, for SMA, WMA,
+TRIMA, KAMA, HMA, ZLEMA, VIDYA and ALMA. It checks complete warm-up alignment and
+changing period choices with 1e−5 absolute tolerance. Larger exact baseline and
+numeric-adapter comparisons remain external validation evidence.
 
 ## Volume and undefined arithmetic
 
 `RVOL` divides today's volume by the mean of the preceding period volumes,
-excluding today's observation from its baseline. Its mean is rebuilt from the
-owned window. An all-zero baseline is exactly zero; raw division returns Inf
-or NaN as appropriate inside `Some`, rather than a fallback or warm-up slot.
+reading the cached mean before pushing today's observation. Its centered,
+compensated cache refreshes after each logical wrap and uses a fresh scan when
+a numerical guard rejects an update. Storage is O(period), with amortized O(1)
+scheduled updates and O(period) guard fallbacks. An all-zero baseline is exactly
+zero; raw division returns Inf or NaN as appropriate inside `Some`, rather than
+a fallback or warm-up slot.
 `DIV` likewise uses raw Base IEEE division and preserves signed zero.
 
 `VWAP` accumulates typical-price times volume and total volume from initialization.
@@ -112,7 +137,8 @@ market-bar ordering or repairs missing data. F32 rounding, overflow and branch
 thresholds can differ from the reference's double arithmetic; these contracts
 claim neither universal TA-Lib parity nor financial-data error bounds.
 
-DPO and RVOL require O(period) storage and fresh O(period) scans per ready input.
+DPO and RVOL require O(period) storage and use the guarded mean caches described
+above.
 Ichimoku maintains three extrema queue pairs, using O(sum of its periods)
 storage and amortized constant update work, with an O(period) prune burst.
 Fractal scans left+right+1 observations.

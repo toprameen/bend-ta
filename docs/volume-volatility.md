@@ -63,9 +63,10 @@ when its second EMA is exactly zero. CVI uses difference-first percent change
 and an exact-zero lagged EMA guard.
 
 AD/OBV/PVT and rolling sums can accumulate F32 error. CMF freshly scans its
-window, restoring zero after all volume leaves. EMV freshly reads the centered
-window mean to avoid historical subtract/add drift. Both scans cost O(period)
-per input; their storage is O(period). ADR and MASSI inherit the rolling sum
+window, restoring zero after all volume leaves. EMV uses a centered compensated mean cache, refreshed at each logical wrap
+and rebuilt on ill-conditioned updates. Its ordinary amortized work is constant;
+refreshes and guarded fallbacks cost O(period). CMF retains O(period) scan work
+per input. Both use O(period) storage. ADR and MASSI inherit the rolling sum
 refresh at each logical wrap: amortized constant work, with O(period) work on
 that update. Other recurrences have constant work per input, with O(period)
 storage where a rolling window or lag is needed.
@@ -109,8 +110,8 @@ return units. Each positive-price bar contributes
 `log(high/close)*log(high/open)+log(low/close)*log(low/open)`; any nonpositive
 price contributes zero while still occupying one window slot. The result is
 `sqrt(annualization)*sqrt(mean_term)`, with zero for a nonpositive mean term.
-The scale is applied after the root. A fresh centered window mean removes old
-rounding when terms become flat. Consistent OHLC bounds are assumed; a malformed
+The scale is applied after the root. A centered compensated mean cache refreshes
+at logical wraps and uses a fresh window on ill-conditioned updates. Consistent OHLC bounds are assumed; a malformed
 bar can contribute a negative term.
 
 `RVI.init(period,deviation_period)` and `RVIR.init(period,deviation_period)`
@@ -121,8 +122,10 @@ use mean-seeded Wilder smoothing. Output is `100*up/(up+down)`, or 50 for an
 exactly zero total. RVIR runs that calculation independently on highs and lows
 and averages the two outputs. There is no additional unstable discard.
 
-ADOSC and KVO use constant work and storage per sample. ROGERSSATCHELL, RVI
-and RVIR use O(deviation/window period) storage and fresh scan work per sample;
+ADOSC and KVO use constant work and storage per sample. ROGERSSATCHELL uses
+O(period) storage with ordinary amortized constant updates; refreshes and guarded
+fallbacks take O(period). RVI and RVIR retain O(deviation period) storage and
+fresh scan work per sample;
 RVI smoothing state has constant size. F32 logarithms, roots, filters and
 products may lose precision or overflow even with finite observations.
 `tests/reference/volume_filters.bend` checks pinned C values and seeds,

@@ -6,6 +6,7 @@ import ./moments.bend as Moments
 import ./extrema.bend as Extrema
 import ./ema.bend as Ema
 import ./ma.bend as Ma
+import ./rolling_average.bend as Average
 import ./parameters.bend as Parameters
 import ./volatility.bend as Vol
 
@@ -70,39 +71,38 @@ def bollinger.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N ->
     case Bollinger{average, moments, up, down, kind}: bollinger.average(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, ~sqrt, moments, up, down, kind, price, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, average, price))
 
 type Acceleration<-N: Data> is Type:
-  Acceleration{upper: Window.State<N>, middle: Window.State<N>, lower: Window.State<N>}
+  Acceleration{upper: Average.State<N>, middle: Average.State<N>, lower: Average.State<N>}
 
 def accbands.init(~N: Data, ~from: U32 -> N, +period: U32, +depth: Nat) -> Acceleration<N>:
-  +zero = from(0)
-  Acceleration{Window.init(~N, period, depth, zero), Window.init(~N, period, depth, zero), Window.init(~N, period, depth, zero)}
+  Acceleration{Average.init(~N, ~from, period, depth, 0), Average.init(~N, ~from, period, depth, 0), Average.init(~N, ~from, period, depth, 0)}
 
 def acceleration.value(~N: Data, upper: Maybe<&2, N>, middle: Maybe<&2, N>, lower: Maybe<&2, N>) -> Maybe<&2, Bands<N>>:
   match upper middle lower:
     case Some{u} Some{m} Some{l}: Some{Bands{u, m, l}}
     case _ _ _: None{}
 
-def acceleration.lower(~N: Data, upper: Window.State<N>, middle: Window.State<N>, u: Maybe<&2, N>, m: Maybe<&2, N>, result: Window.State<N> & Maybe<&2, N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
+def acceleration.lower(~N: Data, upper: Average.State<N>, middle: Average.State<N>, u: Maybe<&2, N>, m: Maybe<&2, N>, result: Average.State<N> & Maybe<&2, N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
   match result:
     case (lower, l): (Acceleration{upper, middle, lower}, acceleration.value(~N, u, m, l))
 
-def acceleration.middle(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, upper: Window.State<N>, lower: Window.State<N>, u: Maybe<&2, N>, low: N, result: Window.State<N> & Maybe<&2, N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
+def acceleration.middle(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, upper: Average.State<N>, lower: Average.State<N>, u: Maybe<&2, N>, low: N, result: Average.State<N> & Maybe<&2, N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
   match result:
-    case (middle, m): acceleration.lower(~N, upper, middle, u, m, Ma.mean.next(~N, ~from, ~add, ~sub, ~div, lower, low))
+    case (middle, m): acceleration.lower(~N, upper, middle, u, m, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, lower, low))
 
-def acceleration.upper(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, middle: Window.State<N>, lower: Window.State<N>, mid: N, low: N, result: Window.State<N> & Maybe<&2, N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
+def acceleration.upper(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, middle: Average.State<N>, lower: Average.State<N>, mid: N, low: N, result: Average.State<N> & Maybe<&2, N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
   match result:
-    case (upper, u): acceleration.middle(~N, ~from, ~add, ~sub, ~div, upper, lower, u, low, Ma.mean.next(~N, ~from, ~add, ~sub, ~div, middle, mid))
+    case (upper, u): acceleration.middle(~N, ~from, ~add, ~sub, ~div, ~mul, ~abs, ~le, upper, lower, u, low, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, middle, mid))
 
-def acceleration.bar(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, upper: Window.State<N>, middle: Window.State<N>, lower: Window.State<N>, bar: Bar.HLC<N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
+def acceleration.bar(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, ~abs: N -> N, ~le: N -> N -> Bool, upper: Average.State<N>, middle: Average.State<N>, lower: Average.State<N>, bar: Bar.HLC<N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
   match bar:
     case Bar.HLC{+high, +low, close}:
       +den = add(high, low)
       +factor = Bool.pick(N, eq(den, from(0)), from(0), div(mul(from(4), sub(high, low)), den))
-      acceleration.upper(~N, ~from, ~add, ~sub, ~div, middle, lower, close, mul(low, sub(from(1), factor)), Ma.mean.next(~N, ~from, ~add, ~sub, ~div, upper, mul(high, add(from(1), factor))))
+      acceleration.upper(~N, ~from, ~add, ~sub, ~div, ~mul, ~abs, ~le, middle, lower, close, mul(low, sub(from(1), factor)), Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, upper, mul(high, add(from(1), factor))))
 
-def acceleration.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, state: Acceleration<N>, bar: Bar.HLC<N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
+def acceleration.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, ~abs: N -> N, ~le: N -> N -> Bool, state: Acceleration<N>, bar: Bar.HLC<N>) -> Acceleration<N> & Maybe<&2, Bands<N>>:
   match state:
-    case Acceleration{upper, middle, lower}: acceleration.bar(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, upper, middle, lower, bar)
+    case Acceleration{upper, middle, lower}: acceleration.bar(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, ~abs, ~le, upper, middle, lower, bar)
 
 type VolumeWeight<-N: Data> is Data:
   VolumeWeight{value: N, volume: N}

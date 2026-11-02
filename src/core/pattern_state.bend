@@ -31,8 +31,11 @@ def init.checked(~N: Data, ~from_u32: U32 -> N, name: Pattern.Name, settings: Pa
     case False{}: Fail{Parameters.InvalidParameter{}}
     case True{}: Done{init.validated(~N, ~from_u32, name, settings, penetration)}
 
+def valid(~N: Data, ~from_u32: U32 -> N, ~finite: N -> Bool, ~ge: N -> N -> Bool, settings: Pattern.Settings<N>, +penetration: N) -> Bool:
+  Bool.and(Pattern.settings.valid(~N, ~finite, ~ge, ~from_u32, settings), Bool.and(finite(penetration), ge(penetration, from_u32(0))))
+
 def init(~N: Data, ~from_u32: U32 -> N, ~finite: N -> Bool, ~ge: N -> N -> Bool, name: Pattern.Name, +settings: Pattern.Settings<N>, +penetration: N) -> Result<&2, &1, Parameters.Error, State<N>>:
-  init.checked(~N, ~from_u32, name, settings, penetration, Bool.and(Pattern.settings.valid(~N, ~finite, ~ge, ~from_u32, settings), Bool.and(finite(penetration), ge(penetration, from_u32(0)))))
+  init.checked(~N, ~from_u32, name, settings, penetration, valid(~N, ~from_u32, ~finite, ~ge, settings, penetration))
 
 def value(~N: Data, ~from_u32: U32 -> N, value: Maybe<&2, N>) -> N:
   match value:

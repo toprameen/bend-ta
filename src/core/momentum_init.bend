@@ -2,6 +2,7 @@ import Base
 import ./config.bend as Config
 import ./parameters.bend as Parameters
 import ./window.bend as Window
+import ./statistics.bend as Stats
 import ./ema.bend as Ema
 import ./ma.bend as Ma
 import ./momentum.bend as Mom
@@ -24,7 +25,7 @@ def changed(~N: Data, ~from: U32 -> N, +period: U32) -> Box.Prices<N>:
   Box.prices.init(~N, ~from, U32.add(period, 1), depth(U32.add(period, 1)))
 
 def forecast(~N: Data, ~from: U32 -> N, +period: U32) -> Composite.Forecast<N>:
-  Composite.Forecast{Window.init(~N, period, depth(period), from(0)), None{}, None{}}
+  Composite.Forecast{Stats.regress.init(~N, ~from, period, depth(period)), None{}, None{}}
 
 def flow(~N: Data, ~from: U32 -> N, +period: U32) -> Mom.Flow<N>:
   Mom.flow.init(~N, ~from, period, depth(period))
