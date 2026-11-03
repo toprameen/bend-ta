@@ -32,6 +32,12 @@ def main() -> IO(Unit):
     IO.print(Bool.show(String.eq(Tool.normalize("a\rb"), "a\rb")))
     IO.print(Bool.show(Test.fixture("tests/reference/ema.bend")))
     IO.print(Bool.show(Test.fixture("scripts/support.bend")))
+    IO.print(Bool.show(Policy.source_entry("LAWS.bend")))
+    IO.print(Bool.show(Policy.source_entry("PROOF.bend")))
+    IO.print(Bool.show(Policy.source_entry("proofs/LAWS.bend")))
+    IO.print(Bool.show(Policy.proof_files(["LAWS.bend", "PROOF.bend"])))
+    IO.print(Bool.show(Policy.proof_files(["LAWS.bend"])))
+    IO.print(Bool.show(Policy.proof_files(["PROOF.bend"])))
 
 #|True
 #|True
@@ -56,4 +62,10 @@ def main() -> IO(Unit):
 #|True
 #|True
 #|True
+#|False
+#|False
+#|True
+#|True
+#|True
+#|False
 #|False
