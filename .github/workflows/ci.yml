@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
+      CC: /usr/bin/clang
       BEND_NO_TELEMETRY: "1"
       BEND_JS: node
     steps:
