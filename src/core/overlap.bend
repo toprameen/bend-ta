@@ -23,12 +23,12 @@ def channel.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N
     case Bar.HL{high, low}: channel.output(~N, ~from, ~add, ~div, Queue.next(~N, ~(a => b => Bool.not(lt(b, a))), ~(a => b => lt(b, a)), state, low, high))
 
 type Bollinger<-N: Data> is Type:
-  Bollinger{average: Ma.State<N>, moments: Window.State<N>, up: N, down: N, kind: U32}
+  Bollinger{average: Ma.State<N>, moments: Moments.Cached<N>, up: N, down: N, kind: U32}
 
 def bollinger.initialized(~N: Data, ~from: U32 -> N, period: U32, depth: Nat, up: N, down: N, kind: U32, result: Result<&2, &1, Parameters.Error, Ma.State<N>>) -> Result<&2, &1, Parameters.Error, Bollinger<N>>:
   match result:
     case Fail{error}: Fail{error}
-    case Done{average}: Done{Bollinger{average, Window.init(~N, period, depth, from(0)), up, down, kind}}
+    case Done{average}: Done{Bollinger{average, Moments.cached.init(~N, ~from, period, depth), up, down, kind}}
 
 def bollinger.init(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, depth: Nat, up: N, down: N, +kind: U32) -> Result<&2, &1, Parameters.Error, Bollinger<N>>:
   bollinger.initialized(~N, ~from, period, depth, up, down, kind, Ma.init(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, kind))
@@ -43,32 +43,44 @@ def bollinger.value(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -
   +no_center = Bool.and(le(mean, zero), le(zero, mean))
   BollingerValue{Bands{add(mean, mul(up, deviation)), mean, sub(mean, mul(down, deviation))}, Bool.pick(N, no_center, zero, mul(div(spread, mean), from(100))), Bool.pick(N, flat, div(from(1), from(2)), div(add(residual, mul(down, deviation)), spread))}
 
-def bollinger.finish(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, average: Ma.State<N>, +up: N, +down: N, +kind: U32, +price: N, +mean: N, deviation: N, count: U32, result: Window.State<N> & N) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
+def bollinger.residual.fresh(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~div: N -> N -> N, count: U32, result: Window.State<N> & N) -> Moments.Cached<N> & N:
   match result:
-    case (moments, delta):
-      (Bollinger{average, moments, up, down, kind}, Some{bollinger.value(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, up, down, mean, deviation, Bool.pick(N, U32.is_zero(kind), sub(from(0), div(delta, from(count))), sub(price, mean)))})
+    case (window, delta): (Moments.Cached{window, None{}}, sub(from(0), div(delta, from(count))))
 
-def bollinger.scan(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, average: Ma.State<N>, up: N, down: N, kind: U32, +price: N, mean: N, deviation: N, window: Window.State<N>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
-  match window:
-    case Window.Window{buffer, +period, size, pos}: bollinger.finish(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, average, up, down, kind, price, mean, deviation, period, Window.fold(~N, ~N, ~N, ~(c => a => x => Moments.delta(~N, ~add, ~sub, c, a, x)), Window.Window{buffer, period, size, pos}, price, from(0)))
+def bollinger.residual(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, +price: N, state: Moments.Cached<N>) -> Moments.Cached<N> & N:
+  match state:
+    case Moments.Cached{Window.Window{buffer, +period, size, pos}, Some{+cache}}:
+      match cache:
+        case Moments.Values{origin, total, squares, peak, flat}: (Moments.Cached{Window.Window{buffer, period, size, pos}, Some{cache}}, sub(sub(price, origin), div(Average.sum.value(~N, total), from(period))))
+    case Moments.Cached{Window.Window{buffer, +period, size, pos}, None{}}:
+      bollinger.residual.fresh(~N, ~from, ~sub, ~div, period, Window.fold(~N, ~N, ~N, ~(c => a => x => Moments.delta(~N, ~add, ~sub, c, a, x)), Window.Window{buffer, period, size, pos}, price, from(0)))
 
-def bollinger.values(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~sqrt: N -> N, average: Ma.State<N>, moments: Window.State<N>, up: N, down: N, +kind: U32, +price: N, av: Maybe<&2, N>, stats: Maybe<&2, Moments.Value<N>>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
+def bollinger.finish(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, average: Ma.State<N>, +up: N, +down: N, +mean: N, deviation: N, result: Moments.Cached<N> & N) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
+  match result:
+    case (moments, residual): (Bollinger{average, moments, up, down, 0}, Some{bollinger.value(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, up, down, mean, deviation, residual)})
+
+def bollinger.scan(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, average: Ma.State<N>, +up: N, +down: N, +kind: U32, +price: N, +mean: N, +deviation: N, moments: Moments.Cached<N>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
+  match kind:
+    case 0: bollinger.finish(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, average, up, down, mean, deviation, bollinger.residual(~N, ~from, ~add, ~sub, ~div, price, moments))
+    case _: (Bollinger{average, moments, up, down, kind}, Some{bollinger.value(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, up, down, mean, deviation, sub(price, mean))})
+
+def bollinger.values(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~sqrt: N -> N, average: Ma.State<N>, moments: Moments.Cached<N>, up: N, down: N, +kind: U32, +price: N, av: Maybe<&2, N>, stats: Maybe<&2, Moments.Value<N>>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
   match av stats:
     case Some{m} Some{Moments.Moments{mean, variance}}:
       bollinger.scan(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, average, up, down, kind, price, Bool.pick(N, U32.is_zero(kind), mean, m), sqrt(variance), moments)
     case _ _: (Bollinger{average, moments, up, down, kind}, None{})
 
-def bollinger.moments(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~sqrt: N -> N, average: Ma.State<N>, up: N, down: N, kind: U32, price: N, value: Maybe<&2, N>, result: Window.State<N> & Maybe<&2, Moments.Value<N>>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
+def bollinger.moments(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~sqrt: N -> N, average: Ma.State<N>, up: N, down: N, kind: U32, price: N, value: Maybe<&2, N>, result: Moments.Cached<N> & Maybe<&2, Moments.Value<N>>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
   match result:
     case (moments, stats): bollinger.values(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, ~sqrt, average, moments, up, down, kind, price, value, stats)
 
-def bollinger.average(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~sqrt: N -> N, moments: Window.State<N>, up: N, down: N, kind: U32, +price: N, result: Ma.State<N> & Maybe<&2, N>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
+def bollinger.average(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~sqrt: N -> N, ~abs: N -> N, moments: Moments.Cached<N>, up: N, down: N, kind: U32, +price: N, result: Ma.State<N> & Maybe<&2, N>) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
   match result:
-    case (average, value): bollinger.moments(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, ~sqrt, average, up, down, kind, price, value, Moments.next(~N, ~from, ~add, ~sub, ~mul, ~div, moments, price))
+    case (average, value): bollinger.moments(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, ~sqrt, average, up, down, kind, price, value, Moments.cached.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, moments, price))
 
 def bollinger.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, ~sqrt: N -> N, state: Bollinger<N>, +price: N) -> Bollinger<N> & Maybe<&2, BollingerValue<N>>:
   match state:
-    case Bollinger{average, moments, up, down, kind}: bollinger.average(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, ~sqrt, moments, up, down, kind, price, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, average, price))
+    case Bollinger{average, moments, up, down, kind}: bollinger.average(~N, ~from, ~add, ~sub, ~mul, ~div, ~le, ~sqrt, ~abs, moments, up, down, kind, price, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, average, price))
 
 type Acceleration<-N: Data> is Type:
   Acceleration{upper: Average.State<N>, middle: Average.State<N>, lower: Average.State<N>}

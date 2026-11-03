@@ -116,7 +116,7 @@ bar can contribute a negative term.
 
 `RVI.init(period,deviation_period)` and `RVIR.init(period,deviation_period)`
 require smoothing periods 1..100000 and deviation periods 2..100000. RVI routes
-the fresh population standard deviation into the up leg for a rising input,
+the population standard deviation into the up leg for a rising input,
 into the down leg for a falling input, and into neither on a tie. Both legs
 use mean-seeded Wilder smoothing. Output is `100*up/(up+down)`, or 50 for an
 exactly zero total. RVIR runs that calculation independently on highs and lows
@@ -124,8 +124,9 @@ and averages the two outputs. There is no additional unstable discard.
 
 ADOSC and KVO use constant work and storage per sample. ROGERSSATCHELL uses
 O(period) storage with ordinary amortized constant updates; refreshes and guarded
-fallbacks take O(period). RVI and RVIR retain O(deviation period) storage and
-fresh scan work per sample;
+fallbacks take O(period). RVI and RVIR share the [guarded rolling-moments engine](overlap-statistics.md)
+and retain O(deviation period) storage. Ordinary updates do amortized constant
+work; refreshes and numerical fallbacks cost O(deviation period);
 RVI smoothing state has constant size. F32 logarithms, roots, filters and
 products may lose precision or overflow even with finite observations.
 `tests/reference/volume_filters.bend` checks pinned C values and seeds,

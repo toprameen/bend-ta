@@ -206,7 +206,7 @@ the pinned C library with unstable periods explicitly zero.
 magnitude at most 3e37. The factor is validated but has no effect, matching the
 reference's legacy deviation argument. VAR returns population variance, with
 zero for period one and for a constant window. Its first output is at period−1.
-It projects the existing fresh centered population-moments calculation.
+It projects the shared centered rolling population-moments engine.
 
 `CORREL.init(period)` and `BETA.init(period)` accept periods 1..100000.
 Each observation is an aligned `TA.PairValue()` record, constructed as
@@ -225,14 +225,40 @@ sample correction. This differs from population fourth-moment kurtosis minus
 three. The first output occurs at period−1. A constant window produces
 `Some{NaN}` through 0/0; it has completed warm-up and does not produce `None`.
 
-Pair and fourth-moment windows use fresh centered scans: first sum differences
-from a current window observation, then retain the unrounded mean difference
-when forming residual products. This preserves representable small variation
-on a large baseline and clears historical outliers as soon as they leave.
-Storage and work per output are O(period). The paired observations are owned
-Data records; the containing arrays remain owned Type state.
+VAR, STDDEV, BBANDS/BBW/PERCENTB, SQZMOM and the RVI deviation legs share a
+centered rolling-moments cache. CORREL and BETA use paired centered sums and
+cross-products. Compensated sums retain their correction through refreshes;
+raw observations remain in the original owned rings. Ordinary updates do fixed
+numeric work. A refresh at each logical wrap costs O(period); conditioning,
+scale loss and nonfinite checks can request additional refreshes or the original
+fresh calculation. Near-zero paired covariance uses a fresh output calculation
+while retaining a safe cache, preventing its small rounding residue from being
+amplified by BETA on very different input scales. A conservative product-range
+guard also selects fresh output near F32 correlation-normalization overflow or
+underflow; the shared paired path applies that guard to BETA too. Rejected paired
+caches wait until the next logical wrap before another compensated rebuild. Repeated unsafe windows can therefore cost O(period) per
+observation. Storage remains O(period), with six numeric scalars and one flag
+per scalar cache, or fourteen numeric scalars and two flags per paired cache.
+Clone and preview copy the raw rings and retain each branch's cache metadata.
 
-Returns still round to F32 before their window is scanned. Nearly equal
+The caches retain differences relative to an observation, including the
+unrounded mean difference used for residuals. Bollinger's SMA percent position
+uses that difference instead of subtracting an already rounded large mean.
+Small variance, mean cancellation, historical scale collapse and large
+intermediates can select the fresh path. The F32 small-energy threshold is
+2^-112 per observation; it is a fallback threshold, not a clamp or a universal
+error bound. A zero-energy cache needs an exact-flat proof. These conservative
+checks preserve tested underflow/overflow behavior at the cost of scanning
+ill-conditioned windows. Other numeric facades require their own thresholds
+and numerical validation.
+
+Public raw `Moments.read/next` and fourth-moment windows retain fresh centered
+two-pass scans: first sum differences from a current observation, then retain
+the unrounded mean difference when forming residual products. KURTOSIS therefore
+continues to use O(period) work per output. Paired observations and summaries
+are Data records; their containing arrays remain owned Type state.
+
+Returns still round to F32 before their moments are accumulated. Nearly equal
 returns can therefore have a large relative slope error even when all price
 inputs are exactly representable: an external period-two example yields
 about −471217 versus the double reference's −479999. The implementation agrees

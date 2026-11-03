@@ -195,6 +195,9 @@ def deviation.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N ->
 type ParameterWindow<-N: Data> is Type:
   ParameterWindow{window: Window.State<N>, parameter: N}
 
+type Standard<-N: Data> is Type:
+  Standard{moments: Moments.Cached<N>, factor: N}
+
 type MinMax<-N: Data> is Data:
   MinMax{min: N, max: N}
 
@@ -205,14 +208,14 @@ def parameter.output(~N: Data, parameter: N, result: Window.State<N> & Maybe<&2,
   match result:
     case (window, value): (ParameterWindow{window, parameter}, value)
 
-def standard.finish(~N: Data, ~mul: N -> N -> N, ~sqrt: N -> N, +factor: N, result: Window.State<N> & Maybe<&2, Moments.Value<N>>) -> ParameterWindow<N> & Maybe<&2, N>:
+def standard.finish(~N: Data, ~mul: N -> N -> N, ~sqrt: N -> N, +factor: N, result: Moments.Cached<N> & Maybe<&2, Moments.Value<N>>) -> Standard<N> & Maybe<&2, N>:
   match result:
-    case (window, None{}): (ParameterWindow{window, factor}, None{})
-    case (window, Some{Moments.Moments{mean, variance}}): (ParameterWindow{window, factor}, Some{mul(factor, sqrt(variance))})
+    case (window, None{}): (Standard{window, factor}, None{})
+    case (window, Some{Moments.Moments{mean, variance}}): (Standard{window, factor}, Some{mul(factor, sqrt(variance))})
 
-def standard.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~sqrt: N -> N, state: ParameterWindow<N>, price: N) -> ParameterWindow<N> & Maybe<&2, N>:
+def standard.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~sqrt: N -> N, ~abs: N -> N, ~le: N -> N -> Bool, state: Standard<N>, price: N) -> Standard<N> & Maybe<&2, N>:
   match state:
-    case ParameterWindow{window, factor}: standard.finish(~N, ~mul, ~sqrt, factor, Moments.next(~N, ~from, ~add, ~sub, ~mul, ~div, window, price))
+    case Standard{window, factor}: standard.finish(~N, ~mul, ~sqrt, factor, Moments.cached.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, window, price))
 
 def nearest.collect(~N: Data, ~from: U32 -> N, ~mul: N -> N -> N, ~le: N -> N -> Bool, +target: N, xs: List<&2, N>, +at: U32, value: N, +found: Bool) -> N:
   match xs:

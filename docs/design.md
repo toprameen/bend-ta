@@ -76,8 +76,9 @@ family contracts. Do not use `None` to represent those values implicitly.
 
 F32 seed sums can overflow, a rolling sum can accumulate rounding error, and
 an EMA's intermediate subtraction can overflow for extreme inputs. The shared
-foundation adds centered fresh-window moments; the rolling sum now
-rebuilds at each logical wrap, while remaining uncompensated. Reference fixtures and state/ownership checks do not establish comprehensive
+foundation provides centered fresh-window moments and guarded compensated
+rolling-moments caches for indicator consumers. Legacy SMA rebuilds its rolling
+total at each logical wrap and remains uncompensated. Reference fixtures and state/ownership checks do not establish comprehensive
 financial-data conformance or proven numerical error bounds.
 
 ## F64 and additional indicators

@@ -35,12 +35,19 @@ warm-up without a completed window; zero measures the empty case.
 | 16 | SQZMOM, both periods equal, factors 2/1.5/1 |
 | 17 | LINEARREG |
 | 18..25 | MAVP kinds 0/2/5/6/9/12/14/15, minimum 2 |
+| 26 | VAR, legacy deviation argument 1 |
+| 27 | STDDEV, factor 1 |
+| 28..30 | BBANDS/BBW/PERCENTB, factors 2/2 and SMA selector |
+| 31..32 | RVI/RVIR, smoothing period 14 |
+| 33..34 | CORREL/BETA, second series offset by seven observations |
 
 Shapes are deterministic varied prices (0), ascending prices (1), constant
 prices (2), and alternating prices (3). Bar fields are generated consistently
 from each price. The varied sequence uses wrapping U32 arithmetic and prices
 on a bounded grid; these synthetic workloads do not represent every market
-series.
+series. CORREL also accepts exact orthogonal ±1 axes (shape 4) and the
+same axes scaled by 1e-20 (shape 5), exposing covariance and tiny-energy fallback
+costs. These shapes are restricted to CORREL.
 
 The rolling MAVP cases select periods 2..64, clamped to the configured band;
 their maximum must be at most 10000. For arbitrary bands and selectors cycling
@@ -224,3 +231,50 @@ Period 1 is identity, and power-of-two rounding includes the extra outgoing-valu
 slot. The maximum 10000 broad bank is modeled without allocating its quadratic
 baseline. Narrow 63..64 keeps its bank because sharing would retain the same
 128 raw slots. These counts are storage calculations, not process RSS claims.
+
+## Recorded comparison: rolling statistics
+
+The [statistics comparison](results/statistics-2026-11-02.csv) uses baseline
+`b255c7a32a862d587bcc52919ab975b2395f00f9` and the guarded scalar/paired caches.
+[Metadata](results/statistics-2026-11-02.json) pins the library, benchmark and
+compiler hashes and environment. Both versions use the same Bend harness,
+consumed warm-up, three alternating-order pairs and no competing build/test jobs.
+The 82 cases contain 492 process measurements across native and JavaScript.
+Ready counts match; each version repeats its own checksum. Different F32
+summation can change bit checksums, so independent numerical comparisons and
+reference fixtures assess values separately.
+
+Representative JavaScript medians in milliseconds, varied inputs, 10000 samples:
+
+| Indicator | Period | Before | After |
+|---|---:|---:|---:|
+| VAR | 256 | 207 | 8 |
+| STDDEV | 256 | 207 | 8 |
+| BBANDS | 256 | 310 | 19 |
+| RVI | 256 | 210 | 10 |
+| RVIR | 256 | 408 | 14 |
+| CORREL | 256 | 192 | 12 |
+| BETA | 256 | 192 | 12 |
+| SQZMOM | 256 | 318 | 122 |
+
+Period-16 statistical cases improve on both backends. Short paired windows can cost more:
+CORREL period 2 takes 23→26 ms and period 3 takes 26→27 ms on JavaScript for
+30000 samples. The unchanged MA-SMA control has equal JavaScript medians at
+periods 16 and 256 (10→10 ms); native medians are 2→3 ms and 1→2 ms respectively.
+These one-millisecond changes and short startup cases have coarse timing
+resolution; see the CSV ranges.
+
+Fallback costs are measured too. At period 256 and 10000 samples, exact
+orthogonal ±1 axes take 245→252 ms on JavaScript; scaling both axes by 1e-20
+takes 191→195 ms. Rejected caches retry their compensated rebuild at the next
+logical wrap, avoiding a failed rebuild before every fresh output. These cases
+retain linear window scans and can remain slower than the original calculation.
+
+Each cache adds constant scalar metadata to its existing O(period) ring.
+Ordinary safe updates do fixed work; periodic refreshes and guarded fallbacks
+can scan the window. Near-zero covariance or unsafe normalization products
+select fresh paired output, so weakly correlated and extreme-scale inputs can
+retain linear work per update. The shared conservative guard applies to BETA
+as well as CORREL. The [statistical contracts](../docs/overlap-statistics.md)
+describe precision and fallback behavior. These synthetic measurements establish
+no universal speedup or error bound, and no GPU/parallel performance claim.

@@ -1,6 +1,5 @@
 import Base
 import ./bar.bend as Bar
-import ./window.bend as Window
 import ./ma.bend as Ma
 import ./rolling_average.bend as Average
 import ./moments.bend as Moments
@@ -13,7 +12,7 @@ type Factors<-N: Data> is Data:
 
 
 type State<-N: Data> is Type:
-  Squeeze{box: Box.Box<N>, bands: Window.State<N>, center: Average.State<N>, range: Average.State<N>, regression: Average.State<N>, previous: Maybe<&2, N>, factors: Factors<N>}
+  Squeeze{box: Box.Box<N>, bands: Moments.Cached<N>, center: Average.State<N>, range: Average.State<N>, regression: Average.State<N>, previous: Maybe<&2, N>, factors: Factors<N>}
 
 
 type Value<-N: Data> is Data:
@@ -21,7 +20,7 @@ type Value<-N: Data> is Data:
 
 
 def init(~N: Data, ~from: U32 -> N, +bb: U32, +kc: U32, deviations: N, wide: N, normal: N, narrow: N) -> State<N>:
-  Squeeze{Box.box.init(~N, ~from, kc, Ma.buffer_depth(kc)), Window.init(~N, bb, Ma.buffer_depth(bb), from(0)), Average.init(~N, ~from, kc, Ma.buffer_depth(kc), 0), Average.init(~N, ~from, kc, Ma.buffer_depth(kc), 0), Stats.regress.init(~N, ~from, kc, Ma.buffer_depth(kc)), None{}, Factors{deviations, wide, normal, narrow}}
+  Squeeze{Box.box.init(~N, ~from, kc, Ma.buffer_depth(kc)), Moments.cached.init(~N, ~from, bb, Ma.buffer_depth(bb)), Average.init(~N, ~from, kc, Ma.buffer_depth(kc), 0), Average.init(~N, ~from, kc, Ma.buffer_depth(kc), 0), Stats.regress.init(~N, ~from, kc, Ma.buffer_depth(kc)), None{}, Factors{deviations, wide, normal, narrow}}
 
 
 def inside(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~lt: N -> N -> Bool, +center: N, +range: N, lower: N, upper: N, +factor: N) -> Bool:
@@ -43,7 +42,7 @@ def value(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~lt
       SqueezeValue{momentum, Bool.and(Bool.not(in_wide), out), level}
 
 
-def emitted(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~lt: N -> N -> Bool, ~sqrt: N -> N, box: Box.Box<N>, bands: Window.State<N>, center: Average.State<N>, range: Average.State<N>, previous: Maybe<&2, N>, +factors: Factors<N>, +kc: N, result: Average.State<N> & Maybe<&2, Stats.Regression<N>>, bb: Maybe<&2, Moments.Value<N>>, tr: Maybe<&2, N>) -> State<N> & Maybe<&2, Value<N>>:
+def emitted(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~lt: N -> N -> Bool, ~sqrt: N -> N, box: Box.Box<N>, bands: Moments.Cached<N>, center: Average.State<N>, range: Average.State<N>, previous: Maybe<&2, N>, +factors: Factors<N>, +kc: N, result: Average.State<N> & Maybe<&2, Stats.Regression<N>>, bb: Maybe<&2, Moments.Value<N>>, tr: Maybe<&2, N>) -> State<N> & Maybe<&2, Value<N>>:
   match result bb tr:
     case (regression, Some{Stats.Regression{intercept, slope, endpoint, forecast}}) Some{moments} Some{span}: (Squeeze{box, bands, center, range, regression, previous, factors}, Some{value(~N, ~add, ~sub, ~mul, ~lt, ~sqrt, factors, moments, kc, span, endpoint)})
     case (regression, _) _ _: (Squeeze{box, bands, center, range, regression, previous, factors}, None{})
@@ -73,11 +72,11 @@ def range.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N
     case (previous, Some{value}): range.emitted(~N, previous, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, range, value))
 
 
-def ranged(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~lt: N -> N -> Bool, ~sqrt: N -> N, ~abs: N -> N, box: Box.Box<N>, bands: Window.State<N>, center: Average.State<N>, regression: Average.State<N>, factors: Factors<N>, result: Maybe<&2, N> & Average.State<N> & Maybe<&2, N>, +bar: Bar.HLC<N>) -> State<N> & Maybe<&2, Value<N>>:
+def ranged(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~le: N -> N -> Bool, ~lt: N -> N -> Bool, ~sqrt: N -> N, ~abs: N -> N, box: Box.Box<N>, bands: Moments.Cached<N>, center: Average.State<N>, regression: Average.State<N>, factors: Factors<N>, result: Maybe<&2, N> & Average.State<N> & Maybe<&2, N>, +bar: Bar.HLC<N>) -> State<N> & Maybe<&2, Value<N>>:
   match result bar:
     case (previous, range, tr) Bar.HLC{high, low, +price}:
       with(~N, ~Box.Box<N>, ~Box.Bounds<N>, Box.box.next(~N, ~(x => y => le(y, x)), ~le, box, bar), box => bounds =>
-        with(~N, ~Window.State<N>, ~Moments.Value<N>, Moments.next(~N, ~from, ~add, ~sub, ~mul, ~div, bands, price), bands => bb =>
+        with(~N, ~Moments.Cached<N>, ~Moments.Value<N>, Moments.cached.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, bands, price), bands => bb =>
           with(~N, ~Average.State<N>, ~N, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, center, price), center => kc =>
             ready(~N, ~from, ~add, ~sub, ~mul, ~div, ~lt, ~sqrt, ~abs, ~le, Squeeze{box, bands, center, range, regression, previous, factors}, price, bounds, kc, bb, tr))))
 

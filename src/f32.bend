@@ -1812,16 +1812,16 @@ def AVGDEV.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error,
   Series.initialized(~F32, ~F32, ~AVGDEV.State(), ~Params.Error, ~AVGDEV.next, xs, AVGDEV.init(period))
 
 def STDDEV.State() -> Type:
-  Statistics.ParameterWindow<F32>
+  Statistics.Standard<F32>
 
 def parameters.STDDEV(+period: U32, +factor: F32) -> Bool:
   Bool.and(overlap.valid(period, 2), Bool.and(is_finite(factor), F32.is_le(F32.abs(factor), 3.0e37)))
 
 def STDDEV.init(+period: U32, +factor: F32) -> Result<&2, &1, Params.Error, STDDEV.State()>:
-  overlap.init(~STDDEV.State(), parameters.STDDEV(period, factor), u => Statistics.ParameterWindow{overlap.window(period), factor})
+  overlap.init(~STDDEV.State(), parameters.STDDEV(period, factor), u => Statistics.Standard{Stats.cached.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)), factor})
 
 def STDDEV.next(state: STDDEV.State(), price: F32) -> STDDEV.State() & Maybe<&2, F32>:
-  Statistics.standard.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, state, price)
+  Statistics.standard.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.abs, ~F32.is_le, state, price)
 
 def STDDEV.batch(xs: List<&2, F32>, period: U32, factor: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~STDDEV.State(), ~Params.Error, ~STDDEV.next, xs, STDDEV.init(period, factor))
@@ -3119,28 +3119,28 @@ def KVO.batch(xs: List<&2, Bars.HLCV<F32>>, fast: U32, slow: U32, signal: U32) -
   Series.initialized(~Bars.HLCV<F32>, ~KVO.Value(), ~KVO.State(), ~Params.Error, ~KVO.next, xs, KVO.init(fast, slow, signal))
 
 def VAR.State() -> Type:
-  Win.State<F32>
+  Stats.Cached<F32>
 
 def parameters.VAR(+period: U32, +factor: F32) -> Bool:
   Bool.and(overlap.valid(period, 1), Bool.and(is_finite(factor), F32.is_le(F32.abs(factor), 3.0e37)))
 
 def VAR.init(+period: U32, +factor: F32) -> Result<&2, &1, Params.Error, VAR.State()>:
-  overlap.init(~VAR.State(), parameters.VAR(period, factor), u => overlap.window(period))
+  overlap.init(~VAR.State(), parameters.VAR(period, factor), u => Stats.cached.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)))
 
 def VAR.next(state: VAR.State(), value: F32) -> VAR.State() & Maybe<&2, F32>:
-  overlap.project(~VAR.State(), ~Stats.Value<F32>, ~F32, ~(v => StatWindow.variance(~F32, v)), Stats.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, value))
+  overlap.project(~VAR.State(), ~Stats.Value<F32>, ~F32, ~(v => StatWindow.variance(~F32, v)), Stats.cached.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, value))
 
 def VAR.batch(xs: List<&2, F32>, period: U32, factor: F32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~VAR.State(), ~Params.Error, ~VAR.next, xs, VAR.init(period, factor))
 
 def CORREL.State() -> Type:
-  Win.State<StatWindow.PairValue<F32>>
+  StatWindow.PairCached<F32>
 
 def CORREL.init(+period: U32) -> Result<&2, &1, Params.Error, CORREL.State()>:
-  overlap.init(~CORREL.State(), overlap.valid(period, 1), u => StatWindow.pair.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)))
+  overlap.init(~CORREL.State(), overlap.valid(period, 1), u => StatWindow.pair.cached.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)))
 
 def CORREL.next(state: CORREL.State(), value: PairValue()) -> CORREL.State() & Maybe<&2, F32>:
-  StatWindow.pair.project(~F32, ~(v => StatWindow.correl.ratio(~F32, ~U32.to_f32, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.min, ~F32.max, ~F32.is_gt, v)), StatWindow.pair.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state, value))
+  StatWindow.pair.cached.project(~F32, ~(v => StatWindow.correl.ratio(~F32, ~U32.to_f32, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.min, ~F32.max, ~F32.is_gt, v)), StatWindow.pair.cached.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_le, state, value))
 
 def CORREL.batch(xs: List<&2, PairValue()>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~PairValue(), ~F32, ~CORREL.State(), ~Params.Error, ~CORREL.next, xs, CORREL.init(period))
@@ -3152,7 +3152,7 @@ def BETA.init(+period: U32) -> Result<&2, &1, Params.Error, BETA.State()>:
   overlap.init(~BETA.State(), overlap.valid(period, 1), u => StatWindow.beta.init(~F32, ~U32.to_f32, period, Ma.buffer_depth(period)))
 
 def BETA.next(state: BETA.State(), value: PairValue()) -> BETA.State() & Maybe<&2, F32>:
-  StatWindow.beta.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.is_gt, state, value)
+  StatWindow.beta.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.is_eq, ~F32.is_gt, ~F32.is_le, state, value)
 
 def BETA.batch(xs: List<&2, PairValue()>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~PairValue(), ~F32, ~BETA.State(), ~Params.Error, ~BETA.next, xs, BETA.init(period))
@@ -3197,7 +3197,7 @@ def RVI.init(+period: U32, +deviation_period: U32) -> Result<&2, &1, Params.Erro
   overlap.init(~RVI.State(), parameters.RVI(period, deviation_period), u => VolWindow.rvi.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
 
 def RVI.next(state: RVI.State(), value: F32) -> RVI.State() & Maybe<&2, F32>:
-  VolWindow.rvi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, state, value)
+  VolWindow.rvi.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, ~F32.abs, ~F32.is_le, state, value)
 
 def RVI.batch(xs: List<&2, F32>, period: U32, deviation_period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~RVI.State(), ~Params.Error, ~RVI.next, xs, RVI.init(period, deviation_period))
@@ -3212,7 +3212,7 @@ def RVIR.init(+period: U32, +deviation_period: U32) -> Result<&2, &1, Params.Err
   overlap.init(~RVIR.State(), parameters.RVIR(period, deviation_period), u => VolWindow.rvir.init(~F32, ~U32.to_f32, ~F32.div, period, deviation_period, Ma.buffer_depth(deviation_period)))
 
 def RVIR.next(state: RVIR.State(), value: Bars.HL<F32>) -> RVIR.State() & Maybe<&2, F32>:
-  VolWindow.rvir.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, state, value)
+  VolWindow.rvir.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sqrt, ~F32.is_eq, ~F32.is_gt, ~F32.abs, ~F32.is_le, state, value)
 
 def RVIR.batch(xs: List<&2, Bars.HL<F32>>, period: U32, deviation_period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~Bars.HL<F32>, ~F32, ~RVIR.State(), ~Params.Error, ~RVIR.next, xs, RVIR.init(period, deviation_period))
@@ -4449,7 +4449,7 @@ def AVGDEV.clone(state: AVGDEV.State()) -> AVGDEV.State() & AVGDEV.State():
   Clone.window(~F32, state)
 
 def STDDEV.clone(state: STDDEV.State()) -> STDDEV.State() & STDDEV.State():
-  Clone.statistics.parameterwindow(~F32, state)
+  Clone.statistics.standard(~F32, state)
 
 def PERCENTILE.clone(state: PERCENTILE.State()) -> PERCENTILE.State() & PERCENTILE.State():
   Clone.statistics.parameterwindow(~F32, state)
@@ -4695,10 +4695,10 @@ def KVO.clone(state: KVO.State()) -> KVO.State() & KVO.State():
   Clone.data(~VolumeFilter.Kvo<F32>, state)
 
 def VAR.clone(state: VAR.State()) -> VAR.State() & VAR.State():
-  Clone.window(~F32, state)
+  Clone.moments(~F32, state)
 
 def CORREL.clone(state: CORREL.State()) -> CORREL.State() & CORREL.State():
-  Clone.window(~StatWindow.PairValue<F32>, state)
+  Clone.statistics_window.pair(~F32, state)
 
 def BETA.clone(state: BETA.State()) -> BETA.State() & BETA.State():
   Clone.statistics_window.beta(~F32, state)

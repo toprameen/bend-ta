@@ -9,6 +9,7 @@ import ./extrema_queue.bend as ExtremaQueue
 import ./hikkake.bend as Hikkake
 import ./hilbert.bend as Hilbert
 import ./ma.bend as Ma
+import ./moments.bend as Moments
 import ./momentum.bend as Momentum
 import ./momentum_composite.bend as MomentumComposite
 import ./momentum_market.bend as MomentumMarket
@@ -189,6 +190,18 @@ def statistics.extremes(~N: Data, value: Statistics.Extremes<N>) -> Statistics.E
       pair(~ExtremaQueue.State<N>, ~(Statistics.Extremes<N> & Statistics.Extremes<N>), extrema_queue(~N, x_range), x_range_a => x_range_b =>
         (Statistics.Extremes{x_range_a, x_seen}, Statistics.Extremes{x_range_b, x_seen}))
 
+def moments(~N: Data, value: Moments.Cached<N>) -> Moments.Cached<N> & Moments.Cached<N>:
+  match value:
+    case Moments.Cached{x_window, +x_cache}:
+      pair(~Window.State<N>, ~(Moments.Cached<N> & Moments.Cached<N>), window(~N, x_window), a => b =>
+        (Moments.Cached{a, x_cache}, Moments.Cached{b, x_cache}))
+
+def statistics.standard(~N: Data, value: Statistics.Standard<N>) -> Statistics.Standard<N> & Statistics.Standard<N>:
+  match value:
+    case Statistics.Standard{x_moments, +x_factor}:
+      pair(~Moments.Cached<N>, ~(Statistics.Standard<N> & Statistics.Standard<N>), moments(~N, x_moments), a => b =>
+        (Statistics.Standard{a, x_factor}, Statistics.Standard{b, x_factor}))
+
 def statistics.parameterwindow(~N: Data, value: Statistics.ParameterWindow<N>) -> Statistics.ParameterWindow<N> & Statistics.ParameterWindow<N>:
   match value:
     case Statistics.ParameterWindow{x_window, +x_parameter}:
@@ -199,7 +212,7 @@ def overlap.bollinger(~N: Data, value: Overlap.Bollinger<N>) -> Overlap.Bollinge
   match value:
     case Overlap.Bollinger{x_average, x_moments, +x_up, +x_down, +x_kind}:
       pair(~Ma.State<N>, ~(Overlap.Bollinger<N> & Overlap.Bollinger<N>), ma(~N, x_average), x_average_a => x_average_b =>
-        pair(~Window.State<N>, ~(Overlap.Bollinger<N> & Overlap.Bollinger<N>), window(~N, x_moments), x_moments_a => x_moments_b =>
+        pair(~Moments.Cached<N>, ~(Overlap.Bollinger<N> & Overlap.Bollinger<N>), moments(~N, x_moments), x_moments_a => x_moments_b =>
           (Overlap.Bollinger{x_average_a, x_moments_a, x_up, x_down, x_kind}, Overlap.Bollinger{x_average_b, x_moments_b, x_up, x_down, x_kind})))
 
 def overlap.acceleration(~N: Data, value: Overlap.Acceleration<N>) -> Overlap.Acceleration<N> & Overlap.Acceleration<N>:
@@ -486,16 +499,22 @@ def squeeze(~N: Data, value: Squeeze.State<N>) -> Squeeze.State<N> & Squeeze.Sta
   match value:
     case Squeeze.Squeeze{x_box, x_bands, x_center, x_range, x_regression, +x_previous, +x_factors}:
       pair(~MomentumWindow.Box<N>, ~(Squeeze.State<N> & Squeeze.State<N>), momentum_window.box(~N, x_box), x_box_a => x_box_b =>
-        pair(~Window.State<N>, ~(Squeeze.State<N> & Squeeze.State<N>), window(~N, x_bands), x_bands_a => x_bands_b =>
+        pair(~Moments.Cached<N>, ~(Squeeze.State<N> & Squeeze.State<N>), moments(~N, x_bands), x_bands_a => x_bands_b =>
           pair(~RollingAverage.State<N>, ~(Squeeze.State<N> & Squeeze.State<N>), rolling_average(~N, x_center), x_center_a => x_center_b =>
             pair(~RollingAverage.State<N>, ~(Squeeze.State<N> & Squeeze.State<N>), rolling_average(~N, x_range), x_range_a => x_range_b =>
               pair(~RollingAverage.State<N>, ~(Squeeze.State<N> & Squeeze.State<N>), rolling_average(~N, x_regression), x_regression_a => x_regression_b =>
                 (Squeeze.Squeeze{x_box_a, x_bands_a, x_center_a, x_range_a, x_regression_a, x_previous, x_factors}, Squeeze.Squeeze{x_box_b, x_bands_b, x_center_b, x_range_b, x_regression_b, x_previous, x_factors}))))))
 
+def statistics_window.pair(~N: Data, value: StatisticsWindow.PairCached<N>) -> StatisticsWindow.PairCached<N> & StatisticsWindow.PairCached<N>:
+  match value:
+    case StatisticsWindow.PairCached{x_window, +x_cache}:
+      pair(~Window.State<StatisticsWindow.PairValue<N>>, ~(StatisticsWindow.PairCached<N> & StatisticsWindow.PairCached<N>), window(~StatisticsWindow.PairValue<N>, x_window), a => b =>
+        (StatisticsWindow.PairCached{a, x_cache}, StatisticsWindow.PairCached{b, x_cache}))
+
 def statistics_window.beta(~N: Data, value: StatisticsWindow.Beta<N>) -> StatisticsWindow.Beta<N> & StatisticsWindow.Beta<N>:
   match value:
     case StatisticsWindow.Beta{+x_previous, x_window}:
-      pair(~Window.State<StatisticsWindow.PairValue<N>>, ~(StatisticsWindow.Beta<N> & StatisticsWindow.Beta<N>), window(~StatisticsWindow.PairValue<N>, x_window), x_window_a => x_window_b =>
+      pair(~StatisticsWindow.PairCached<N>, ~(StatisticsWindow.Beta<N> & StatisticsWindow.Beta<N>), statistics_window.pair(~N, x_window), x_window_a => x_window_b =>
         (StatisticsWindow.Beta{x_previous, x_window_a}, StatisticsWindow.Beta{x_previous, x_window_b}))
 
 def volatility_window.rogerssatchell(~N: Data, value: VolatilityWindow.RogersSatchell<N>) -> VolatilityWindow.RogersSatchell<N> & VolatilityWindow.RogersSatchell<N>:
@@ -507,7 +526,7 @@ def volatility_window.rogerssatchell(~N: Data, value: VolatilityWindow.RogersSat
 def volatility_window.rvi(~N: Data, value: VolatilityWindow.Rvi<N>) -> VolatilityWindow.Rvi<N> & VolatilityWindow.Rvi<N>:
   match value:
     case VolatilityWindow.Rvi{x_window, +x_previous, +x_up, +x_down}:
-      pair(~Window.State<N>, ~(VolatilityWindow.Rvi<N> & VolatilityWindow.Rvi<N>), window(~N, x_window), x_window_a => x_window_b =>
+      pair(~Moments.Cached<N>, ~(VolatilityWindow.Rvi<N> & VolatilityWindow.Rvi<N>), moments(~N, x_window), x_window_a => x_window_b =>
         (VolatilityWindow.Rvi{x_window_a, x_previous, x_up, x_down}, VolatilityWindow.Rvi{x_window_b, x_previous, x_up, x_down}))
 
 def volatility_window.rvir(~N: Data, value: VolatilityWindow.Rvir<N>) -> VolatilityWindow.Rvir<N> & VolatilityWindow.Rvir<N>:
