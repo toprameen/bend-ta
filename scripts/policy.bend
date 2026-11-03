@@ -12,6 +12,13 @@ def allowed(+file: String) -> Bool:
     Bool.or(suffixes([".bend", ".md", ".yml", ".yaml", ".json", ".csv", ".tsv", ".txt"], file),
       List.contains(~String, ~String.eq, [".gitignore", ".gitattributes", ".editorconfig", "LICENSE", "NOTICE", ".github/CODEOWNERS"], file)))
 
+def source_entry(file: String) -> Bool:
+  Bool.not(String.eq(file, "LAWS.bend"))
+
+def proof_files(+files: List<&2, String>) -> Bool:
+  Bool.and(List.contains(~String, ~String.eq, files, "LAWS.bend"),
+    List.contains(~String, ~String.eq, files, "PROOF.bend"))
+
 # A small lexical check for quoted foreign imports, excluding comments and
 # string/character contents. Full syntax/type validation belongs to Bend.
 type Scanner is Data:

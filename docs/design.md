@@ -46,6 +46,8 @@ The first complete window is included in both outputs.
 
 The [state guide](state.md) specifies checked lookbacks, independent cloning
 and noncommitting previews across the named interfaces.
+The [proof contracts](laws.md) identify the structural guarantees checked by
+`LAWS.bend` and `PROOF.bend`, alongside numerical reference tests.
 
 ## Owned rolling storage
 

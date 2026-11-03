@@ -24,11 +24,17 @@ facades must instantiate that core instead of copying indicator algorithms.
   coefficients and input data as ordinary runtime arguments.
 - Keep initialization, warm-up, output alignment and batch/stream semantics
   common across precisions. Floating-point associativity is not a valid law.
+- Define applicable laws before changing behavior when feasible. `LAWS.bend`
+  holds maintainer-approved contracts; `PROOF.bend` completes them using the
+  shared lemmas in `proofs/`. Do not weaken statements, preconditions or reference
+  predicates to make an implementation pass without an explicit maintainer
+  decision. Preserve numerical tests and benchmarks alongside proofs.
 - Arrays are owned and their capacity is a power of two. Hide capacity and
   wrapping inside the rolling module; callers supply a period, not a depth.
 - Add indicators only with specified initialization and reference examples.
   F64 is planned; do not invent a working F64 facade before a backend exists.
 - Run `bend scripts/check_repo.bend` and `bend scripts/test.bend`.
+  Run `bend PROOF.bend --verdict` with Lean 4.34.0 for the independent proof check.
   Run `bend scripts/test.bend -- --js` for native and JavaScript checks.
   `BEND` selects the compiler; `BEND_JS` selects the optional JS runtime.
   Tests use trailing `#|` output. Exercise runner/gate failures when changing them.

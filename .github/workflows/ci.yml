@@ -17,7 +17,7 @@ jobs:
   bend-ci:
     name: Bend-only and tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       BEND_NO_TELEMETRY: "1"
       BEND_JS: node
@@ -39,5 +39,15 @@ jobs:
           echo "$RUNNER_TEMP/bend/bin" >> "$GITHUB_PATH"
       - name: Bend-only policy and source checks
         run: bend scripts/check_repo.bend
+      - name: Install verified Lean 4.34.0
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/lean.tar.zst" \
+            https://github.com/leanprover/lean4/releases/download/v4.34.0/lean-4.34.0-linux.tar.zst
+          printf '%s  %s\n' caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b "$RUNNER_TEMP/lean.tar.zst" | sha256sum --check
+          tar --zstd -xf "$RUNNER_TEMP/lean.tar.zst" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/lean-4.34.0-linux/bin" >> "$GITHUB_PATH"
+      - name: Independent proof verification
+        run: bend PROOF.bend --verdict
       - name: Native and JavaScript fixtures
         run: bend scripts/test.bend -- --js

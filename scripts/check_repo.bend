@@ -38,12 +38,19 @@ def ordinary(+root: String, files: List<&2, String>) -> IO(Result<String, Unit>)
     ["(", "-type", "l", "-o", "(", "-type", "f", "!", "-name", "*.bend", "(", "-perm", "-100", "-o", "-perm", "-010", "-o", "-perm", "-001", ")", ")", ")", "-print0"])),
     out => special.result(out))
 
-def source.check(+bend: String, path: String, file: String, clean: Bool) -> IO(Result<String, Unit>):
+def source.entry(bend: String, path: String, standalone: Bool) -> IO(Result<String, Unit>):
+  match standalone:
+    case False{}:
+      Tool.done(Unit, Unit{})
+    case True{}:
+      Tool.bind(String, Unit, Tool.command(bend, [path, "--check-only"]), out => Tool.done(Unit, Unit{}))
+
+def source.check(bend: String, path: String, +file: String, clean: Bool) -> IO(Result<String, Unit>):
   match clean:
     case False{}:
       Tool.fail(Unit, "Bend-only policy: quoted foreign import in " ++ file)
     case True{}:
-      Tool.bind(String, Unit, Tool.command(bend, [path, "--check-only"]), out => Tool.done(Unit, Unit{}))
+      source.entry(bend, path, Policy.source_entry(file))
 
 def source(+root: String, bend: String, +file: String) -> IO(Result<String, Unit>):
   +path = root ++ "/" ++ file
@@ -74,10 +81,17 @@ def modules(root: String) -> IO(Result<String, Unit>):
   Tool.bind(String, Unit, Tool.command("git", ["-C", root, "ls-files", "--stage", "-z"]), out =>
     modules.result(List.any(~&2, ~String, ~(s => String.starts_with(s, "160000 ")), Tool.fields(out))))
 
-def check(+root: String, bend: String, +files: List<&2, String>) -> IO(Result<String, Unit>):
-  Tool.then(Unit, Unit, validate.paths(files), u =>
-    Tool.bind(Unit, Unit, modules(root), v =>
-      Tool.bind(Unit, Unit, ordinary(root, files), w => inspect(files, root, bend))))
+def check.files(+root: String, bend: String, +files: List<&2, String>, proofs: Bool) -> IO(Result<String, Unit>):
+  match proofs:
+    case False{}:
+      Tool.fail(Unit, "Bend proof policy: LAWS.bend and PROOF.bend are required")
+    case True{}:
+      Tool.then(Unit, Unit, validate.paths(files), u =>
+        Tool.bind(Unit, Unit, modules(root), v =>
+          Tool.bind(Unit, Unit, ordinary(root, files), w => inspect(files, root, bend))))
+
+def check(root: String, bend: String, +files: List<&2, String>) -> IO(Result<String, Unit>):
+  check.files(root, bend, files, Policy.proof_files(files))
 
 def start.root(bend: String, +root: String) -> IO(Result<String, Unit>):
   Tool.bind(List<&2, String>, Unit, Tool.files(root), files => check(root, bend, files))

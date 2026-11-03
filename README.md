@@ -72,6 +72,7 @@ and the contribution workflow. Run checks from the repository root:
 
 ```sh
 bend scripts/check_repo.bend    # enforce the source policy and type-check Bend
+bend PROOF.bend --verdict       # verify contracts with the independent kernel
 bend scripts/test.bend          # compile and execute native tests
 bend scripts/test.bend -- --js  # also test emitted JavaScript
 ```
@@ -80,6 +81,10 @@ The [design guide](docs/design.md) explains numeric templates and typed bindings
 the [shared foundation](docs/foundation.md) describes windows, ownership and
 stream traversal. Keep algorithms in `src/core/` and concrete numeric bindings
 in `src/f32.bend`.
+
+[Bend laws](docs/laws.md) specify shared structural and state contracts alongside
+the numerical tests. Proofs cover their stated properties and assumptions;
+reference fixtures and backend checks remain necessary for numerical behavior.
 
 For repeatable performance measurements, see the [rolling benchmarks](benchmarks/README.md).
 
