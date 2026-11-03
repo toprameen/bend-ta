@@ -5,8 +5,9 @@
 Indicator algorithms and recognizer predicates are derived from the pinned
 [TA-Lib source](https://github.com/TA-Lib/ta-lib/tree/ccd3172940ed1d9daa4e7197f2265810852e8910).
 The catalog links each authored algorithm and its contributors. Retain this
-notice when distributing the derived implementation. This notice does not
-select a license for the rest of bend-ta.
+notice when distributing the derived implementation. These portions retain the
+BSD 3-Clause terms below. Original contributions to bend-ta are licensed under
+the [Apache License 2.0](LICENSE).
 
 Copyright (c) 1999-2026, Mario Fortier
 

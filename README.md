@@ -83,4 +83,12 @@ in `src/f32.bend`.
 
 For repeatable performance measurements, see the [rolling benchmarks](benchmarks/README.md).
 
-See [third-party notices](THIRD_PARTY_NOTICES.md) for reference-source attribution.
+## License
+
+Original contributions to bend-ta are licensed under the
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for copyright and attribution
+information.
+
+TA-Lib-derived portions retain their BSD 3-Clause terms; see
+[third-party notices](THIRD_PARTY_NOTICES.md) for the full notice and
+reference-source attribution.

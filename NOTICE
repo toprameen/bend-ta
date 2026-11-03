@@ -1,0 +1,9 @@
+bend-ta
+Copyright 2026 toprameen and bend-ta contributors
+
+Original contributions to bend-ta are licensed under the Apache License,
+Version 2.0. See LICENSE for the full license text.
+
+Indicator algorithms and recognizer predicates include portions derived from
+TA-Lib. Those portions retain their BSD 3-Clause terms and copyright notices
+in THIRD_PARTY_NOTICES.md.
