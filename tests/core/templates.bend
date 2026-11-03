@@ -11,6 +11,7 @@ import ../../src/core/change.bend as Change
 import ../../src/core/transform.bend as Transform
 import ../../src/core/bar.bend as Bar
 import ../../src/core/vidya.bend as Vidya
+import ../../src/core/statistics_window.bend as Pair
 
 type Number is Data:
   Number{value: F32, marker: U32}
@@ -84,6 +85,13 @@ def abs(value: Number) -> Number:
 def vidya_step(state: Vidya.State<Number>, price: Number) -> Vidya.State<Number> & Maybe<&2, Number>:
   Vidya.next(~Number, ~from_u32, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price)
 
+def cached(state: Moments.Cached<Number>, value: Number) -> Moments.Cached<Number> & Maybe<&2, Moments.Value<Number>>:
+  Moments.cached.next(~Number, ~from_u32, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, value)
+
+def paired(state: Pair.PairCached<Number>, value: Number) -> Pair.PairCached<Number> & Maybe<&2, Number>:
+  +value = value
+  Pair.pair.cached.project(~Number, ~(v => Pair.beta.ratio(~Number, ~from_u32, ~div, ~(a => b => Bool.not(le(a, b))), v)), Pair.pair.cached.next(~Number, ~from_u32, ~add, ~sub, ~mul, ~div, ~le, state, Pair.PairValue{value, mul(from_u32(2), value)}))
+
 def queued(state: Queue.State<Number>, price: Number) -> Queue.State<Number> & Maybe<&2, Queue.Value<Number>>:
   +value = price
   Queue.next(~Number, ~le, ~(a => b => le(b, a)), state, value, value)
@@ -101,6 +109,8 @@ def main() -> IO(Unit):
     IO.print(number(Transform.ibs(~Number, ~from_u32, ~sub, ~div, ~le, Bar.HLC{from_u32(8), from_u32(0), from_u32(6)})))
     IO.print(show(Series.batch(~Number, ~Number, ~Vidya.State<Number>, ~vidya_step, [from_u32(1), from_u32(2), from_u32(4), from_u32(4)], Vidya.init(~Number, ~from_u32, ~div, 3, 2, 1n))))
     IO.print(List.show(~&2, ~Maybe<&2, Queue.Value<Number>>, ~(v => Maybe.show(~&2, ~Queue.Value<Number>, ~queued_value, v)), Series.batch(~Number, ~Queue.Value<Number>, ~Queue.State<Number>, ~queued, [from_u32(3), from_u32(6), from_u32(6), from_u32(1), from_u32(9), from_u32(0), from_u32(2)], Queue.init(~Number, ~from_u32, 3, 2n))))
+    IO.print(List.show(~&2, ~Maybe<&2, Moments.Value<Number>>, ~moments_show, Series.batch(~Number, ~Moments.Value<Number>, ~Moments.Cached<Number>, ~cached, [from_u32(3), from_u32(6), from_u32(9), from_u32(12)], Moments.cached.init(~Number, ~from_u32, 3, 2n))))
+    IO.print(show(Series.batch(~Number, ~Number, ~Pair.PairCached<Number>, ~paired, [from_u32(3), from_u32(6), from_u32(9), from_u32(12)], Pair.pair.cached.init(~Number, ~from_u32, 3, 2n))))
 
 #|[None, None, Some(6:77), Some(10.5:77)]
 #|[None, None, Some(6:77), Some(9:77), Some(12:77)]
@@ -110,3 +120,6 @@ def main() -> IO(Unit):
 #|[None, None, Some(2.75:77), Some(3.375:77)]
 
 #|[None, None, Some(3:77/6:77), Some(1:77/6:77), Some(1:77/9:77), Some(0:77/9:77), Some(0:77/9:77)]
+
+#|[None, None, Some(6:77/6:77), Some(9:77/6:77)]
+#|[None, None, Some(2:77), Some(2:77)]
