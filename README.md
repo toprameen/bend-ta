@@ -4,8 +4,7 @@ F32 technical analysis in Bend for streaming and batch calculations.
 
 ## Use
 
-This example imports `src/f32.bend` from a file in the repository root.
-Adjust the relative path to match your project.
+Import the [F32 API](src/f32.bend) using a path relative to your Bend file.
 
 ```bend
 import Base
@@ -18,16 +17,10 @@ def averages() -> Result<&2, &2, TA.Error(), List<&2, Maybe<&2, F32>>>:
 The result is `Done{[None{}, None{}, Some{6.0}, Some{9.0}]}`. `None` marks
 warm-up. An invalid period returns `Fail`.
 
-Run `bend examples/moving_averages.bend` from the repository root to try
-the [moving-average example](examples/moving_averages.bend).
+Run `bend examples/moving_averages.bend` from the repository root.
 
 Use `init` and `next` for streaming, passing the returned state into each
-update. `batch` runs the same updates and returns one slot per observation.
-Stateless transforms operate directly on observations.
-
-## Indicator reference
-
-See the [F32 facade](src/f32.bend) for signatures.
+update. `batch` returns one slot per observation.
 
 ## Data and arithmetic
 
@@ -37,9 +30,7 @@ F32 arithmetic can overflow or round away small changes.
 
 ## Develop
 
-Library code, tests, and tooling are written in Bend. See the
-[contributor guide](CONTRIBUTING.md) for setup and checks and the
-[benchmarks](benchmarks/README.md) for measurements.
+See the [contributor guide](CONTRIBUTING.md) and [benchmarks](benchmarks/README.md).
 
 ## License
 
