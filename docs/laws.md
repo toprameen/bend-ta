@@ -15,10 +15,8 @@ independent of these files. Numerical tests and benchmarks complement the proofs
 | Configuration | SMA/EMA accept periods from 1 through 2^30, preserve the requested configuration and reject other periods. |
 | Warm-up and lookback | SMA/EMA first emit after their reported initial warm-up; EMA's period-one startup and live updates return the input unchanged. |
 
-The statements specify source-level behavior. Read their quantifiers,
-preconditions and reference predicates for exact scope. A theorem about a shared
-helper does not certify every facade binding automatically. Named clone/preview
-coverage is explicit; other indicators retain their existing state tests.
+The statements' quantifiers, preconditions, and reference predicates define
+their scope. The table names the facade bindings covered directly.
 
 The window history model takes observations newest first and replays the older
 tail before each newer head. Its configuration requires a period from 1 through
@@ -57,13 +55,8 @@ The supporting list, natural-number and U32 facts come from
 runtime library continues to use Base directly. Repository-owned proofs and
 checks are Bend.
 
-Run these from the repository root:
-
-```sh
-bend scripts/check_repo.bend
-bend PROOF.bend --verdict
-bend scripts/test.bend -- --js
-```
+Run `bend PROOF.bend --verdict` from the repository root. See
+[local checks](../CONTRIBUTING.md#local-checks) for setup and the full check suite.
 
 The policy gate requires both root files and checks their completed declarations
 through `PROOF.bend`. It still scans `LAWS.bend` for forbidden foreign imports;
@@ -71,14 +64,10 @@ only its standalone type check is exempted. Other proof modules must be complete
 and check independently. The compiler also rejects a sibling `PROOF.bend` that
 does not import `LAWS.bend`.
 
-Ordinary checking validates the Bend proof terms. `--verdict` additionally checks
-their translation with BendTT's independent kernel. Its toolchain requirement is
-documented in [CONTRIBUTING.md](../CONTRIBUTING.md). Kernel acceptance concerns the
-translated source semantics; parser, translation and compiled backend correctness
-are additional trust boundaries.
+Ordinary checking validates Bend proof terms. `--verdict` also checks their
+translation with BendTT's independent kernel. Kernel acceptance covers the
+translated source semantics. It still relies on correct parsing and translation,
+and compiled behavior is exercised separately by the backend tests.
 
-Treat law statements and their reference predicates as maintained specifications.
-An implementation must satisfy them; changing their meaning or preconditions
-requires an explicit maintainer decision. Check that a new law rejects a relevant
-defect in a temporary copy. A passing proof establishes its statement, so review
-the statement's meaning as carefully as its implementation.
+Review each law's statement and reference predicates alongside its proof. See
+the [contributor policy](../CONTRIBUTING.md#laws-and-proofs) for changing contracts.

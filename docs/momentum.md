@@ -1,29 +1,14 @@
 # Momentum and directional indicators
 
-The F32 facade binds the shared momentum and directional algorithms. The
-common initialization recipes live in
-`core/momentum_init.bend`. The facade validates configuration and binds numeric
-operations and MA construction. Inputs and periods are runtime values. All functions expose
-`State()`, `init(parameters...)`, `next(state, observation)` and
-`batch(observations, parameters...)`. Batch uses the same transition as streaming;
-retain the returned owned state to continue a stream. Every input has one aligned
-output slot. `None` means warm-up. Finite observations in arrival order are the
-input contract; no implicit sorting, missing-bar handling or OHLC validation occurs.
-
-New configurations return `Momentum.Error()`, an alias for
-`core/parameters.bend`'s `Error`, whose constructor is `InvalidParameter`.
-Each period has the reference's minimum below and a maximum of 100000. Existing
-SMA/EMA/RMA/direct-function configuration retains its separately documented limit.
-All parameters are explicit; default values are not silently substituted. Invalid
-configuration fails before any owned window is allocated. Valid empty batches
-return `Done{[]}`; short inputs contain only warm-up slots.
+Supply finite observations in arrival order and validate bar bounds at the
+call site. Pass parameters explicitly. Periods range from the stated minimum
+to 100000. Invalid configuration returns `Fail{InvalidParameter{}}` before
+allocating a window. See the [state guide](state.md) for streaming and lookbacks.
 
 The reference contract is TA-Lib commit
 [`ccd3172940ed1d9daa4e7197f2265810852e8910`](https://github.com/TA-Lib/ta-lib/tree/ccd3172940ed1d9daa4e7197f2265810852e8910),
-with **all unstable periods explicitly set to zero**. The reference's automatic
-stabilization policy is not enabled. There is no start-index compatibility API:
-a fresh stream starts at its first supplied observation. SI starts at index 1;
-ASI and WAD seed a new cumulative line with zero at index 0.
+with unstable periods set to zero. Each fresh stream starts at its first
+supplied observation. SI emits at index 1. ASI and WAD emit zero at index 0.
 
 ## Interface and first output
 

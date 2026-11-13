@@ -1,21 +1,10 @@
 # Overlap and statistics
 
-The F32 facade adds ACCBANDS, ALMA, BBANDS, CKSP, DEMA, DONCHIAN, HMA,
-KAMA, KC, MIDPOINT, MIDPRICE, T3, TEMA, TRIMA, VWMA, WMA, ZLEMA,
-BBW, PERCENTB, LINEARREG, LINEARREG_ANGLE, LINEARREG_INTERCEPT,
-LINEARREG_SLOPE, MEDIAN, PERCENTILE, PERCENTRANK, STDDEV, TSF, AVGDEV,
-HA, MAX, MAXINDEX, MIN, MININDEX, MINMAX, MINMAXINDEX, VAR, CORREL, BETA
-and KURTOSIS. Existing SUM
-also gains `batch` using its existing state interface and error type. Its
-uncompensated total is now rebuilt at each logical wrap, reducing historical
-drift while retaining the numerical limits described in the foundation guide.
-
-Every configured indicator exposes `init`, `next`, and `batch`. New validation
-returns `Parameters.Error.InvalidParameter` before allocation. Batch preserves
-one slot per input and applies the same transition as streaming; valid empty
-input is empty. `None` means incomplete initialization. HA requires no
-configuration and emits from the first bar. Existing SUM configuration remains
-unchanged.
+See the [F32 facade](../src/f32.bend) for signatures. Invalid parameters
+return `InvalidParameter{}` before allocation. SUM uses the
+[shared period configuration](foundation.md#traversal-and-ownership) and
+returns `InvalidPeriod{}` for invalid periods. HA takes no parameters and
+emits from the first bar.
 
 Parameters are explicit runtime arguments, in source order. In particular:
 `ALMA.init(period, sigma, offset)`, `T3.init(period, factor)`,
@@ -23,17 +12,14 @@ Parameters are explicit runtime arguments, in source order. In particular:
 `KC.init(period, atr_period, deviation)`, `CKSP.init(period, multiplier, stop_period)`,
 `PERCENTILE.init(period, percent)` and `STDDEV.init(period, factor)`.
 
-New periods have maximum 100000, except MEDIAN, PERCENTILE and PERCENTRANK,
-whose source maximum is 10000. Minimum 1 applies to individual moving averages
+The indicators below use a maximum period of 100000. MEDIAN, PERCENTILE, and
+PERCENTRANK use 10000. Minimum 1 applies to individual moving averages
 and VWMA; the remaining configured indicators require at least 2, except KC's
 ATR period and CKSP's stop period, which permit 1. Sigma is finite and in
 0.01..3e37; offset and T3 factor are in 0..1; percentile is in 0..100. Deviation
 factors can be negative and have magnitude at most 3e37. CKSP's multiplier is
-in 0..3e37. No periods, numeric factors or input observations are template
-arguments. Generic `Overlap.accbands.init`, `bollinger.init`, `keltner.init`
-and `chande.init` own their stage composition and initialization rules, so
-another numeric facade binds the same recipes. Facades validate finite ranges
-and source-specific parameter bounds before these helpers allocate storage.
+in 0..3e37. The facade validates bounds before calling the shared
+initializers in `src/core/overlap.bend`.
 
 ## Shared moving averages
 

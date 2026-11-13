@@ -1,12 +1,11 @@
 # bend-ta
 
-Technical analysis written in Bend, with F32 interfaces for streaming and batch
-calculations. Numeric algorithms share a template core; callers use named,
-typed indicator interfaces.
+F32 technical analysis in Bend for streaming and batch calculations.
 
 ## Use
 
-Import `src/f32.bend` by a relative path from your program:
+This example imports `src/f32.bend` from a file in the repository root.
+Adjust the relative path to match your project.
 
 ```bend
 import Base
@@ -16,28 +15,21 @@ def averages() -> Result<&2, &2, TA.Error(), List<&2, Maybe<&2, F32>>>:
   TA.SMA.batch([3.0, 6.0, 9.0, 12.0], 3)
 ```
 
-The result is `Done{[None{}, None{}, Some{6.0}, Some{9.0}]}`. SMA emits its first
-mean once the window is full; `Fail` reports an invalid period.
+The result is `Done{[None{}, None{}, Some{6.0}, Some{9.0}]}`. `None` marks
+warm-up. An invalid period returns `Fail`.
 
-Run the [moving-average example](examples/moving_averages.bend) from the repository root:
+Run `bend examples/moving_averages.bend` from the repository root to try
+the [moving-average example](examples/moving_averages.bend).
 
-```sh
-bend examples/moving_averages.bend
-```
-
-Stateful indicators expose `init`, `next` and `batch`. Initialize a state, then
-pass each observation to `next` with the state returned by the previous call.
-Batch calculations use the same transitions and retain one output slot per
-observation. `None` denotes warm-up; its duration depends on the indicator.
-Stateless transforms operate directly on observations.
-Use `lookback` to query startup alignment, `clone` to branch a state, and
-`preview` to inspect one update without committing it; see the
-[state guide](docs/state.md) for ownership and cost.
+Use `init` and `next` for streaming, passing the returned state into each
+update. `batch` runs the same updates and returns one slot per observation.
+Stateless transforms operate directly on observations. The [state guide](docs/state.md)
+covers `lookback`, `clone`, and `preview`.
 
 ## Indicator reference
 
-The [F32 interface](src/f32.bend) defines the available indicators, their
-arguments, and result types. The guides explain how each family behaves.
+See the [F32 facade](src/f32.bend) for signatures and the family guides for
+parameters, warm-up, costs, and differences from TA-Lib.
 
 | Family | Guide |
 |---|---|
@@ -52,40 +44,18 @@ arguments, and result types. The guides explain how each family behaves.
 
 ## Data and arithmetic
 
-Supply finite observations in arrival order and align fields before constructing
-bar records. Handle missing data, timestamps, sessions and price adjustments
-before calculation. Nonfinite input validation and recovery are the caller's
-responsibility; VWAP defines an explicit skip-and-repeat rule in its
-[contract](docs/causal-indicators.md).
-
-F32 arithmetic rounds at each operation and can overflow or lose small changes.
-The family guides specify seeds, lookbacks, parameter limits, computational costs
-and numerical differences from TA-Lib. Consult those contracts when choosing
-an indicator or comparing results with another implementation.
+Supply finite observations in arrival order with aligned bar fields. Handle
+missing data, timestamps, sessions, and price adjustments before calculation.
+[VWAP](docs/causal-indicators.md#volume-and-undefined-arithmetic) defines when
+it skips an input and repeats the prior value. F32 arithmetic can overflow or
+round away small changes.
 
 ## Develop
 
-All library code, tests and tooling are Bend. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for toolchain requirements, the source policy
-and the contribution workflow. Run checks from the repository root:
-
-```sh
-bend scripts/check_repo.bend    # enforce the source policy and type-check Bend
-bend PROOF.bend --verdict       # verify contracts with the independent kernel
-bend scripts/test.bend          # compile and execute native tests
-bend scripts/test.bend -- --js  # also test emitted JavaScript
-```
-
-The [design guide](docs/design.md) explains numeric templates and typed bindings;
-the [shared foundation](docs/foundation.md) describes windows, ownership and
-stream traversal. Keep algorithms in `src/core/` and concrete numeric bindings
-in `src/f32.bend`.
-
-[Bend laws](docs/laws.md) specify shared structural and state contracts alongside
-the numerical tests. Proofs cover their stated properties and assumptions;
-reference fixtures and backend checks remain necessary for numerical behavior.
-
-For repeatable performance measurements, see the [rolling benchmarks](benchmarks/README.md).
+Library code, tests, and tooling are written in Bend. See the
+[contributor guide](CONTRIBUTING.md) for setup and checks, the
+[design guide](docs/design.md) for shared templates, the [laws](docs/laws.md)
+for proof coverage, and the [benchmarks](benchmarks/README.md) for measurements.
 
 ## License
 

@@ -2,32 +2,24 @@
 
 ## Bend-only source policy
 
-All project-maintained program logic must be written in Bend. This includes
-the library, tests, examples, test runner and repository checks. Do not add
-TypeScript, JavaScript, Python, C, shell scripts or other-language implementations,
-or quoted foreign-code imports inside Bend source. Do not hide such logic in a
-data file, an inline workflow program or an interpreter command.
+Write all maintained program logic in Bend, including the library, examples,
+tests, runner, and repository checks. Keep foreign code out of imports, data
+files, workflow steps, and interpreter commands.
 
-Markdown documentation, declarative YAML/JSON configuration, CSV/TSV/text test
-data and ordinary Git/license metadata are allowed. Data must remain inert.
-CI bootstrap may install pinned tools and invoke Bend commands; it must not
-implement test or application logic. External tools such as Git, Clang, Unix
-filesystem utilities and an optional JavaScript runtime are toolchain dependencies,
-not project-owned implementations. The Bend compiler's standard Base effects and
-generated native/JS runtime are allowed; generated output is not committed.
+Markdown, declarative YAML/JSON, inert CSV/TSV/text data, and Git and license
+metadata are allowed. CI may install pinned tools and run Bend commands.
+Use Base effects and external tools such as Git, Clang, and Node as needed.
+Keep generated output outside Git.
 
-External numerical tools may generate reference fixtures. Commit the data with
-its source, version, parameters and comparison tolerance, rather than committing
-another-language generator or requiring it to run this repository's checks.
+External tools may generate reference fixtures. Commit the data with its
+source, version, parameters, and tolerance. Repository checks run from the
+committed fixtures.
 
-The policy gate allows `.bend`, `.md`, `.yml`, `.yaml`, `.json`, `.csv`, `.tsv`
-and `.txt` files plus named Git/license metadata. It rejects npm's `package.json`,
-symlinks, Git submodules and executable non-Bend files. It checks quoted foreign
-imports outside strings/comments and asks Bend to type-check every source entry.
-The root `LAWS.bend` is checked through the required `PROOF.bend` entry point,
-which completes its declarations; other source files are checked individually.
-The gate is not a proof that allowed data/configuration cannot conceal code:
-maintainers must review new dependencies, workflow bodies and changes to the gate.
+The [policy gate](scripts/check_repo.bend) rejects unsupported file types,
+`package.json`, symlinks, submodules, executable non-Bend files, and quoted
+foreign imports outside strings and comments. It checks `LAWS.bend` through
+the required `PROOF.bend` entry and checks other Bend files individually.
+Review dependencies, workflow steps, and gate changes for embedded logic.
 
 ## Local checks
 
@@ -41,82 +33,61 @@ bend scripts/test.bend
 bend scripts/test.bend -- --js
 ```
 
-Independent proof verification requires Lean 4.34.0, including `lean` and `leanc`,
-on PATH or in its matching elan toolchain. Bend builds and caches its kernel on
-the first `--verdict` run. Use the [pinned Lean release](https://github.com/leanprover/lean4/releases/tag/v4.34.0).
-The ordinary policy gate checks proofs without requiring Lean.
+Only `--verdict` needs [Lean 4.34.0](https://github.com/leanprover/lean4/releases/tag/v4.34.0).
+Bend finds `lean` and `leanc` on PATH or in the matching elan toolchain and
+caches the kernel on the first run.
 
-The last command also requires Node or Bun; `BEND_JS` selects the executable and
-defaults to `node`. `BEND` selects the compiler executable for subprocesses.
-Both variables hold one executable path, not a command with shell arguments.
-There is no npm install step. The runner always tests native output and adds
-the JS backend only with `--js`; a missing requested runtime is a failure.
+The test runner always checks native output. `--js` also checks JavaScript
+and requires Node or Bun. Set `BEND` or `BEND_JS` to override the default
+executables, `bend` and `node`. Each variable takes a single executable path.
 
-Checks discover tracked and non-ignored untracked files through Git, excluding
-tracked files deleted in the working tree. Use normal UTF-8 paths. All test/example
-`.bend` files must be runnable fixtures with trailing `#|` expected stdout.
-Comparisons normalize CRLF and trim surrounding whitespace. Empty expected output
-still needs a `#|` marker. Compiler/runtime failures and output mismatches fail
-the run. Source reads are limited to 1 MiB; subprocess output is limited to 4 MiB
-and commands have a 30-second timeout, with two minutes allowed for fixture
-compilation. Generated files are held in a unique
-OS temporary directory and removed after normal test failures as well as success.
+Checks discover tracked and non-ignored untracked files with UTF-8 paths and
+skip locally deleted files. Test and example `.bend` files are runnable
+fixtures. Put expected stdout in trailing `#|` lines. Use a bare `#|` for empty
+output. Comparisons normalize CRLF and trim surrounding whitespace.
+
+Compiler errors, runtime failures, and output mismatches fail the run. Limits
+are 1 MiB per source file, 4 MiB of subprocess output, and 30 seconds per
+command or two minutes for fixture compilation. The runner removes temporary
+builds after success and ordinary failures.
 
 ## Laws and proofs
 
-State important behavioral contracts in `LAWS.bend` before implementing changes
-when feasible. Keep its statements and reference predicates under maintainer
-review. Implement proofs in `PROOF.bend`, using completed shared lemmas in
-`proofs/`; runtime modules must not import the proof entry point. Changes to an
-accepted law's meaning or preconditions require an explicit maintainer decision.
-Never weaken a law or introduce an unproven arithmetic assumption to obtain a pass.
+Define applicable contracts in `LAWS.bend` before implementation when feasible.
+Complete them in `PROOF.bend` with shared lemmas from `proofs/`. Keep runtime
+imports independent of the proof entry point. Changes to accepted statements,
+reference predicates, or preconditions require a maintainer decision.
 
-Use universal inputs for general promises, state configuration/reachability
-requirements explicitly, and reuse shared proofs. Keep literal numerical examples
-in tests. Base F32 arithmetic is opaque to the checker; structural laws over F32
-values do not establish numerical error bounds or TA-Lib conformance. See the
-[proof contracts](docs/laws.md) for exact coverage and assumptions.
-
-Run the proof entry point after relevant source changes. For a new contract or
-proof-enforcement change, demonstrate rejection of a small relevant defect in a
-temporary copy outside the checkout. Keep numerical reference tests, native/JS
-checks and performance benchmarks: they establish different properties.
+Use universal inputs and explicit configuration and reachability assumptions.
+Keep numerical examples in tests. See [proof coverage](docs/laws.md) for what
+the checker establishes and where reference tests and benchmarks apply.
 
 ## Documentation
 
-Write documentation around supported behavior and the reader's task. Keep the
-README focused on purpose, a usable example, essential contracts and links to
-reference material. Avoid development-stage labels, milestone recaps,
-implementation totals, temporary repository status and speculative plans.
-
-Use the F32 facade for indicator names and signatures. Document behavior that
-signatures alone cannot convey in the family guides, including seed rules,
-warm-up, alignment, parameter limits, and numerical tradeoffs. Keep toolchain
-details in the local checks section and link to it from other guides.
+Keep the README focused on purpose, usage, essential contracts, and links.
+Describe supported behavior and leave milestone recaps to release notes.
+Use the F32 facade for indicator names and signatures. Put seed rules, warm-up,
+alignment, parameter limits, and numerical tradeoffs in the family guides.
+Keep setup and check commands here.
 
 ## Changes and review
 
-Keep numeric algorithms in `src/core/` and bind concrete operations in the typed
-facade. Add indicator contracts and independent reference examples before extending
-the public interface. State seed, warm-up, alignment and numerical limits explicitly.
-Use the same state transitions for batch and streaming calculations.
+Keep algorithms in `src/core/` and bind concrete operations in the facade.
+Use the same state transitions for batch and streaming. Add contracts and
+independent reference examples before extending the public interface.
 
-Run the policy gate, independent proof check and both backend checks before opening a pull request. For
-runner or gate changes, also demonstrate failure on an incorrect result or a
-policy violation. Keep temporary mutation probes and generated files outside Git.
-Do not weaken existing assertions merely to make a check pass.
+Run the policy gate, independent proofs, and both test backends before opening
+a pull request. For changes to contracts, the runner, or the gate, use a
+temporary copy outside the checkout to verify that a relevant defect is rejected.
+Preserve existing assertions and justify arithmetic assumptions.
 
 ## CI and enforcement
 
-The `Bend-only and tests` job runs on pull requests and main pushes
-with a read-only repository token. It installs a checksum-pinned Bend release
-and a checksum-pinned Lean toolchain, then runs the same policy, proof and test
-commands contributors use locally. Its small shell
-bootstrap only downloads, verifies and installs tools.
+The `Bend-only and tests` job uses checksum-pinned Bend and Lean releases and
+a read-only token. It runs the policy, proofs, and both test backends on pull
+requests and pushes to `main`. Maintainers should require this check through
+branch protection and review changes to the workflow, policy, agent
+instructions, tooling, and proof contracts.
 
-Maintainers should require this status check for `main` through GitHub branch
-protection and review changes to the workflow, policy, agent instructions,
-tooling and proof contracts through the usual pull request process.
-
-Changes to this policy require an explicit maintainer decision. Contributor and
-agent instructions must be usable without the maintainer's private workspace.
+Policy changes require a maintainer decision. Keep instructions usable from a
+normal clone.

@@ -39,9 +39,9 @@ element layouts must also fit Bend's allocation limits.
 
 ## Sums and seeded smoothing
 
-`SUM.init/next` supplies a rolling sum. SMA reuses this storage and transition.
-Both use O(period) storage and amortized constant work per input. At each
-logical wrap, the sum is rebuilt chronologically from the live window; that
+`SUM.init/next` supplies a rolling sum. SMA divides the full window's sum by
+its period. Both use O(period) storage and amortized constant work per input.
+At each logical wrap, the sum is rebuilt chronologically from the live window; that
 individual update costs O(period). The existing wrap position supplies the
 refresh schedule, with no added counter. Between refreshes subtract/add sums
 can drift. A fresh fold can still round or overflow; this is not a compensated
@@ -49,8 +49,8 @@ accumulator or a universal error bound. A refresh can recover after an earlier
 finite-input overflow has left the window, using a zero derived from the current
 finite observation. Nonfinite observations still have no recovery policy.
 
-EMA and RMA share the same seeded state machine. Both emit their first mean
-at input index `period-1`. EMA then uses alpha `2/(period+1)`; Wilder/RMA uses
+EMA and RMA share a constant-size seeded state machine. Both emit their first
+mean at input index `period-1`. EMA then uses alpha `2/(period+1)`; Wilder/RMA uses
 `1/period`. Both advance `previous + alpha*(price-previous)`, and period 1
 returns the input directly. `init`, `next` and `batch` are available for RMA as
 for EMA. Core coefficient initialization is internal to validated adapters.
