@@ -53,21 +53,25 @@ builds after success and ordinary failures.
 
 ## Laws and proofs
 
-Define applicable contracts in `LAWS.bend` before implementation when feasible.
-Complete them in `PROOF.bend` with shared lemmas from `proofs/`. Keep runtime
-imports independent of the proof entry point. Changes to accepted statements,
-reference predicates, or preconditions require a maintainer decision.
+Define applicable contracts in [LAWS.bend](LAWS.bend) before implementation
+when feasible. Complete them in [PROOF.bend](PROOF.bend) with shared lemmas
+from `proofs/`. Keep runtime imports independent of the proof entry point.
+Changes to accepted statements, reference predicates, or preconditions
+require a maintainer decision.
 
 Use universal inputs and explicit configuration and reachability assumptions.
-Keep numerical examples in tests. See [proof coverage](docs/laws.md) for what
-the checker establishes and where reference tests and benchmarks apply.
+`--verdict` checks the translated laws with BendTT's independent kernel.
+The laws cover source behavior under their stated assumptions and treat Base
+F32 operations as opaque. Use reference fixtures for numerical behavior,
+backend tests for compiled behavior, and benchmarks for performance.
+Proofs resolve `bend-mathlib` from BendHub. Runtime code uses Base.
 
 ## Documentation
 
 Keep the README focused on purpose, usage, essential contracts, and links.
 Describe supported behavior and leave milestone recaps to release notes.
-Use the F32 facade for indicator names and signatures. Put seed rules, warm-up,
-alignment, parameter limits, and numerical tradeoffs in the family guides.
+Use the [F32 facade](src/f32.bend) for indicator names and signatures.
+Keep behavior in the implementation, laws, and reference fixtures.
 Keep setup and check commands here.
 
 ## Changes and review

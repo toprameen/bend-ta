@@ -4,15 +4,14 @@ This repository is a Bend 2 technical analysis library. `src/f32.bend` is the
 public F32 facade; `src/core/` holds shared templates and state. Future numeric
 facades must instantiate that core instead of copying indicator algorithms.
 
-- Read `CONTRIBUTING.md`, `README.md` and `docs/design.md` before changing behavior.
+- Read `CONTRIBUTING.md` and `README.md` before changing behavior.
 - Follow the Bend-only source policy in `CONTRIBUTING.md`. Library code, tests,
   examples, runners and repository checks must be Bend. Do not add foreign
   implementations, another-language scripts or inline CI program logic.
 - Follow the documentation policy in `CONTRIBUTING.md`. Keep the README centered
   on purpose, usage, essential contracts and reference links. Avoid progress
   reports, development-stage labels, implementation counts, temporary status
-  and speculative plans. Keep changing details in their owning reference docs;
-  update actual usage and limits when behavior changes.
+  and speculative plans. Update usage and limits when behavior changes.
 - Keep code as the single source of truth. Almost never add code comments:
   a parallel prose description can drift from the implementation. Express intent
   through clear names, types and structure. A comment is justified only for an

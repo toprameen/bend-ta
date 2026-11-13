@@ -102,7 +102,4 @@ spread. Performance measurements are manual evidence, not CI timing thresholds.
 The results include short windows and fallback cases where the optimized path
 can cost more. The extrema metadata also records peak native memory and an
 isolated control build. The [MAVP capacity model](results/mavp-capacity-2026-11-02.json)
-counts raw price slots for shared and independent windows. See the
-[overlap and statistics guide](../docs/overlap-statistics.md) and
-[dynamic indicator guide](../docs/causal-indicators.md) for current costs and
-numerical limits.
+counts raw price slots for shared and independent windows.
