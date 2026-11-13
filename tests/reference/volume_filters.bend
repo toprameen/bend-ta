@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as B
 import ../../src/core/volume_filter.bend as V
@@ -55,26 +56,14 @@ def main() -> IO(Unit):
   +bars : List<&2, B.HLCV<F32>> = [B.HLCV{12.0, 8.0, 11.0, 2.0}, B.HLCV{15.0, 9.0, 10.0, 4.0}, B.HLCV{14.0, 10.0, 13.0, 3.0}, B.HLCV{8.0, 4.0, 7.0, 6.0}, B.HLCV{11.0, 7.0, 9.0, 3.0}, B.HLCV{11.0, 7.0, 9.0, 8.0}]
   +ohlc : List<&2, B.OHLC<F32>> = [B.OHLC{2.0, 4.0, 1.0, 2.0}, B.OHLC{0.0, 8.0, 2.0, 4.0}, B.OHLC{1.0, 1.0, 1.0, 1.0}, B.OHLC{2.0, 2.0, 2.0, 2.0}]
   do IO<Unit>:
-    IO.print(Bool.show(result(TA.ADOSC.batch(bars, 2, 3), [None{}, None{}, Some{F32.neg(0.12037037)}, Some{0.47376543}, Some{0.41486626}, Some{0.26676097}])))
-    IO.print(Bool.show(result(TA.ADOSC.batch(bars, 3, 2), [None{}, None{}, Some{0.12037037}, Some{F32.neg(0.47376543)}, Some{F32.neg(0.41486626)}, Some{F32.neg(0.26676097)}])))
-    IO.print(Bool.show(kvo(TA.KVO.batch(bars, 2, 3, 2))))
-    IO.print(Bool.show(kvo.centered(TA.KVO.batch([B.HLCV{1000000.125, 1000000.0, 1000000.0625, 1.0}, B.HLCV{1000000.25, 1000000.0625, 1000000.125, 2.0}, B.HLCV{1000000.1875, 1000000.0625, 1000000.1875, 3.0}, B.HLCV{1000000.1875, 1000000.0, 1000000.125, 4.0}, B.HLCV{1000000.25, 1000000.0, 1000000.125, 5.0}, B.HLCV{1000000.125, 1000000.0, 1000000.0625, 6.0}], 2, 3, 2))))
-    IO.print(Bool.show(rvi.init(TA.RVI.init(2, 2))))
-    IO.print(Bool.show(result(TA.RVI.batch([1.0, 3.0, 2.0, 2.0, 4.0], 1, 3), [None{}, None{}, Some{0.0}, Some{50.0}, Some{100.0}])))
-    IO.print(Bool.show(result(TA.RVIR.batch([B.HL{3.0, 1.0}, B.HL{5.0, 2.0}, B.HL{4.0, 1.0}, B.HL{4.0, 1.0}, B.HL{6.0, 3.0}], 2, 2), [None{}, None{}, Some{58.3333333}, Some{58.3333333}, Some{90.4545455}])))
-    IO.print(Bool.show(result(TA.ROGERSSATCHELL.batch(ohlc, 2, 1.0), [None{}, Some{0.69314718}, Some{0.0}, Some{0.0}])))
-    IO.print(Bool.show(result(TA.ROGERSSATCHELL.batch(ohlc, 1, 4.0), [Some{1.96051629}, Some{0.0}, Some{0.0}, Some{0.0}])))
-    IO.print(Bool.show(Bool.and(invalid(~TA.ADOSC.State(), TA.ADOSC.init(1, 2)), Bool.and(invalid(~TA.KVO.State(), TA.KVO.init(2, 2, 1)), invalid(~TA.RVI.State(), TA.RVI.init(2, 1))))))
-    IO.print(Bool.show(Bool.and(invalid(~TA.ROGERSSATCHELL.State(), TA.ROGERSSATCHELL.init(1, F32.neg(1.0))), result(TA.RVI.batch([], 1, 2), []))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
+    Unit <- Assert.check("ADOSC.batch case 1", result(TA.ADOSC.batch(bars, 2, 3), [None{}, None{}, Some{F32.neg(0.12037037)}, Some{0.47376543}, Some{0.41486626}, Some{0.26676097}]))
+    Unit <- Assert.check("ADOSC.batch case 2", result(TA.ADOSC.batch(bars, 3, 2), [None{}, None{}, Some{0.12037037}, Some{F32.neg(0.47376543)}, Some{F32.neg(0.41486626)}, Some{F32.neg(0.26676097)}]))
+    Unit <- Assert.check("KVO.batch case 1", kvo(TA.KVO.batch(bars, 2, 3, 2)))
+    Unit <- Assert.check("KVO.batch case 2", kvo.centered(TA.KVO.batch([B.HLCV{1000000.125, 1000000.0, 1000000.0625, 1.0}, B.HLCV{1000000.25, 1000000.0625, 1000000.125, 2.0}, B.HLCV{1000000.1875, 1000000.0625, 1000000.1875, 3.0}, B.HLCV{1000000.1875, 1000000.0, 1000000.125, 4.0}, B.HLCV{1000000.25, 1000000.0, 1000000.125, 5.0}, B.HLCV{1000000.125, 1000000.0, 1000000.0625, 6.0}], 2, 3, 2)))
+    Unit <- Assert.check("RVI.init", rvi.init(TA.RVI.init(2, 2)))
+    Unit <- Assert.check("RVI.batch", result(TA.RVI.batch([1.0, 3.0, 2.0, 2.0, 4.0], 1, 3), [None{}, None{}, Some{0.0}, Some{50.0}, Some{100.0}]))
+    Unit <- Assert.check("RVIR.batch", result(TA.RVIR.batch([B.HL{3.0, 1.0}, B.HL{5.0, 2.0}, B.HL{4.0, 1.0}, B.HL{4.0, 1.0}, B.HL{6.0, 3.0}], 2, 2), [None{}, None{}, Some{58.3333333}, Some{58.3333333}, Some{90.4545455}]))
+    Unit <- Assert.check("ROGERSSATCHELL.batch case 1", result(TA.ROGERSSATCHELL.batch(ohlc, 2, 1.0), [None{}, Some{0.69314718}, Some{0.0}, Some{0.0}]))
+    Unit <- Assert.check("ROGERSSATCHELL.batch case 2", result(TA.ROGERSSATCHELL.batch(ohlc, 1, 4.0), [Some{1.96051629}, Some{0.0}, Some{0.0}, Some{0.0}]))
+    Unit <- Assert.check("ADOSC.init", Bool.and(invalid(~TA.ADOSC.State(), TA.ADOSC.init(1, 2)), Bool.and(invalid(~TA.KVO.State(), TA.KVO.init(2, 2, 1)), invalid(~TA.RVI.State(), TA.RVI.init(2, 1)))))
+    Assert.check("ROGERSSATCHELL.init", Bool.and(invalid(~TA.ROGERSSATCHELL.State(), TA.ROGERSSATCHELL.init(1, F32.neg(1.0))), result(TA.RVI.batch([], 1, 2), [])))

@@ -1,7 +1,8 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as B
-import ../../src/core/patterns.bend as Pattern
+import ./candles.bend as Candles
 import ../../src/core/candle.bend as Candle
 import ../../src/core/series.bend as Series
 
@@ -14,50 +15,19 @@ def modified() -> List<&2, B.OHLC<F32>>:
 def expired() -> List<&2, B.OHLC<F32>>:
   [B.OHLC{5.0, 10.0, 0.0, 5.0}, B.OHLC{5.0, 10.0, 0.0, 5.0}, B.OHLC{5.0, 10.0, 0.0, 5.0}, B.OHLC{5.0, 10.0, 0.0, 5.0}, B.OHLC{5.0, 10.0, 0.0, 5.0}, B.OHLC{5.0, 8.0, 2.0, 5.0}, B.OHLC{4.0, 7.0, 1.0, 4.0}, B.OHLC{5.0, 9.0, 1.0, 5.0}, B.OHLC{8.0, 9.0, 1.0, 8.0}, B.OHLC{8.0, 9.0, 1.0, 8.0}, B.OHLC{9.0, 9.0, 1.0, 9.0}]
 
-def value(x: Maybe<&2, TA.Pattern.Signal()>) -> String:
-  match x:
-    case None{}: "n"
-    case Some{Pattern.Signal{negative, strength}}:
-      match strength:
-        case 100: Bool.pick(String, negative, "m", "p")
-        case 200: Bool.pick(String, negative, "M", "P")
-        case _: "z"
-
-def show(xs: List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> String:
-  match xs:
-    case Nil{}: ""
-    case x <> rest: value(x) ++ show(rest)
-
-def result(r: Result<&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>>) -> String:
+def continued.scan(r: TA.CDLHIKKAKE.State() & List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> List<&2, Maybe<&2, TA.Pattern.Signal()>>:
   match r:
-    case Fail{e}: "invalid"
-    case Done{xs}: show(xs)
+    case (state, first): List.append(&2, Maybe<&2, TA.Pattern.Signal()>, first, Series.batch(~B.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.CDLHIKKAKE.State(), ~TA.CDLHIKKAKE.next, List.drop(&2, B.OHLC<F32>, plain(), 3n), state))
 
-def after(fuel: Nat, xs: List<&2, B.OHLC<F32>>) -> List<&2, B.OHLC<F32>>:
-  match fuel xs:
-    case 0n xs: xs
-    case 1n+n Nil{}: []
-    case 1n+n x <> rest: after(n, rest)
-
-def continued.scan(r: TA.CDLHIKKAKE.State() & List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> String:
+def continued(r: Result<&2, &1, TA.Pattern.Error(), TA.CDLHIKKAKE.State()>) -> Result<&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>>:
   match r:
-    case (state, first): show(first) ++ show(Series.batch(~B.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.CDLHIKKAKE.State(), ~TA.CDLHIKKAKE.next, after(3n, plain()), state))
-
-def continued(r: Result<&2, &1, TA.Pattern.Error(), TA.CDLHIKKAKE.State()>) -> String:
-  match r:
-    case Fail{e}: "invalid"
-    case Done{state}: continued.scan(Series.scan(~B.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.CDLHIKKAKE.State(), ~TA.CDLHIKKAKE.next, [B.OHLC{5.0, 10.0, 0.0, 5.0}, B.OHLC{5.0, 8.0, 2.0, 5.0}, B.OHLC{4.0, 7.0, 1.0, 4.0}], state))
+    case Fail{error}: Fail{error}
+    case Done{state}: Done{continued.scan(Series.scan(~B.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.CDLHIKKAKE.State(), ~TA.CDLHIKKAKE.next, [B.OHLC{5.0, 10.0, 0.0, 5.0}, B.OHLC{5.0, 8.0, 2.0, 5.0}, B.OHLC{4.0, 7.0, 1.0, 4.0}], state))}
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(result(TA.CDLHIKKAKE.batch(plain())))
-    IO.print(result(TA.CDLHIKKAKEMOD.batch(modified())))
-    IO.print(result(TA.CDLHIKKAKE.batch(expired())))
-    IO.print(continued(TA.CDLHIKKAKE.init()))
-    IO.print(result(Series.initialized(~B.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.CDLHIKKAKEMOD.State(), ~TA.Pattern.Error(), ~TA.CDLHIKKAKEMOD.next, modified(), TA.CDLHIKKAKEMOD.init.setting(Candle.Setting{Candle.HighLow{}, 0, 0.0}))))
-
-#|nnnnnPzzmzM
-#|nnnnnnnnnnPzzzmzM
-#|nnnnnzpzzzz
-#|nnnnnPzzmzM
-#|nnnnnnzpzzPzzzmzM
+    Unit <- Assert.check("hikkake confirmation", Candles.verify("nnnnnPzzmzM", TA.CDLHIKKAKE.batch(plain())))
+    Unit <- Assert.check("modified hikkake confirmation", Candles.verify("nnnnnnnnnnPzzzmzM", TA.CDLHIKKAKEMOD.batch(modified())))
+    Unit <- Assert.check("expired confirmation", Candles.verify("nnnnnzpzzzz", TA.CDLHIKKAKE.batch(expired())))
+    Unit <- Assert.check("hikkake streaming", Candles.verify("nnnnnPzzmzM", continued(TA.CDLHIKKAKE.init())))
+    Assert.check("custom modified hikkake setting", Candles.verify("nnnnnnzpzzPzzzmzM", Series.initialized(~B.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.CDLHIKKAKEMOD.State(), ~TA.Pattern.Error(), ~TA.CDLHIKKAKEMOD.next, modified(), TA.CDLHIKKAKEMOD.init.setting(Candle.Setting{Candle.HighLow{}, 0, 0.0}))))

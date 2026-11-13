@@ -1,30 +1,28 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as Bar
 import ../../src/core/patterns.bend as Pattern
 import ../../src/core/candle.bend as Candle
 import ../../src/core/series.bend as Series
 
-def show.one(x: Maybe<&2, TA.Pattern.Signal()>) -> String:
-  match x:
-    case None{}: "n"
+def signal_matches(expected: Char, actual: Maybe<&2, TA.Pattern.Signal()>) -> Bool:
+  match actual:
+    case None{}: Char.is_eq(expected, 'n')
     case Some{Pattern.Signal{negative, strength}}:
       match strength:
-        case 0: "z"
-        case 80: Bool.pick(String, negative, "b", "a")
-        case 100: Bool.pick(String, negative, "m", "p")
-        case other: "unexpected-strength"
+        case 0: Char.is_eq(expected, 'z')
+        case 80: Char.is_eq(expected, Bool.pick(Char, negative, 'b', 'a'))
+        case 100: Char.is_eq(expected, Bool.pick(Char, negative, 'm', 'p'))
+        case 200: Char.is_eq(expected, Bool.pick(Char, negative, 'M', 'P'))
+        case _: False{}
 
-def show.list(xs: List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> String:
-  match xs:
-    case Nil{}: ""
-    case h <> t: String.append(show.one(h), show.list(t))
-
-def show(result: Result<&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>>) -> String:
-  match result:
-    case Fail{e}: "invalid"
-    case Done{xs}: show.list(xs)
-
+def matches(expected: String, actual: List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> Bool:
+  match expected actual:
+    case SNil{} Nil{}: True{}
+    case SCon{code, remaining} signal <> rest:
+      Bool.and(signal_matches(code, signal), matches(remaining, rest))
+    case _ _: False{}
 
 def b(open: U32, high: U32, low: U32, close: U32) -> Bar.OHLC<F32>:
   Bar.OHLC{F32.div(U32.to_f32(open), 4.0), F32.div(U32.to_f32(high), 4.0), F32.div(U32.to_f32(low), 4.0), F32.div(U32.to_f32(close), 4.0)}
@@ -34,16 +32,18 @@ def history(xs: List<&2, Bar.OHLC<F32>>) -> List<&2, Bar.OHLC<F32>>:
   bar <> bar <> bar <> bar <> bar <> bar <> bar <> bar <> bar <> bar <> xs
 
 def verify(expected: String, result: Result<&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>>) -> Bool:
-  String.eq(expected, show(result))
-
-def continued(tail: List<&2, Bar.OHLC<F32>>, result: TA.Pattern.State() & List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> String:
   match result:
-    case (state, prefix): String.append(show.list(prefix), show.list(Series.batch(~Bar.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.Pattern.State(), ~TA.Pattern.next, tail, state)))
+    case Fail{error}: False{}
+    case Done{signals}: matches(expected, signals)
 
-def chunked(name: Pattern.Name, prefix: List<&2, Bar.OHLC<F32>>, tail: List<&2, Bar.OHLC<F32>>, result: Result<&2, &1, TA.Pattern.Error(), TA.Pattern.State()>) -> String:
+def continued(tail: List<&2, Bar.OHLC<F32>>, result: TA.Pattern.State() & List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> List<&2, Maybe<&2, TA.Pattern.Signal()>>:
   match result:
-    case Fail{e}: "invalid"
-    case Done{state}: continued(tail, Series.scan(~Bar.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.Pattern.State(), ~TA.Pattern.next, prefix, state))
+    case (state, prefix): List.append(&2, Maybe<&2, TA.Pattern.Signal()>, prefix, Series.batch(~Bar.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.Pattern.State(), ~TA.Pattern.next, tail, state))
+
+def chunked(prefix: List<&2, Bar.OHLC<F32>>, tail: List<&2, Bar.OHLC<F32>>, result: Result<&2, &1, TA.Pattern.Error(), TA.Pattern.State()>) -> Result<&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>>:
+  match result:
+    case Fail{error}: Fail{error}
+    case Done{state}: Done{continued(tail, Series.scan(~Bar.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.Pattern.State(), ~TA.Pattern.next, prefix, state))}
 
 type Case is Data:
   Case{name: Pattern.Name, tail: List<&2, Bar.OHLC<F32>>, expected: String, penetration: F32}
@@ -240,18 +240,10 @@ def settings() -> TA.Pattern.Settings():
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(check(cases())))
-    IO.print(chunked(Pattern.CDL3WHITESOLDIERS{}, history([b(159, 160, 159, 159), b(1, 1, 0, 1), b(0, 1, 0, 0), b(1, 2, 0, 2)]), [b(2, 7, 0, 7)], TA.CDL3WHITESOLDIERS.init()))
-    IO.print(show(TA.Pattern.batch([b(8, 12, 4, 8), b(8, 12, 4, 12)], Pattern.CDLDOJI{}, settings(), 0.0)))
-    IO.print(show(TA.CDLENGULFING.batch([])))
-    IO.print(show(TA.CDLMORNINGSTAR.batch([], F32.neg(1.0))))
-    IO.print(show(TA.CDLMORNINGSTAR.batch([], F32.div(0.0, 0.0))))
-    IO.print(show(TA.Pattern.batch([], Pattern.CDLDOJI{}, TA.Pattern.setting(settings(), Candle.Near{}, Candle.Setting{Candle.HighLow{}, 1073741825, 1.0}), 0.0)))
-
-#|True
-#|nnnnnnnnnnnnzzp
-#|pz
-#|
-#|invalid
-#|invalid
-#|invalid
+    Unit <- Assert.check("candlestick reference cases", check(cases()))
+    Unit <- Assert.check("three white soldiers streaming", verify("nnnnnnnnnnnnzzp", chunked(history([b(159, 160, 159, 159), b(1, 1, 0, 1), b(0, 1, 0, 0), b(1, 2, 0, 2)]), [b(2, 7, 0, 7)], TA.CDL3WHITESOLDIERS.init())))
+    Unit <- Assert.check("custom doji settings", verify("pz", TA.Pattern.batch([b(8, 12, 4, 8), b(8, 12, 4, 12)], Pattern.CDLDOJI{}, settings(), 0.0)))
+    Unit <- Assert.check("empty engulfing input", verify("", TA.CDLENGULFING.batch([])))
+    Unit <- Assert.check("negative penetration", Result.is_fail(&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>, TA.CDLMORNINGSTAR.batch([], F32.neg(1.0))))
+    Unit <- Assert.check("NaN penetration", Result.is_fail(&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>, TA.CDLMORNINGSTAR.batch([], F32.div(0.0, 0.0))))
+    Assert.check("oversized candle setting", Result.is_fail(&2, &2, TA.Pattern.Error(), List<&2, Maybe<&2, TA.Pattern.Signal()>>, TA.Pattern.batch([], Pattern.CDLDOJI{}, TA.Pattern.setting(settings(), Candle.Near{}, Candle.Setting{Candle.HighLow{}, 1073741825, 1.0}), 0.0)))

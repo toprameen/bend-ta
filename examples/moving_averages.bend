@@ -15,6 +15,3 @@ def main() -> IO(Unit):
   do IO<Unit>:
     IO.print("SMA: " ++ show_result(TA.SMA.batch([3.0, 6.0, 9.0, 12.0], 3)))
     IO.print("EMA: " ++ show_result(TA.EMA.batch([3.0, 6.0, 9.0, 15.0], 3)))
-
-#|SMA: [None, None, Some(6), Some(9)]
-#|EMA: [None, None, Some(6), Some(10.5)]

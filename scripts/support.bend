@@ -52,18 +52,6 @@ def env(name: String, fallback: String) -> IO(String):
     result : Result<&1, &1, U32 & String, String> <- IO.get_env(name)
     IO.pure(String, env.result(fallback, result))
 
-def normalize.go(s: String, acc: String) -> String:
-  match s:
-    case SNil{}:
-      String.trim(String.reverse(acc))
-    case SCon{'\r', SCon{'\n', t}}:
-      normalize.go(t, SCon{'\n', acc})
-    case SCon{h, t}:
-      normalize.go(t, SCon{h, acc})
-
-def normalize(s: String) -> String:
-  normalize.go(s, "")
-
 def fields(s: String) -> List<&2, String>:
   List.filter(~String, ~(x => Bool.not(String.is_empty(x))), String.split(s, '\u{0}'))
 

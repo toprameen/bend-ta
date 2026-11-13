@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/series.bend as Series
 import ../../src/core/parameters.bend as P
@@ -58,23 +59,12 @@ def adaptive(result: Result<&2, &1, P.Error, TA.MA.State()>) -> Bool:
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(expired(17, 0)))
-    IO.print(Bool.show(expired(17, 2)))
-    IO.print(Bool.show(expired(17, 5)))
-    IO.print(Bool.show(expired(16, 5)))
-    IO.print(Bool.show(provisional(TA.HMA.batch([1.0, 1.125, 1.25, 1.375, 1.5, 1.0e20, 1.75, 1.0], 5))))
-    IO.print(Bool.show(adaptive(TA.MA.init(17, 6))))
-    IO.print(Bool.show(block(0)))
-    IO.print(Bool.show(block(2)))
-    IO.print(Bool.show(block(5)))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-
-#|True
-#|True
-#|True
+    Unit <- Assert.check("expired case 1", expired(17, 0))
+    Unit <- Assert.check("expired case 2", expired(17, 2))
+    Unit <- Assert.check("expired case 3", expired(17, 5))
+    Unit <- Assert.check("expired case 4", expired(16, 5))
+    Unit <- Assert.check("HMA.batch", provisional(TA.HMA.batch([1.0, 1.125, 1.25, 1.375, 1.5, 1.0e20, 1.75, 1.0], 5)))
+    Unit <- Assert.check("MA.init", adaptive(TA.MA.init(17, 6)))
+    Unit <- Assert.check("block case 1", block(0))
+    Unit <- Assert.check("block case 2", block(2))
+    Assert.check("block case 3", block(5))

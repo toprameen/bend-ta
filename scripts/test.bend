@@ -26,53 +26,21 @@ def options(args: List<String>) -> Result<String, Mode>:
 def fixture(+file: String) -> Bool:
   Bool.and(String.ends_with(file, ".bend"), Bool.or(String.starts_with(file, "tests/"), String.starts_with(file, "examples/")))
 
-def expected.strip(lines: List<&2, String>) -> List<&2, String>:
-  match lines:
-    case Nil{}:
-      Nil{}
-    case h <> t:
-      String.drop(h, 2n) <> expected.strip(t)
+def checked(label: String, result: Result<String, String>) -> IO(Result<String, Unit>):
+  match result:
+    case Fail{message}: Tool.fail(Unit, label ++ "\n" ++ message)
+    case Done{output}: Tool.done(Unit, Unit{})
 
-def expected.finish(lines: List<&2, String>) -> Result<String, String>:
-  match lines:
-    case Nil{}:
-      Fail{"missing #| expected output"}
-    case h <> t:
-      Done{Tool.normalize(String.join(expected.strip(h <> t), "\n"))}
-
-def expected.lines(source: String, line: String, lines: List<&2, String>) -> List<&2, String>:
-  match source:
-    case SNil{}:
-      List.reverse(&2, String, String.reverse(line) <> lines)
-    case SCon{'\n', rest}:
-      expected.lines(rest, SNil{}, String.reverse(line) <> lines)
-    case SCon{char, rest}:
-      expected.lines(rest, SCon{char, line}, lines)
-
-def expected(source: String) -> Result<String, String>:
-  expected.finish(List.filter(~String, ~(s => String.starts_with(s, "#|")), expected.lines(source, SNil{}, Nil{})))
-
-def check.if(label: String, expected: String, actual: String, equal: Bool) -> IO(Result<String, Unit>):
-  match equal:
-    case True{}:
-      Tool.done(Unit, Unit{})
-    case False{}:
-      Tool.fail(Unit, label ++ "\nexpected:\n" ++ expected ++ "\nactual:\n" ++ actual)
-
-def check(label: String, +expected: String, got: String) -> IO(Result<String, Unit>):
-  +actual = Tool.normalize(got)
-  check.if(label, expected, actual, String.eq(expected, actual))
-
-def run_js(enabled: Bool, runtime: String, file: String, js: String, expected: String) -> IO(Result<String, Unit>):
+def run_js(enabled: Bool, runtime: String, file: String, js: String) -> IO(Result<String, Unit>):
   match enabled:
     case False{}:
       Tool.done(Unit, Unit{})
     case True{}:
-      Tool.bind(String, Unit, Tool.command(runtime, [js]), got => check(file ++ ": JS", expected, got))
+      IO.bind(Result<String, String>, Result<String, Unit>, Tool.command(runtime, [js]), result => checked(file ++ ": JavaScript", result))
 
-def execute(js: Bool, runtime: String, +file: String, exe: String, output_js: String, +expected: String) -> IO(Result<String, Unit>):
-  Tool.bind(String, Unit, Tool.command(exe, []), got =>
-    Tool.bind(Unit, Unit, check(file ++ ": native", expected, got), u => run_js(js, runtime, file, output_js, expected)))
+def execute(js: Bool, runtime: String, +file: String, exe: String, output_js: String) -> IO(Result<String, Unit>):
+  IO.bind(Result<String, String>, Result<String, Unit>, Tool.command(exe, []), result =>
+    Tool.bind(Unit, Unit, checked(file ++ ": native", result), u => run_js(js, runtime, file, output_js)))
 
 def outputs(js: Bool, exe: String, output_js: String) -> List<String>:
   match js:
@@ -81,19 +49,13 @@ def outputs(js: Bool, exe: String, output_js: String) -> List<String>:
     case True{}:
       ["-o", exe, "-o", output_js]
 
-def build(context: Context, +file: String, +dir: String, +index: U32, expected: String) -> IO(Result<String, Unit>):
+def run_file(context: Context, +file: String, +dir: String, +index: U32) -> IO(Result<String, Unit>):
   match context:
     case Context{root, bend, +js, runtime}:
       +exe = dir ++ "/" ++ U32.show(index) ++ ".native"
       +output_js = dir ++ "/" ++ U32.show(index) ++ ".js"
       Tool.bind(String, Unit, Tool.command.timed(bend, (root ++ "/" ++ file) <> outputs(js, exe, output_js), 120000), out =>
-        execute(js, runtime, file, exe, output_js, expected))
-
-def run_file(+context: Context, +file: String, dir: String, index: U32) -> IO(Result<String, Unit>):
-  match context:
-    case Context{+root, bend, js, runtime}:
-      Tool.bind(String, Unit, Tool.read(root ++ "/" ++ file), source =>
-        Tool.then(String, Unit, expected(source), want => build(Context{root, bend, js, runtime}, file, dir, index, want)))
+        execute(js, runtime, file, exe, output_js))
 
 def loop(files: List<&2, String>, +context: Context, +dir: String, +count: U32) -> IO(Result<String, U32>):
   match files:
@@ -144,7 +106,7 @@ def run(context: Context, files: List<&2, String>) -> IO(Result<String, Unit>):
     case Context{root, +bend, +js, runtime} h <> t:
       Tool.bind(String, Unit, Tool.command(bend, ["version"]), version =>
         do IO<Result<String, Unit>>:
-          Unit <- IO.print(Tool.normalize(version))
+          Unit <- IO.print(String.trim(version))
           Tool.bind(String, Unit, Tool.command("mktemp", ["-d"]), text =>
             Tool.bind(U32, Unit, temporary.prepare(Context{root, bend, js, runtime}, h <> t, text), count => report(js, count))))
 

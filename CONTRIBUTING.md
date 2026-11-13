@@ -32,8 +32,7 @@ For `--verdict`, install the Lean version pinned in CI through elan or put
 `lean` and `leanc` on `PATH`. For `--js`, install Node or Bun. Use
 `bend scripts/test.bend -- --help` for runner options.
 
-In test and example `.bend` files, put expected stdout in trailing `#|` lines.
-Use a bare `#|` for empty output.
+Use Bend assertions in tests. Give failures a label that identifies the case.
 
 ## Laws and proofs
 

@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/core/statistics.bend as Stats
 import ../../src/core/rolling_average.bend as Average
 import ../../src/core/series.bend as Series
@@ -59,15 +60,8 @@ def run(count: Nat, kind: U32, +period: U32) -> Average.State<F32> & List<&2, Ma
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(ramp.result(run(32n, 0, 7))))
-    IO.print(Bool.show(flat(64.0, run(40n, 1, 17))))
-    IO.print(Bool.show(flat(1.0, run(38n, 2, 17))))
-    IO.print(Bool.show(cancellation(run(27n, 3, 16))))
-    IO.print(Bool.show(flat(0.1, run(385n, 4, 256))))
-
-#|True
-#|True
-#|True
-#|True
-
-#|True
+    Unit <- Assert.check("ramp.result", ramp.result(run(32n, 0, 7)))
+    Unit <- Assert.check("flat case 1", flat(64.0, run(40n, 1, 17)))
+    Unit <- Assert.check("flat case 2", flat(1.0, run(38n, 2, 17)))
+    Unit <- Assert.check("cancellation", cancellation(run(27n, 3, 16)))
+    Assert.check("flat case 3", flat(0.1, run(385n, 4, 256)))

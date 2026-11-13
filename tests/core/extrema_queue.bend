@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/parameters.bend as P
 import ../../src/core/statistics.bend as Stats
@@ -53,21 +54,11 @@ def bar(value: F32) -> Bar.HL<F32>:
 def main() -> IO(Unit):
   +values : List<&2, F32> = [0.0, F32.neg(0.0), 0.0, F32.neg(0.0)]
   do IO<Unit>:
-    IO.print(Bool.show(indices(TA.MINMAXINDEX.batch([4.0, 2.0, 2.0, 5.0, 1.0, 5.0, 5.0], 3))))
-    IO.print(Bool.show(burst(TA.MINMAXINDEX.batch([9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 10.0], 7))))
-    IO.print(Bool.show(expired(TA.MINMAX.batch([9.0, 1.0, 2.0, 3.0, 4.0], 3))))
-    IO.print(Bool.show(zeros(TA.MAX.batch(values, 2), 2147483648, 0, 2147483648)))
-    IO.print(Bool.show(zeros(TA.MIDPOINT.batch(values, 2), 0, 0, 0)))
-    IO.print(Bool.show(bands(TA.DONCHIAN.batch(Series.map(~F32, ~Bar.HL<F32>, ~bar, values), 2))))
-    IO.print(Bool.show(one(Queue.next(~F32, ~F32.is_le, ~F32.is_ge, Queue.init(~F32, ~U32.to_f32, 1, 0n), 3.0, 9.0))))
-    IO.print(Bool.show(resumed(TA.MINMAXINDEX.init(3))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-
-#|True
+    Unit <- Assert.check("MINMAXINDEX.batch case 1", indices(TA.MINMAXINDEX.batch([4.0, 2.0, 2.0, 5.0, 1.0, 5.0, 5.0], 3)))
+    Unit <- Assert.check("MINMAXINDEX.batch case 2", burst(TA.MINMAXINDEX.batch([9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 10.0], 7)))
+    Unit <- Assert.check("MINMAX.batch", expired(TA.MINMAX.batch([9.0, 1.0, 2.0, 3.0, 4.0], 3)))
+    Unit <- Assert.check("MAX.batch", zeros(TA.MAX.batch(values, 2), 2147483648, 0, 2147483648))
+    Unit <- Assert.check("MIDPOINT.batch", zeros(TA.MIDPOINT.batch(values, 2), 0, 0, 0))
+    Unit <- Assert.check("DONCHIAN.batch", bands(TA.DONCHIAN.batch(Series.map(~F32, ~Bar.HL<F32>, ~bar, values), 2)))
+    Unit <- Assert.check("one", one(Queue.next(~F32, ~F32.is_le, ~F32.is_ge, Queue.init(~F32, ~U32.to_f32, 1, 0n), 3.0, 9.0)))
+    Assert.check("MINMAXINDEX.init", resumed(TA.MINMAXINDEX.init(3)))

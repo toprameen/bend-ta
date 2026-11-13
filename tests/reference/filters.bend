@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/series.bend as Series
 import ../../src/core/parameters.bend as Params
@@ -88,92 +89,47 @@ def expected.SWAK_HP() -> List<&2, Target<F32>>:
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_BUTTER(), TA.SWAK_BUTTER.batch(samples(180n, 0), 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_BUTTER(), chunked(~F32, ~TA.SWAK_BUTTER.State(), ~TA.SWAK_BUTTER.next, TA.SWAK_BUTTER.init(20)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [Target{0n, 5.0}], TA.SWAK_BUTTER.batch([5.0], 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [], TA.SWAK_BUTTER.batch([], 20))))
-    IO.print(Bool.show(valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(2))))
-    IO.print(Bool.show(valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(10000))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(1)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(10001)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_GAUSS(), TA.SWAK_GAUSS.batch(samples(180n, 0), 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_GAUSS(), chunked(~F32, ~TA.SWAK_GAUSS.State(), ~TA.SWAK_GAUSS.next, TA.SWAK_GAUSS.init(20)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [Target{0n, 5.0}], TA.SWAK_GAUSS.batch([5.0], 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [], TA.SWAK_GAUSS.batch([], 20))))
-    IO.print(Bool.show(valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(2))))
-    IO.print(Bool.show(valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(10000))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(1)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(10001)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_2PHP(), TA.SWAK_2PHP.batch(samples(180n, 0), 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_2PHP(), chunked(~F32, ~TA.SWAK_2PHP.State(), ~TA.SWAK_2PHP.next, TA.SWAK_2PHP.init(20)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [Target{0n, 0.0}], TA.SWAK_2PHP.batch([5.0], 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [], TA.SWAK_2PHP.batch([], 20))))
-    IO.print(Bool.show(valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(2))))
-    IO.print(Bool.show(valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(10000))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(1)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(10001)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_BP(), TA.SWAK_BP.batch(samples(180n, 0), 20, 0.1))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_BP(), chunked(~F32, ~TA.SWAK_BP.State(), ~TA.SWAK_BP.next, TA.SWAK_BP.init(20, 0.1)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [Target{0n, 0.0}], TA.SWAK_BP.batch([5.0], 20, 0.1))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [], TA.SWAK_BP.batch([], 20, 0.1))))
-    IO.print(Bool.show(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(5, 0.05))))
-    IO.print(Bool.show(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(2000, 0.05))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(4, 0.5)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(2001, 0.5)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_HP(), TA.SWAK_HP.batch(samples(180n, 0), 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, expected.SWAK_HP(), chunked(~F32, ~TA.SWAK_HP.State(), ~TA.SWAK_HP.next, TA.SWAK_HP.init(20)))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [Target{0n, 0.0}], TA.SWAK_HP.batch([5.0], 20))))
-    IO.print(Bool.show(check(~F32, ~near, 0n, [], TA.SWAK_HP.batch([], 20))))
-    IO.print(Bool.show(valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(5))))
-    IO.print(Bool.show(valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(100000))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(4)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(100001)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, 0.0)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, 0.51)))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, F32.div(0.0, 0.0))))))
-    IO.print(Bool.show(Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, F32.div(1.0, 0.0))))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
+    Unit <- Assert.check("SWAK_BUTTER.batch case 1", check(~F32, ~near, 0n, expected.SWAK_BUTTER(), TA.SWAK_BUTTER.batch(samples(180n, 0), 20)))
+    Unit <- Assert.check("SWAK_BUTTER.next", check(~F32, ~near, 0n, expected.SWAK_BUTTER(), chunked(~F32, ~TA.SWAK_BUTTER.State(), ~TA.SWAK_BUTTER.next, TA.SWAK_BUTTER.init(20))))
+    Unit <- Assert.check("SWAK_BUTTER.batch case 2", check(~F32, ~near, 0n, [Target{0n, 5.0}], TA.SWAK_BUTTER.batch([5.0], 20)))
+    Unit <- Assert.check("SWAK_BUTTER.batch case 3", check(~F32, ~near, 0n, [], TA.SWAK_BUTTER.batch([], 20)))
+    Unit <- Assert.check("SWAK_BUTTER.init case 1", valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(2)))
+    Unit <- Assert.check("SWAK_BUTTER.init case 2", valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(10000)))
+    Unit <- Assert.check("SWAK_BUTTER.init case 3", Bool.not(valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(1))))
+    Unit <- Assert.check("SWAK_BUTTER.init case 4", Bool.not(valid(~TA.SWAK_BUTTER.State(), TA.SWAK_BUTTER.init(10001))))
+    Unit <- Assert.check("SWAK_GAUSS.batch case 1", check(~F32, ~near, 0n, expected.SWAK_GAUSS(), TA.SWAK_GAUSS.batch(samples(180n, 0), 20)))
+    Unit <- Assert.check("SWAK_GAUSS.next", check(~F32, ~near, 0n, expected.SWAK_GAUSS(), chunked(~F32, ~TA.SWAK_GAUSS.State(), ~TA.SWAK_GAUSS.next, TA.SWAK_GAUSS.init(20))))
+    Unit <- Assert.check("SWAK_GAUSS.batch case 2", check(~F32, ~near, 0n, [Target{0n, 5.0}], TA.SWAK_GAUSS.batch([5.0], 20)))
+    Unit <- Assert.check("SWAK_GAUSS.batch case 3", check(~F32, ~near, 0n, [], TA.SWAK_GAUSS.batch([], 20)))
+    Unit <- Assert.check("SWAK_GAUSS.init case 1", valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(2)))
+    Unit <- Assert.check("SWAK_GAUSS.init case 2", valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(10000)))
+    Unit <- Assert.check("SWAK_GAUSS.init case 3", Bool.not(valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(1))))
+    Unit <- Assert.check("SWAK_GAUSS.init case 4", Bool.not(valid(~TA.SWAK_GAUSS.State(), TA.SWAK_GAUSS.init(10001))))
+    Unit <- Assert.check("SWAK_2PHP.batch case 1", check(~F32, ~near, 0n, expected.SWAK_2PHP(), TA.SWAK_2PHP.batch(samples(180n, 0), 20)))
+    Unit <- Assert.check("SWAK_2PHP.next", check(~F32, ~near, 0n, expected.SWAK_2PHP(), chunked(~F32, ~TA.SWAK_2PHP.State(), ~TA.SWAK_2PHP.next, TA.SWAK_2PHP.init(20))))
+    Unit <- Assert.check("SWAK_2PHP.batch case 2", check(~F32, ~near, 0n, [Target{0n, 0.0}], TA.SWAK_2PHP.batch([5.0], 20)))
+    Unit <- Assert.check("SWAK_2PHP.batch case 3", check(~F32, ~near, 0n, [], TA.SWAK_2PHP.batch([], 20)))
+    Unit <- Assert.check("SWAK_2PHP.init case 1", valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(2)))
+    Unit <- Assert.check("SWAK_2PHP.init case 2", valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(10000)))
+    Unit <- Assert.check("SWAK_2PHP.init case 3", Bool.not(valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(1))))
+    Unit <- Assert.check("SWAK_2PHP.init case 4", Bool.not(valid(~TA.SWAK_2PHP.State(), TA.SWAK_2PHP.init(10001))))
+    Unit <- Assert.check("SWAK_BP.batch case 1", check(~F32, ~near, 0n, expected.SWAK_BP(), TA.SWAK_BP.batch(samples(180n, 0), 20, 0.1)))
+    Unit <- Assert.check("SWAK_BP.next", check(~F32, ~near, 0n, expected.SWAK_BP(), chunked(~F32, ~TA.SWAK_BP.State(), ~TA.SWAK_BP.next, TA.SWAK_BP.init(20, 0.1))))
+    Unit <- Assert.check("SWAK_BP.batch case 2", check(~F32, ~near, 0n, [Target{0n, 0.0}], TA.SWAK_BP.batch([5.0], 20, 0.1)))
+    Unit <- Assert.check("SWAK_BP.batch case 3", check(~F32, ~near, 0n, [], TA.SWAK_BP.batch([], 20, 0.1)))
+    Unit <- Assert.check("SWAK_BP.init case 1", valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(5, 0.05)))
+    Unit <- Assert.check("SWAK_BP.init case 2", valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(2000, 0.05)))
+    Unit <- Assert.check("SWAK_BP.init case 3", Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(4, 0.5))))
+    Unit <- Assert.check("SWAK_BP.init case 4", Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(2001, 0.5))))
+    Unit <- Assert.check("SWAK_HP.batch case 1", check(~F32, ~near, 0n, expected.SWAK_HP(), TA.SWAK_HP.batch(samples(180n, 0), 20)))
+    Unit <- Assert.check("SWAK_HP.next", check(~F32, ~near, 0n, expected.SWAK_HP(), chunked(~F32, ~TA.SWAK_HP.State(), ~TA.SWAK_HP.next, TA.SWAK_HP.init(20))))
+    Unit <- Assert.check("SWAK_HP.batch case 2", check(~F32, ~near, 0n, [Target{0n, 0.0}], TA.SWAK_HP.batch([5.0], 20)))
+    Unit <- Assert.check("SWAK_HP.batch case 3", check(~F32, ~near, 0n, [], TA.SWAK_HP.batch([], 20)))
+    Unit <- Assert.check("SWAK_HP.init case 1", valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(5)))
+    Unit <- Assert.check("SWAK_HP.init case 2", valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(100000)))
+    Unit <- Assert.check("SWAK_HP.init case 3", Bool.not(valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(4))))
+    Unit <- Assert.check("SWAK_HP.init case 4", Bool.not(valid(~TA.SWAK_HP.State(), TA.SWAK_HP.init(100001))))
+    Unit <- Assert.check("SWAK_BP.init case 5", Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, 0.0))))
+    Unit <- Assert.check("SWAK_BP.init case 6", Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, 0.51))))
+    Unit <- Assert.check("SWAK_BP.init case 7", Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, F32.div(0.0, 0.0)))))
+    Assert.check("SWAK_BP.init case 8", Bool.not(valid(~TA.SWAK_BP.State(), TA.SWAK_BP.init(20, F32.div(1.0, 0.0)))))

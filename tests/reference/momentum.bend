@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as Bar
 import ../../src/core/momentum_smooth.bend as Smooth
@@ -308,10 +309,6 @@ def aroonosc.precise(result: Result<&2, &2, TA.Momentum.Error(), List<&2, Maybe<
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(reference()))
-    IO.print(Bool.show(Bool.and(edges(), aroonosc.precise(TA.AROONOSC.batch(aroonosc.history(U32.to_nat(9999)), 10000)))))
-    IO.print(Bool.show(chunks()))
-
-#|True
-#|True
-#|True
+    Unit <- Assert.check("reference", reference())
+    Unit <- Assert.check("AROONOSC.batch", Bool.and(edges(), aroonosc.precise(TA.AROONOSC.batch(aroonosc.history(U32.to_nat(9999)), 10000))))
+    Assert.check("chunks", chunks())

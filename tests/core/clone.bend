@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/clone.bend as Clone
 import ../../src/core/series.bend as Series
@@ -127,18 +128,10 @@ def push(state: Window.State<Number>, value: Number) -> Window.State<Number> & M
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(sma.start(0,TA.SMA.init(3))))
-    IO.print(Bool.show(sma.start(1,TA.SMA.init(3))))
-    IO.print(Bool.show(sma.start(2,TA.SMA.init(3))))
-    IO.print(Bool.show(bands.start(TA.BBANDS.init(3,1.0,1.0,0))))
-    IO.print(Bool.show(maximum.start(TA.MAX.init(3))))
-    IO.print(Bool.show(variable.start(TA.MAVP.init(2,4,0))))
-    IO.print(Bool.show(multi.ready(Series.scan(~Number, ~Number, ~Window.State<Number>, ~push, [Number{1.0,77},Number{2.0,88},Number{3.0,99}], Window.init(~Number,3,2n,Number{0.0,0})))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
+    Unit <- Assert.check("SMA.init case 1", sma.start(0,TA.SMA.init(3)))
+    Unit <- Assert.check("SMA.init case 2", sma.start(1,TA.SMA.init(3)))
+    Unit <- Assert.check("SMA.init case 3", sma.start(2,TA.SMA.init(3)))
+    Unit <- Assert.check("BBANDS.init", bands.start(TA.BBANDS.init(3,1.0,1.0,0)))
+    Unit <- Assert.check("MAX.init", maximum.start(TA.MAX.init(3)))
+    Unit <- Assert.check("MAVP.init", variable.start(TA.MAVP.init(2,4,0)))
+    Assert.check("multi.ready", multi.ready(Series.scan(~Number, ~Number, ~Window.State<Number>, ~push, [Number{1.0,77},Number{2.0,88},Number{3.0,99}], Window.init(~Number,3,2n,Number{0.0,0}))))

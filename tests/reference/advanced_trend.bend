@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as Bar
 import ../../src/core/trend_state.bend as Trend
@@ -153,12 +154,7 @@ def boundaries() -> Bool:
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(references()))
-    IO.print(Bool.show(invalids()))
-    IO.print(Bool.show(chunks()))
-    IO.print(Bool.show(boundaries()))
-
-#|True
-#|True
-#|True
-#|True
+    Unit <- Assert.check("references", references())
+    Unit <- Assert.check("invalids", invalids())
+    Unit <- Assert.check("chunks", chunks())
+    Assert.check("boundaries", boundaries())

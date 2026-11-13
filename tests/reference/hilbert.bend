@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/series.bend as Series
 import ../../src/core/parameters.bend as Params
@@ -133,64 +134,33 @@ def bounded(~O: Data, ~within: O -> Bool, result: Result<&2, &2, Params.Error, L
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(check(~F32, ~near, 32n, expected.HT_DCPERIOD(), TA.HT_DCPERIOD.batch(samples(180n, 0)))))
-    IO.print(Bool.show(check(~F32, ~near, 32n, expected.HT_DCPERIOD(), chunked(~F32, ~TA.HT_DCPERIOD.State(), ~TA.HT_DCPERIOD.next, TA.HT_DCPERIOD.init()))))
-    IO.print(Bool.show(check(~F32, ~near, 32n, [], TA.HT_DCPERIOD.batch([0.0, 0.0, 0.0]))))
-    IO.print(Bool.show(check(~F32, ~near, 32n, [], TA.HT_DCPERIOD.batch([]))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, expected.HT_DCPHASE(), TA.HT_DCPHASE.batch(samples(180n, 0)))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, expected.HT_DCPHASE(), chunked(~F32, ~TA.HT_DCPHASE.State(), ~TA.HT_DCPHASE.next, TA.HT_DCPHASE.init()))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, [], TA.HT_DCPHASE.batch([0.0, 0.0, 0.0]))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, [], TA.HT_DCPHASE.batch([]))))
-    IO.print(Bool.show(check(~H.Phasor<F32>, ~phasor, 32n, expected.HT_PHASOR(), TA.HT_PHASOR.batch(samples(180n, 0)))))
-    IO.print(Bool.show(check(~H.Phasor<F32>, ~phasor, 32n, expected.HT_PHASOR(), chunked(~H.Phasor<F32>, ~TA.HT_PHASOR.State(), ~TA.HT_PHASOR.next, TA.HT_PHASOR.init()))))
-    IO.print(Bool.show(check(~H.Phasor<F32>, ~phasor, 32n, [], TA.HT_PHASOR.batch([0.0, 0.0, 0.0]))))
-    IO.print(Bool.show(check(~H.Phasor<F32>, ~phasor, 32n, [], TA.HT_PHASOR.batch([]))))
-    IO.print(Bool.show(check(~H.Sine<F32>, ~sine, 63n, expected.HT_SINE(), TA.HT_SINE.batch(samples(180n, 0)))))
-    IO.print(Bool.show(check(~H.Sine<F32>, ~sine, 63n, expected.HT_SINE(), chunked(~H.Sine<F32>, ~TA.HT_SINE.State(), ~TA.HT_SINE.next, TA.HT_SINE.init()))))
-    IO.print(Bool.show(check(~H.Sine<F32>, ~sine, 63n, [], TA.HT_SINE.batch([0.0, 0.0, 0.0]))))
-    IO.print(Bool.show(check(~H.Sine<F32>, ~sine, 63n, [], TA.HT_SINE.batch([]))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, expected.HT_TRENDLINE(), TA.HT_TRENDLINE.batch(samples(180n, 0)))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, expected.HT_TRENDLINE(), chunked(~F32, ~TA.HT_TRENDLINE.State(), ~TA.HT_TRENDLINE.next, TA.HT_TRENDLINE.init()))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, [], TA.HT_TRENDLINE.batch([0.0, 0.0, 0.0]))))
-    IO.print(Bool.show(check(~F32, ~near, 63n, [], TA.HT_TRENDLINE.batch([]))))
-    IO.print(Bool.show(check(~U32, ~U32.is_eq, 63n, expected.HT_TRENDMODE(), TA.HT_TRENDMODE.batch(samples(180n, 0)))))
-    IO.print(Bool.show(check(~U32, ~U32.is_eq, 63n, expected.HT_TRENDMODE(), chunked(~U32, ~TA.HT_TRENDMODE.State(), ~TA.HT_TRENDMODE.next, TA.HT_TRENDMODE.init()))))
-    IO.print(Bool.show(check(~U32, ~U32.is_eq, 63n, [], TA.HT_TRENDMODE.batch([0.0, 0.0, 0.0]))))
-    IO.print(Bool.show(check(~U32, ~U32.is_eq, 63n, [], TA.HT_TRENDMODE.batch([]))))
-    IO.print(Bool.show(bounded(~F32, ~period_bounds, TA.HT_DCPERIOD.batch(flat(180n)))))
-    IO.print(Bool.show(bounded(~F32, ~phase_bounds, TA.HT_DCPHASE.batch(flat(180n)))))
-    IO.print(Bool.show(bounded(~H.Phasor<F32>, ~phasor_flat, TA.HT_PHASOR.batch(flat(180n)))))
-    IO.print(Bool.show(bounded(~H.Sine<F32>, ~sine_bounds, TA.HT_SINE.batch(flat(180n)))))
-    IO.print(Bool.show(bounded(~F32, ~line_flat, TA.HT_TRENDLINE.batch(flat(180n)))))
-    IO.print(Bool.show(bounded(~U32, ~flag_bounds, TA.HT_TRENDMODE.batch(flat(180n)))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
+    Unit <- Assert.check("HT_DCPERIOD.batch case 1", check(~F32, ~near, 32n, expected.HT_DCPERIOD(), TA.HT_DCPERIOD.batch(samples(180n, 0))))
+    Unit <- Assert.check("HT_DCPERIOD.next", check(~F32, ~near, 32n, expected.HT_DCPERIOD(), chunked(~F32, ~TA.HT_DCPERIOD.State(), ~TA.HT_DCPERIOD.next, TA.HT_DCPERIOD.init())))
+    Unit <- Assert.check("HT_DCPERIOD.batch case 2", check(~F32, ~near, 32n, [], TA.HT_DCPERIOD.batch([0.0, 0.0, 0.0])))
+    Unit <- Assert.check("HT_DCPERIOD.batch case 3", check(~F32, ~near, 32n, [], TA.HT_DCPERIOD.batch([])))
+    Unit <- Assert.check("HT_DCPHASE.batch case 1", check(~F32, ~near, 63n, expected.HT_DCPHASE(), TA.HT_DCPHASE.batch(samples(180n, 0))))
+    Unit <- Assert.check("HT_DCPHASE.next", check(~F32, ~near, 63n, expected.HT_DCPHASE(), chunked(~F32, ~TA.HT_DCPHASE.State(), ~TA.HT_DCPHASE.next, TA.HT_DCPHASE.init())))
+    Unit <- Assert.check("HT_DCPHASE.batch case 2", check(~F32, ~near, 63n, [], TA.HT_DCPHASE.batch([0.0, 0.0, 0.0])))
+    Unit <- Assert.check("HT_DCPHASE.batch case 3", check(~F32, ~near, 63n, [], TA.HT_DCPHASE.batch([])))
+    Unit <- Assert.check("HT_PHASOR.batch case 1", check(~H.Phasor<F32>, ~phasor, 32n, expected.HT_PHASOR(), TA.HT_PHASOR.batch(samples(180n, 0))))
+    Unit <- Assert.check("HT_PHASOR.next", check(~H.Phasor<F32>, ~phasor, 32n, expected.HT_PHASOR(), chunked(~H.Phasor<F32>, ~TA.HT_PHASOR.State(), ~TA.HT_PHASOR.next, TA.HT_PHASOR.init())))
+    Unit <- Assert.check("HT_PHASOR.batch case 2", check(~H.Phasor<F32>, ~phasor, 32n, [], TA.HT_PHASOR.batch([0.0, 0.0, 0.0])))
+    Unit <- Assert.check("HT_PHASOR.batch case 3", check(~H.Phasor<F32>, ~phasor, 32n, [], TA.HT_PHASOR.batch([])))
+    Unit <- Assert.check("HT_SINE.batch case 1", check(~H.Sine<F32>, ~sine, 63n, expected.HT_SINE(), TA.HT_SINE.batch(samples(180n, 0))))
+    Unit <- Assert.check("HT_SINE.next", check(~H.Sine<F32>, ~sine, 63n, expected.HT_SINE(), chunked(~H.Sine<F32>, ~TA.HT_SINE.State(), ~TA.HT_SINE.next, TA.HT_SINE.init())))
+    Unit <- Assert.check("HT_SINE.batch case 2", check(~H.Sine<F32>, ~sine, 63n, [], TA.HT_SINE.batch([0.0, 0.0, 0.0])))
+    Unit <- Assert.check("HT_SINE.batch case 3", check(~H.Sine<F32>, ~sine, 63n, [], TA.HT_SINE.batch([])))
+    Unit <- Assert.check("HT_TRENDLINE.batch case 1", check(~F32, ~near, 63n, expected.HT_TRENDLINE(), TA.HT_TRENDLINE.batch(samples(180n, 0))))
+    Unit <- Assert.check("HT_TRENDLINE.next", check(~F32, ~near, 63n, expected.HT_TRENDLINE(), chunked(~F32, ~TA.HT_TRENDLINE.State(), ~TA.HT_TRENDLINE.next, TA.HT_TRENDLINE.init())))
+    Unit <- Assert.check("HT_TRENDLINE.batch case 2", check(~F32, ~near, 63n, [], TA.HT_TRENDLINE.batch([0.0, 0.0, 0.0])))
+    Unit <- Assert.check("HT_TRENDLINE.batch case 3", check(~F32, ~near, 63n, [], TA.HT_TRENDLINE.batch([])))
+    Unit <- Assert.check("HT_TRENDMODE.batch case 1", check(~U32, ~U32.is_eq, 63n, expected.HT_TRENDMODE(), TA.HT_TRENDMODE.batch(samples(180n, 0))))
+    Unit <- Assert.check("HT_TRENDMODE.next", check(~U32, ~U32.is_eq, 63n, expected.HT_TRENDMODE(), chunked(~U32, ~TA.HT_TRENDMODE.State(), ~TA.HT_TRENDMODE.next, TA.HT_TRENDMODE.init())))
+    Unit <- Assert.check("HT_TRENDMODE.batch case 2", check(~U32, ~U32.is_eq, 63n, [], TA.HT_TRENDMODE.batch([0.0, 0.0, 0.0])))
+    Unit <- Assert.check("HT_TRENDMODE.batch case 3", check(~U32, ~U32.is_eq, 63n, [], TA.HT_TRENDMODE.batch([])))
+    Unit <- Assert.check("HT_DCPERIOD.batch case 4", bounded(~F32, ~period_bounds, TA.HT_DCPERIOD.batch(flat(180n))))
+    Unit <- Assert.check("HT_DCPHASE.batch case 4", bounded(~F32, ~phase_bounds, TA.HT_DCPHASE.batch(flat(180n))))
+    Unit <- Assert.check("HT_PHASOR.batch case 4", bounded(~H.Phasor<F32>, ~phasor_flat, TA.HT_PHASOR.batch(flat(180n))))
+    Unit <- Assert.check("HT_SINE.batch case 4", bounded(~H.Sine<F32>, ~sine_bounds, TA.HT_SINE.batch(flat(180n))))
+    Unit <- Assert.check("HT_TRENDLINE.batch case 4", bounded(~F32, ~line_flat, TA.HT_TRENDLINE.batch(flat(180n))))
+    Assert.check("HT_TRENDMODE.batch case 4", bounded(~U32, ~flag_bounds, TA.HT_TRENDMODE.batch(flat(180n))))

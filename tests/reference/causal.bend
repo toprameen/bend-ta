@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as Bar
 import ../../src/core/parameters.bend as P
@@ -64,36 +65,19 @@ def main() -> IO(Unit):
   +undefined = F32.div(0.0, 0.0)
   +inf = F32.div(1.0, 0.0)
   do IO<Unit>:
-    IO.print(Bool.show(scalar(TA.DPO.batch([2.0, 4.0, 6.0, 8.0], 2), [None{}, None{}, Some{F32.neg(3.0)}, Some{F32.neg(3.0)}])))
-    IO.print(Bool.show(scalar(TA.DPO.batch([1.0, 2.0, 3.0, 4.0, 5.0], 4), [None{}, None{}, None{}, Some{F32.neg(1.5)}, Some{F32.neg(1.5)}])))
-    IO.print(Bool.show(scalar(TA.RVOL.batch([2.0, 4.0, 6.0, 8.0], 2), [None{}, None{}, Some{2.0}, Some{1.6}])))
-    IO.print(Bool.show(scalar(TA.RVOL.batch([0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 6.0], 2), [None{}, None{}, Some{undefined}, Some{inf}, Some{0.0}, Some{0.0}, Some{inf}])))
-    IO.print(Bool.show(same(TA.VWAP.batch([Bar.HLCV{3.0, 1.0, 2.0, 0.0}, Bar.HLCV{5.0, 3.0, 4.0, 2.0}, Bar.HLCV{7.0, 5.0, 6.0, 2.0}]), [Some{0.0}, Some{4.0}, Some{5.0}])))
-    IO.print(Bool.show(same(TA.VWAP.batch([Bar.HLCV{3.0, 1.0, 2.0, 1.0}, Bar.HLCV{undefined, 1.0, 2.0, 9.0}, Bar.HLCV{5.0, 3.0, 4.0, inf}, Bar.HLCV{5.0, 3.0, 4.0, 1.0}]), [Some{2.0}, Some{2.0}, Some{2.0}, Some{3.0}])))
-    IO.print(Bool.show(same(TA.VWAP.batch([Bar.HLCV{3.0e20, 3.0e20, 3.0e20, 3.0e20}]), [Some{inf}])))
-    IO.print(Bool.show(cloud(TA.ICHIMOKU.batch([Bar.HL{3.0, 1.0}, Bar.HL{5.0, 1.0}, Bar.HL{4.0, 2.0}, Bar.HL{8.0, 4.0}, Bar.HL{6.0, 3.0}], 2, 3, 4))))
-    IO.print(Bool.show(fractal(TA.FRACTAL.batch([Bar.HL{2.0, 0.0}, Bar.HL{5.0, F32.neg(2.0)}, Bar.HL{3.0, 1.0}, Bar.HL{5.0, 1.0}, Bar.HL{4.0, 0.0}, Bar.HL{4.0, 0.0}], 1, 1))))
-    IO.print(Bool.show(zigzag(TA.ZIGZAG.batch([Bar.HL{10.0, 9.0}, Bar.HL{11.0, 10.0}, Bar.HL{12.0, 8.0}, Bar.HL{12.0, 9.0}, Bar.HL{10.0, 7.0}], 10.0, 1))))
-    IO.print(Bool.show(resume(TA.MAVP.init(2, 3, 1))))
-    IO.print(Bool.show(scalar(TA.MAVP.batch([V.Sample{3.0, undefined}, V.Sample{4.0, inf}, V.Sample{5.0, F32.neg(inf)}], 1, 2, 10), [Some{3.0}, Some{4.0}, Some{5.0}])))
-    IO.print(Bool.show(shifts(TA.DPO.display_shift(4), TA.ICHIMOKU.display_shift(26), TA.FRACTAL.display_shift(2))))
-    IO.print(Bool.show(Bool.and(nan(TA.DIV(Transform.Operands{0.0, 0.0})), Bool.and(F32.is_eq(TA.DIV(Transform.Operands{1.0, 0.0}), inf), U32.is_eq(F32.bits(TA.DIV(Transform.Operands{F32.neg(0.0), 2.0})), 2147483648)))))
-    IO.print(Bool.show(List.all(~&2, ~Bool, ~(x => x), [invalid(~TA.DPO.State(), TA.DPO.init(1)), invalid(~TA.RVOL.State(), TA.RVOL.init(100001)), invalid(~TA.ICHIMOKU.State(), TA.ICHIMOKU.init(2, 1, 2)), invalid(~TA.FRACTAL.State(), TA.FRACTAL.init(0, 1)), invalid(~TA.ZIGZAG.State(), TA.ZIGZAG.init(undefined, 1)), invalid(~TA.ZIGZAG.State(), TA.ZIGZAG.init(5.0, 0)), invalid(~TA.MAVP.State(), TA.MAVP.init(3, 2, 1)), invalid(~TA.MAVP.State(), TA.MAVP.init(1, 10001, 0)), invalid(~TA.MAVP.State(), TA.MAVP.init(1, 2, 11))])))
-    IO.print(Bool.show(Bool.and(scalar(TA.DPO.batch([], 2), []), scalar(TA.MAVP.batch([V.Sample{3.0, 2.0}], 2, 3, 1), [None{}]))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
+    Unit <- Assert.check("DPO.batch case 1", scalar(TA.DPO.batch([2.0, 4.0, 6.0, 8.0], 2), [None{}, None{}, Some{F32.neg(3.0)}, Some{F32.neg(3.0)}]))
+    Unit <- Assert.check("DPO.batch case 2", scalar(TA.DPO.batch([1.0, 2.0, 3.0, 4.0, 5.0], 4), [None{}, None{}, None{}, Some{F32.neg(1.5)}, Some{F32.neg(1.5)}]))
+    Unit <- Assert.check("RVOL.batch case 1", scalar(TA.RVOL.batch([2.0, 4.0, 6.0, 8.0], 2), [None{}, None{}, Some{2.0}, Some{1.6}]))
+    Unit <- Assert.check("RVOL.batch case 2", scalar(TA.RVOL.batch([0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 6.0], 2), [None{}, None{}, Some{undefined}, Some{inf}, Some{0.0}, Some{0.0}, Some{inf}]))
+    Unit <- Assert.check("VWAP.batch case 1", same(TA.VWAP.batch([Bar.HLCV{3.0, 1.0, 2.0, 0.0}, Bar.HLCV{5.0, 3.0, 4.0, 2.0}, Bar.HLCV{7.0, 5.0, 6.0, 2.0}]), [Some{0.0}, Some{4.0}, Some{5.0}]))
+    Unit <- Assert.check("VWAP.batch case 2", same(TA.VWAP.batch([Bar.HLCV{3.0, 1.0, 2.0, 1.0}, Bar.HLCV{undefined, 1.0, 2.0, 9.0}, Bar.HLCV{5.0, 3.0, 4.0, inf}, Bar.HLCV{5.0, 3.0, 4.0, 1.0}]), [Some{2.0}, Some{2.0}, Some{2.0}, Some{3.0}]))
+    Unit <- Assert.check("VWAP.batch case 3", same(TA.VWAP.batch([Bar.HLCV{3.0e20, 3.0e20, 3.0e20, 3.0e20}]), [Some{inf}]))
+    Unit <- Assert.check("ICHIMOKU.batch", cloud(TA.ICHIMOKU.batch([Bar.HL{3.0, 1.0}, Bar.HL{5.0, 1.0}, Bar.HL{4.0, 2.0}, Bar.HL{8.0, 4.0}, Bar.HL{6.0, 3.0}], 2, 3, 4)))
+    Unit <- Assert.check("FRACTAL.batch", fractal(TA.FRACTAL.batch([Bar.HL{2.0, 0.0}, Bar.HL{5.0, F32.neg(2.0)}, Bar.HL{3.0, 1.0}, Bar.HL{5.0, 1.0}, Bar.HL{4.0, 0.0}, Bar.HL{4.0, 0.0}], 1, 1)))
+    Unit <- Assert.check("ZIGZAG.batch", zigzag(TA.ZIGZAG.batch([Bar.HL{10.0, 9.0}, Bar.HL{11.0, 10.0}, Bar.HL{12.0, 8.0}, Bar.HL{12.0, 9.0}, Bar.HL{10.0, 7.0}], 10.0, 1)))
+    Unit <- Assert.check("MAVP.init", resume(TA.MAVP.init(2, 3, 1)))
+    Unit <- Assert.check("MAVP.batch", scalar(TA.MAVP.batch([V.Sample{3.0, undefined}, V.Sample{4.0, inf}, V.Sample{5.0, F32.neg(inf)}], 1, 2, 10), [Some{3.0}, Some{4.0}, Some{5.0}]))
+    Unit <- Assert.check("shifts", shifts(TA.DPO.display_shift(4), TA.ICHIMOKU.display_shift(26), TA.FRACTAL.display_shift(2)))
+    Unit <- Assert.check("nan", Bool.and(nan(TA.DIV(Transform.Operands{0.0, 0.0})), Bool.and(F32.is_eq(TA.DIV(Transform.Operands{1.0, 0.0}), inf), U32.is_eq(F32.bits(TA.DIV(Transform.Operands{F32.neg(0.0), 2.0})), 2147483648))))
+    Unit <- Assert.check("DPO.init", List.all(~&2, ~Bool, ~(x => x), [invalid(~TA.DPO.State(), TA.DPO.init(1)), invalid(~TA.RVOL.State(), TA.RVOL.init(100001)), invalid(~TA.ICHIMOKU.State(), TA.ICHIMOKU.init(2, 1, 2)), invalid(~TA.FRACTAL.State(), TA.FRACTAL.init(0, 1)), invalid(~TA.ZIGZAG.State(), TA.ZIGZAG.init(undefined, 1)), invalid(~TA.ZIGZAG.State(), TA.ZIGZAG.init(5.0, 0)), invalid(~TA.MAVP.State(), TA.MAVP.init(3, 2, 1)), invalid(~TA.MAVP.State(), TA.MAVP.init(1, 10001, 0)), invalid(~TA.MAVP.State(), TA.MAVP.init(1, 2, 11))]))
+    Assert.check("DPO.batch case 3", Bool.and(scalar(TA.DPO.batch([], 2), []), scalar(TA.MAVP.batch([V.Sample{3.0, 2.0}], 2, 3, 1), [None{}])))

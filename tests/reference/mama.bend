@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/mama.bend as Mama
 import ../../src/core/series.bend as Series
@@ -84,11 +85,6 @@ def chunked(result: Result<&2, &1, TA.MAMA.Error(), TA.MAMA.State()>) -> Result<
     case Fail{e}: Fail{e}
     case Done{state}: Done{continued(samples(~negative, 160n, 20), Series.scan(~F32, ~TA.MAMA.Value(), ~TA.MAMA.State(), ~TA.MAMA.next, samples(~negative, 20n, 0), state))}
 
-def valid(result: Result<&2, &2, TA.MAMA.Error(), List<&2, Maybe<&2, TA.MAMA.Value()>>>) -> String:
-  match result:
-    case Fail{e}: "invalid"
-    case Done{xs}: "valid"
-
 def expected.constant() -> List<&2, Target>:
   [Target{32n, 4.999983646869698, 4.960701874098815}, Target{33n, 4.999991823434849, 4.970524361432823}, Target{47n, 4.999999999500942, 4.999474732009067}, Target{80n, 5.0, 4.999999960426649}, Target{100n, 5.0, 4.999999999874504}, Target{142n, 5.0, 4.999999999999998}, Target{179n, 5.0, 4.999999999999998}]
 
@@ -103,20 +99,11 @@ def expected.shifted() -> List<&2, Target>:
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(check(expected.constant(), 0.000005, TA.MAMA.batch(samples(~constant, 180n, 0), 0.5, 0.05))))
-    IO.print(Bool.show(check(expected.negative(), 0.00002, TA.MAMA.batch(samples(~negative, 180n, 0), 0.5, 0.05))))
-    IO.print(Bool.show(check(expected.cycle(), 0.00002, TA.MAMA.batch(samples(~cycle, 180n, 0), 0.5, 0.05))))
-    IO.print(Bool.show(check(expected.shifted(), 0.01, TA.MAMA.batch(samples(~shifted, 180n, 0), 0.5, 0.05))))
-    IO.print(Bool.show(check(expected.negative(), 0.00002, chunked(TA.MAMA.init(0.5, 0.05)))))
-    IO.print(valid(TA.MAMA.batch([], 0.5, 0.05)))
-    IO.print(valid(TA.MAMA.batch([], 0.0, 0.05)))
-    IO.print(valid(TA.MAMA.batch([], 0.5, F32.div(0.0, 0.0))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|valid
-#|invalid
-#|invalid
+    Unit <- Assert.check("MAMA.batch case 1", check(expected.constant(), 0.000005, TA.MAMA.batch(samples(~constant, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.batch case 2", check(expected.negative(), 0.00002, TA.MAMA.batch(samples(~negative, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.batch case 3", check(expected.cycle(), 0.00002, TA.MAMA.batch(samples(~cycle, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.batch case 4", check(expected.shifted(), 0.01, TA.MAMA.batch(samples(~shifted, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.init", check(expected.negative(), 0.00002, chunked(TA.MAMA.init(0.5, 0.05))))
+    Unit <- Assert.check("MAMA.batch case 5", Result.is_done(&2, &2, TA.MAMA.Error(), List<&2, Maybe<&2, TA.MAMA.Value()>>, TA.MAMA.batch([], 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.batch case 6", Result.is_fail(&2, &2, TA.MAMA.Error(), List<&2, Maybe<&2, TA.MAMA.Value()>>, TA.MAMA.batch([], 0.0, 0.05)))
+    Assert.check("MAMA.batch case 7", Result.is_fail(&2, &2, TA.MAMA.Error(), List<&2, Maybe<&2, TA.MAMA.Value()>>, TA.MAMA.batch([], 0.5, F32.div(0.0, 0.0))))

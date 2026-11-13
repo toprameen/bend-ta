@@ -18,7 +18,6 @@ facades must instantiate that core instead of copying indicator algorithms.
   exceptionally obscure or esoteric consideration that cannot reasonably be
   made clear in the code itself. Keep that explanation brief and focused on why
   the constraint exists; never narrate operations or restate the code's behavior.
-  Functional directives such as trailing `#|` test output are exempt.
 - Pass numeric types and operations as leading `~` parameters. Keep periods,
   coefficients and input data as ordinary runtime arguments.
 - Keep initialization, warm-up, output alignment and batch/stream semantics
@@ -36,7 +35,7 @@ facades must instantiate that core instead of copying indicator algorithms.
   Run `bend PROOF.bend --verdict` with Lean 4.34.0 for the independent proof check.
   Run `bend scripts/test.bend -- --js` for native and JavaScript checks.
   `BEND` selects the compiler; `BEND_JS` selects the optional JS runtime.
-  Tests use trailing `#|` output. Exercise runner/gate failures when changing them.
+  Exercise runner/gate failures when changing them.
 - Keep generated files and temporary probes outside the repository. Do not add
   private workspace context or absolute machine paths to tracked files.
 - Leave changes uncommitted and unpushed unless the user authorizes publication.

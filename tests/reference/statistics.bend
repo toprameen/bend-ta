@@ -1,13 +1,9 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/parameters.bend as P
 import ../../src/core/statistics.bend as S
 import ../../src/core/series.bend as Series
-
-def show(~A: Data, ~format: A -> String, value: Result<&2, &2, P.Error, List<&2, Maybe<&2, A>>>) -> String:
-  match value:
-    case Fail{e}: "invalid"
-    case Done{xs}: List.show(~&2, ~Maybe<&2, A>, ~(x => Maybe.show(~&2, ~A, ~format, x)), xs)
 
 def close.values(xs: List<&2, Maybe<&2, F32>>, expected: List<&2, Maybe<&2, F32>>) -> Bool:
   match xs expected:
@@ -21,21 +17,23 @@ def close(value: Result<&2, &2, P.Error, List<&2, Maybe<&2, F32>>>, expected: Li
     case Fail{e}: False{}
     case Done{xs}: close.values(xs, expected)
 
-def indexes(v: S.MinMaxIndex) -> String:
-  match v:
-    case S.MinMaxIndex{low, high}: U32.show(low) ++ "," ++ U32.show(high)
+def indexes(actual: S.MinMaxIndex, expected: S.MinMaxIndex) -> Bool:
+  match actual expected:
+    case S.MinMaxIndex{low, high} S.MinMaxIndex{expected_low, expected_high}:
+      Bool.and(U32.is_eq(low, expected_low), U32.is_eq(high, expected_high))
 
-def bounds(v: S.MinMax<F32>) -> String:
-  match v:
-    case S.MinMax{low, high}: F32.show(low) ++ "," ++ F32.show(high)
+def bounds(actual: S.MinMax<F32>, expected: S.MinMax<F32>) -> Bool:
+  match actual expected:
+    case S.MinMax{low, high} S.MinMax{expected_low, expected_high}:
+      Bool.and(F32.is_eq(low, expected_low), F32.is_eq(high, expected_high))
 
-def continued.scan(result: TA.LINEARREG.State() & List<&2, Maybe<&2, F32>>) -> String:
+def continued.scan(result: TA.LINEARREG.State() & List<&2, Maybe<&2, F32>>) -> Result<&2, &2, P.Error, List<&2, Maybe<&2, F32>>>:
   match result:
-    case (state, first): List.show(~&2, ~Maybe<&2, F32>, ~(x => Maybe.show(~&2, ~F32, ~F32.show, x)), Series.batch(~F32, ~F32, ~TA.LINEARREG.State(), ~TA.LINEARREG.next, [6.0, 8.0], state))
+    case (state, first): Done{Series.batch(~F32, ~F32, ~TA.LINEARREG.State(), ~TA.LINEARREG.next, [6.0, 8.0], state)}
 
-def continued(result: Result<&2, &1, P.Error, TA.LINEARREG.State()>) -> String:
+def continued(result: Result<&2, &1, P.Error, TA.LINEARREG.State()>) -> Result<&2, &2, P.Error, List<&2, Maybe<&2, F32>>>:
   match result:
-    case Fail{e}: "invalid"
+    case Fail{e}: Fail{e}
     case Done{state}: continued.scan(Series.scan(~F32, ~F32, ~TA.LINEARREG.State(), ~TA.LINEARREG.next, [2.0, 4.0], state))
 
 def copies(~A: Data, fuel: Nat, +value: A, acc: List<&2, A>) -> List<&2, A>:
@@ -52,52 +50,26 @@ def main() -> IO(Unit):
   +ramp : List<&2, F32> = [2.0, 4.0, 6.0, 8.0]
   +ties : List<&2, F32> = [2.0, 2.0, 1.0, 2.0, 1.0]
   do IO<Unit>:
-    IO.print(show(~F32, ~F32.show, TA.LINEARREG.batch(ramp, 3)))
-    IO.print(show(~F32, ~F32.show, TA.LINEARREG_SLOPE.batch(ramp, 3)))
-    IO.print(show(~F32, ~F32.show, TA.LINEARREG_INTERCEPT.batch(ramp, 3)))
-    IO.print(show(~F32, ~F32.show, TA.TSF.batch(ramp, 3)))
-    IO.print(Bool.show(close(TA.LINEARREG_ANGLE.batch([0.0, 1.0, 2.0], 2), [None{}, Some{45.0}, Some{45.0}])))
-    IO.print(show(~F32, ~F32.show, TA.LINEARREG_SLOPE.batch([1000000.0, 1000000.0625, 1000000.125], 3)))
-    IO.print(Bool.show(close(TA.AVGDEV.batch([1000000.0, 1000000.0, 1000000.0625], 3), [None{}, None{}, Some{0.027777778}])))
-    IO.print(show(~F32, ~F32.show, TA.STDDEV.batch([0.0, 2.0, 4.0], 2, 1.0)))
-    IO.print(show(~F32, ~F32.show, TA.MEDIAN.batch([10.0, 0.0, 20.0, 40.0], 4)))
-    IO.print(show(~F32, ~F32.show, TA.PERCENTILE.batch([10.0, 0.0, 20.0, 40.0], 4, 25.0)))
-    IO.print(Bool.show(close(TA.PERCENTRANK.batch([2.0, 2.0, 1.0, 2.0, 1.0, 1.0, 3.0], 3), [None{}, None{}, None{}, Some{33.333333}, Some{0.0}, Some{0.0}, Some{100.0}])))
-    IO.print(show(~U32, ~U32.show, TA.MAXINDEX.batch(ties, 3)))
-    IO.print(show(~U32, ~U32.show, TA.MININDEX.batch(ties, 3)))
-    IO.print(show(~S.MinMaxIndex, ~indexes, TA.MINMAXINDEX.batch(ties, 3)))
-    IO.print(show(~F32, ~F32.show, TA.MAX.batch(ties, 3)))
-    IO.print(show(~F32, ~F32.show, TA.MIN.batch(ties, 3)))
-    IO.print(show(~F32, ~F32.show, TA.MIDPOINT.batch(ties, 3)))
-    IO.print(show(~F32, ~F32.show, TA.MEDIAN.batch([], 3)))
-    IO.print(show(~F32, ~F32.show, TA.STDDEV.batch([], 1, 1.0)))
-    IO.print(show(~F32, ~F32.show, TA.PERCENTILE.batch([], 2, 101.0)))
-    IO.print(continued(TA.LINEARREG.init(3)))
-    IO.print(show(~S.MinMax<F32>, ~bounds, TA.MINMAX.batch(ties, 3)))
-    IO.print(Bool.show(boundary()))
-
-#|[None, None, Some(6), Some(8)]
-#|[None, None, Some(2), Some(2)]
-#|[None, None, Some(2), Some(4)]
-#|[None, None, Some(8), Some(10)]
-#|True
-#|[None, None, Some(0.0625)]
-#|True
-#|[None, Some(1), Some(1)]
-#|[None, None, None, Some(15)]
-#|[None, None, None, Some(0)]
-#|True
-#|[None, None, Some(1), Some(3), Some(3)]
-#|[None, None, Some(2), Some(2), Some(4)]
-#|[None, None, Some(2,1), Some(2,3), Some(4,3)]
-#|[None, None, Some(2), Some(2), Some(2)]
-#|[None, None, Some(1), Some(1), Some(1)]
-#|[None, None, Some(1.5), Some(1.5), Some(1.5)]
-#|[]
-#|invalid
-#|invalid
-#|[Some(6), Some(8)]
-
-#|[None, None, Some(1,2), Some(1,2), Some(1,2)]
-
-#|True
+    Unit <- Assert.check("LINEARREG.batch", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.LINEARREG.batch(ramp, 3), [None{}, None{}, Some{6.0}, Some{8.0}]))
+    Unit <- Assert.check("LINEARREG_SLOPE.batch case 1", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.LINEARREG_SLOPE.batch(ramp, 3), [None{}, None{}, Some{2.0}, Some{2.0}]))
+    Unit <- Assert.check("LINEARREG_INTERCEPT.batch", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.LINEARREG_INTERCEPT.batch(ramp, 3), [None{}, None{}, Some{2.0}, Some{4.0}]))
+    Unit <- Assert.check("TSF.batch", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.TSF.batch(ramp, 3), [None{}, None{}, Some{8.0}, Some{10.0}]))
+    Unit <- Assert.check("LINEARREG_ANGLE.batch", close(TA.LINEARREG_ANGLE.batch([0.0, 1.0, 2.0], 2), [None{}, Some{45.0}, Some{45.0}]))
+    Unit <- Assert.check("LINEARREG_SLOPE.batch case 2", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.LINEARREG_SLOPE.batch([1000000.0, 1000000.0625, 1000000.125], 3), [None{}, None{}, Some{0.0625}]))
+    Unit <- Assert.check("AVGDEV.batch", close(TA.AVGDEV.batch([1000000.0, 1000000.0, 1000000.0625], 3), [None{}, None{}, Some{0.027777778}]))
+    Unit <- Assert.check("STDDEV.batch case 1", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.STDDEV.batch([0.0, 2.0, 4.0], 2, 1.0), [None{}, Some{1.0}, Some{1.0}]))
+    Unit <- Assert.check("MEDIAN.batch case 1", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.MEDIAN.batch([10.0, 0.0, 20.0, 40.0], 4), [None{}, None{}, None{}, Some{15.0}]))
+    Unit <- Assert.check("PERCENTILE.batch case 1", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.PERCENTILE.batch([10.0, 0.0, 20.0, 40.0], 4, 25.0), [None{}, None{}, None{}, Some{0.0}]))
+    Unit <- Assert.check("PERCENTRANK.batch", close(TA.PERCENTRANK.batch([2.0, 2.0, 1.0, 2.0, 1.0, 1.0, 3.0], 3), [None{}, None{}, None{}, Some{33.333333}, Some{0.0}, Some{0.0}, Some{100.0}]))
+    Unit <- Assert.check("MAXINDEX.batch", Assert.batch(~P.Error, ~U32, ~U32.is_eq, TA.MAXINDEX.batch(ties, 3), [None{}, None{}, Some{1}, Some{3}, Some{3}]))
+    Unit <- Assert.check("MININDEX.batch", Assert.batch(~P.Error, ~U32, ~U32.is_eq, TA.MININDEX.batch(ties, 3), [None{}, None{}, Some{2}, Some{2}, Some{4}]))
+    Unit <- Assert.check("MINMAXINDEX.batch", Assert.batch(~P.Error, ~S.MinMaxIndex, ~indexes, TA.MINMAXINDEX.batch(ties, 3), [None{}, None{}, Some{S.MinMaxIndex{2, 1}}, Some{S.MinMaxIndex{2, 3}}, Some{S.MinMaxIndex{4, 3}}]))
+    Unit <- Assert.check("MAX.batch", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.MAX.batch(ties, 3), [None{}, None{}, Some{2.0}, Some{2.0}, Some{2.0}]))
+    Unit <- Assert.check("MIN.batch", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.MIN.batch(ties, 3), [None{}, None{}, Some{1.0}, Some{1.0}, Some{1.0}]))
+    Unit <- Assert.check("MIDPOINT.batch", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.MIDPOINT.batch(ties, 3), [None{}, None{}, Some{1.5}, Some{1.5}, Some{1.5}]))
+    Unit <- Assert.check("MEDIAN.batch case 2", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.MEDIAN.batch([], 3), []))
+    Unit <- Assert.check("STDDEV.batch case 2", Result.is_fail(&2, &2, P.Error, List<&2, Maybe<&2, F32>>, TA.STDDEV.batch([], 1, 1.0)))
+    Unit <- Assert.check("PERCENTILE.batch case 2", Result.is_fail(&2, &2, P.Error, List<&2, Maybe<&2, F32>>, TA.PERCENTILE.batch([], 2, 101.0)))
+    Unit <- Assert.check("LINEARREG.init", Assert.batch(~P.Error, ~F32, ~F32.is_eq, continued(TA.LINEARREG.init(3)), [Some{6.0}, Some{8.0}]))
+    Unit <- Assert.check("MINMAX.batch", Assert.batch(~P.Error, ~S.MinMax<F32>, ~bounds, TA.MINMAX.batch(ties, 3), [None{}, None{}, Some{S.MinMax{1.0, 2.0}}, Some{S.MinMax{1.0, 2.0}}, Some{S.MinMax{1.0, 2.0}}]))
+    Assert.check("boundary", boundary())

@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/moments.bend as Moments
 import ../../src/core/statistics_window.bend as Pair
@@ -97,37 +98,16 @@ def ranges(xs: List<&2, F32>) -> Bool:
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    IO.print(Bool.show(Bool.and(scalar(0, 17, 128n), paired(0, 17, 128n))))
-    IO.print(Bool.show(Bool.and(scalar(1, 17, 128n), paired(1, 17, 128n))))
-    IO.print(Bool.show(Bool.and(scalar(3, 17, 128n), paired(3, 17, 128n))))
-    IO.print(Bool.show(Bool.and(scalar(2, 256, 400n), paired(2, 256, 400n))))
-    IO.print(Bool.show(recovered(384n, TA.VAR.batch(inputs(400n, 2, 0, Nil{}), 256, 1.0))))
-    IO.print(Bool.show(recovered(384n, TA.CORREL.batch(Series.map(~F32, ~Pair.PairValue<F32>, ~pair, inputs(400n, 2, 0, Nil{})), 256))))
-    IO.print(Bool.show(recovered(2n, TA.VAR.batch([F32.neg(3.0e-23), F32.neg(2.0e-23), F32.neg(1.0e-23), 0.0, 1.0e-23, 2.0e-23, 3.0e-23, F32.neg(3.0e-23)], 3, 1.0))))
-    IO.print(Bool.show(fork(~F32, ~TA.VAR.State(), ~TA.VAR.next, ~TA.VAR.clone, ~TA.VAR.preview, [1.0,2.0,3.0], [4.0,5.0], [Some{F32.div(2.0,3.0)},Some{F32.div(2.0,3.0)}], 100.0, TA.VAR.init(3, 1.0))))
-    IO.print(Bool.show(fork(~TA.PairValue(), ~TA.CORREL.State(), ~TA.CORREL.next, ~TA.CORREL.clone, ~TA.CORREL.preview, [Pair.PairValue{1.0,1.0},Pair.PairValue{2.0,2.0},Pair.PairValue{3.0,9.0}], [Pair.PairValue{4.0,4.0},Pair.PairValue{5.0,5.0}], [Some{0.277350098},Some{F32.neg(0.755928946)}], Pair.PairValue{100.0,0.0}, TA.CORREL.init(3))))
-    IO.print(Bool.show(mean.zero(Series.batch(~F32, ~Moments.Value<F32>, ~Moments.Cached<F32>, ~cached, [F32.neg(2.0e18), F32.neg(1.0e18), 0.0, 1.0e18], Moments.cached.init(~F32, ~U32.to_f32, 3, 2n)))))
-    IO.print(Bool.show(recovered(2n, TA.CORREL.batch([Pair.PairValue{F32.neg(1.0e-9),1.0e9},Pair.PairValue{0.0,0.0},Pair.PairValue{1.0e-9,1.0e9}], 3))))
-    IO.print(Bool.show(recovered(3n, TA.BETA.batch([Pair.PairValue{11868269.0,1.0},Pair.PairValue{11868268.0,1.0e9},Pair.PairValue{11868268.0,1.0e9},Pair.PairValue{11868269.0,1.0e18}], 3))))
-    IO.print(Bool.show(ranges([1988183552.0,1988183296.0,2.3816159547968008e-12,2.3816161716372353e-12])))
-
-#|True
-#|True
-#|True
-#|True
-
-#|True
-#|True
-
-#|True
-
-#|True
-#|True
-
-#|True
-
-#|True
-
-#|True
-
-#|True
+    Unit <- Assert.check("scalar case 1", Bool.and(scalar(0, 17, 128n), paired(0, 17, 128n)))
+    Unit <- Assert.check("scalar case 2", Bool.and(scalar(1, 17, 128n), paired(1, 17, 128n)))
+    Unit <- Assert.check("scalar case 3", Bool.and(scalar(3, 17, 128n), paired(3, 17, 128n)))
+    Unit <- Assert.check("scalar case 4", Bool.and(scalar(2, 256, 400n), paired(2, 256, 400n)))
+    Unit <- Assert.check("VAR.batch case 1", recovered(384n, TA.VAR.batch(inputs(400n, 2, 0, Nil{}), 256, 1.0)))
+    Unit <- Assert.check("CORREL.batch case 1", recovered(384n, TA.CORREL.batch(Series.map(~F32, ~Pair.PairValue<F32>, ~pair, inputs(400n, 2, 0, Nil{})), 256)))
+    Unit <- Assert.check("VAR.batch case 2", recovered(2n, TA.VAR.batch([F32.neg(3.0e-23), F32.neg(2.0e-23), F32.neg(1.0e-23), 0.0, 1.0e-23, 2.0e-23, 3.0e-23, F32.neg(3.0e-23)], 3, 1.0)))
+    Unit <- Assert.check("VAR.next", fork(~F32, ~TA.VAR.State(), ~TA.VAR.next, ~TA.VAR.clone, ~TA.VAR.preview, [1.0,2.0,3.0], [4.0,5.0], [Some{F32.div(2.0,3.0)},Some{F32.div(2.0,3.0)}], 100.0, TA.VAR.init(3, 1.0)))
+    Unit <- Assert.check("CORREL.next", fork(~TA.PairValue(), ~TA.CORREL.State(), ~TA.CORREL.next, ~TA.CORREL.clone, ~TA.CORREL.preview, [Pair.PairValue{1.0,1.0},Pair.PairValue{2.0,2.0},Pair.PairValue{3.0,9.0}], [Pair.PairValue{4.0,4.0},Pair.PairValue{5.0,5.0}], [Some{0.277350098},Some{F32.neg(0.755928946)}], Pair.PairValue{100.0,0.0}, TA.CORREL.init(3)))
+    Unit <- Assert.check("mean.zero", mean.zero(Series.batch(~F32, ~Moments.Value<F32>, ~Moments.Cached<F32>, ~cached, [F32.neg(2.0e18), F32.neg(1.0e18), 0.0, 1.0e18], Moments.cached.init(~F32, ~U32.to_f32, 3, 2n))))
+    Unit <- Assert.check("CORREL.batch case 2", recovered(2n, TA.CORREL.batch([Pair.PairValue{F32.neg(1.0e-9),1.0e9},Pair.PairValue{0.0,0.0},Pair.PairValue{1.0e-9,1.0e9}], 3)))
+    Unit <- Assert.check("BETA.batch", recovered(3n, TA.BETA.batch([Pair.PairValue{11868269.0,1.0},Pair.PairValue{11868268.0,1.0e9},Pair.PairValue{11868268.0,1.0e9},Pair.PairValue{11868269.0,1.0e18}], 3)))
+    Assert.check("ranges", ranges([1988183552.0,1988183296.0,2.3816159547968008e-12,2.3816161716372353e-12]))

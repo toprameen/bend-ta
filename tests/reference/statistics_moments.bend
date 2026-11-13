@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/statistics_window.bend as S
 import ../../src/core/parameters.bend as P
@@ -37,30 +38,16 @@ def main() -> IO(Unit):
   +prices : List<&2, F32> = [1000000.0, 1000000.0, 1000000.0625]
   +pairs : List<&2, TA.PairValue()> = [S.PairValue{1000000.0, 5.0}, S.PairValue{1000000.0625, 3.0}, S.PairValue{1000000.125, 1.0}]
   do IO<Unit>:
-    IO.print(Bool.show(result(TA.VAR.batch(prices, 3, 9.0), [None{}, None{}, Some{0.00086805556}])))
-    IO.print(Bool.show(result(TA.VAR.batch([2.0, 4.0, 6.0], 2, F32.neg(3.0)), [None{}, Some{1.0}, Some{1.0}])))
-    IO.print(Bool.show(result(TA.VAR.batch(prices, 1, 0.0), [Some{0.0}, Some{0.0}, Some{0.0}])))
-    IO.print(Bool.show(result(TA.CORREL.batch(pairs, 3), [None{}, None{}, Some{F32.neg(1.0)}])))
-    IO.print(Bool.show(result(TA.CORREL.batch([S.PairValue{1000000.0, 0.0}, S.PairValue{1000000.0, 0.0}, S.PairValue{1000000.0625, 1.0}], 3), [None{}, None{}, Some{1.0}])))
-    IO.print(Bool.show(result(TA.CORREL.batch([S.PairValue{2.0, 1.0}, S.PairValue{2.0, 3.0}], 2), [None{}, Some{0.0}])))
-    IO.print(Bool.show(result(TA.BETA.batch([S.PairValue{0.0, 0.0}, S.PairValue{1.0, 2.0}, S.PairValue{2.0, 4.0}, S.PairValue{4.0, 12.0}], 2), [None{}, None{}, Some{1.0}, Some{0.0}])))
-    IO.print(Bool.show(continued(TA.BETA.init(2))))
-    IO.print(Bool.show(result(TA.KURTOSIS.batch([1.0, 2.0, 3.0, 4.0, 4.0], 4), [None{}, None{}, None{}, Some{F32.neg(1.2)}, Some{F32.neg(1.2892562)}])))
-    IO.print(Bool.show(result(TA.KURTOSIS.batch([1000000.0, 1000000.0, 1000000.0, 1000000.0625], 4), [None{}, None{}, None{}, Some{4.0}])))
-    IO.print(Bool.show(result(TA.KURTOSIS.batch([2.0, 2.0, 2.0, 2.0], 4), [None{}, None{}, None{}, Some{F32.div(0.0, 0.0)}])))
-    IO.print(Bool.show(Bool.and(invalid(~TA.KURTOSIS.State(), TA.KURTOSIS.init(3)), Bool.and(invalid(~TA.KURTOSIS.State(), TA.KURTOSIS.init(10001)), invalid(~TA.BETA.State(), TA.BETA.init(100001))))))
-    IO.print(Bool.show(Bool.and(result(TA.CORREL.batch([], 1), []), result(TA.BETA.batch(pairs, 1), [None{}, Some{0.0}, Some{0.0}]))))
-
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
-#|True
+    Unit <- Assert.check("VAR.batch case 1", result(TA.VAR.batch(prices, 3, 9.0), [None{}, None{}, Some{0.00086805556}]))
+    Unit <- Assert.check("VAR.batch case 2", result(TA.VAR.batch([2.0, 4.0, 6.0], 2, F32.neg(3.0)), [None{}, Some{1.0}, Some{1.0}]))
+    Unit <- Assert.check("VAR.batch case 3", result(TA.VAR.batch(prices, 1, 0.0), [Some{0.0}, Some{0.0}, Some{0.0}]))
+    Unit <- Assert.check("CORREL.batch case 1", result(TA.CORREL.batch(pairs, 3), [None{}, None{}, Some{F32.neg(1.0)}]))
+    Unit <- Assert.check("CORREL.batch case 2", result(TA.CORREL.batch([S.PairValue{1000000.0, 0.0}, S.PairValue{1000000.0, 0.0}, S.PairValue{1000000.0625, 1.0}], 3), [None{}, None{}, Some{1.0}]))
+    Unit <- Assert.check("CORREL.batch case 3", result(TA.CORREL.batch([S.PairValue{2.0, 1.0}, S.PairValue{2.0, 3.0}], 2), [None{}, Some{0.0}]))
+    Unit <- Assert.check("BETA.batch", result(TA.BETA.batch([S.PairValue{0.0, 0.0}, S.PairValue{1.0, 2.0}, S.PairValue{2.0, 4.0}, S.PairValue{4.0, 12.0}], 2), [None{}, None{}, Some{1.0}, Some{0.0}]))
+    Unit <- Assert.check("BETA.init", continued(TA.BETA.init(2)))
+    Unit <- Assert.check("KURTOSIS.batch case 1", result(TA.KURTOSIS.batch([1.0, 2.0, 3.0, 4.0, 4.0], 4), [None{}, None{}, None{}, Some{F32.neg(1.2)}, Some{F32.neg(1.2892562)}]))
+    Unit <- Assert.check("KURTOSIS.batch case 2", result(TA.KURTOSIS.batch([1000000.0, 1000000.0, 1000000.0, 1000000.0625], 4), [None{}, None{}, None{}, Some{4.0}]))
+    Unit <- Assert.check("KURTOSIS.batch case 3", result(TA.KURTOSIS.batch([2.0, 2.0, 2.0, 2.0], 4), [None{}, None{}, None{}, Some{F32.div(0.0, 0.0)}]))
+    Unit <- Assert.check("KURTOSIS.init", Bool.and(invalid(~TA.KURTOSIS.State(), TA.KURTOSIS.init(3)), Bool.and(invalid(~TA.KURTOSIS.State(), TA.KURTOSIS.init(10001)), invalid(~TA.BETA.State(), TA.BETA.init(100001)))))
+    Assert.check("CORREL.batch case 4", Bool.and(result(TA.CORREL.batch([], 1), []), result(TA.BETA.batch(pairs, 1), [None{}, Some{0.0}, Some{0.0}])))

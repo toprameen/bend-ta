@@ -1,4 +1,5 @@
 import Base
+import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/candle.bend as Candle
 import ../../src/core/patterns.bend as Patterns
@@ -19,7 +20,7 @@ def all(values: List<&2, Bool>) -> Bool:
 def main() -> IO(Unit):
   +nan = F32.div(0.0, 0.0)
   do IO<Unit>:
-    IO.print(Bool.show(all([
+    Unit <- Assert.check("AC.lookback", all([
       check(TA.AC.lookback(5, 34, 5), 37), check(TA.ACCBANDS.lookback(20), 19), check(TA.ACOS.lookback(), 0),
       check(TA.AD.lookback(), 0), check(TA.ADD.lookback(), 0), check(TA.ADOSC.lookback(3, 10), 9),
       check(TA.ADR.lookback(14), 13), check(TA.ADX.lookback(14), 27), check(TA.ADXR.lookback(14), 40),
@@ -99,16 +100,16 @@ def main() -> IO(Unit):
       check(TA.VWAP.lookback(), 0), check(TA.VWMA.lookback(30), 29), check(TA.WAD.lookback(), 0),
       check(TA.WAVETREND.lookback(10, 21, 4), 41), check(TA.WCLPRICE.lookback(), 0), check(TA.WILLR.lookback(14), 13),
       check(TA.WMA.lookback(30), 29), check(TA.ZIGZAG.lookback(5.0, 1), 1), check(TA.ZLEMA.lookback(30), 43)
-    ])))
-    IO.print(Bool.show(all([
+    ]))
+    Unit <- Assert.check("EMA.lookback", all([
       check(TA.EMA.lookback(1073741824), 1073741823), check(TA.MOM.lookback(1073741824), 1073741824),
       check(TA.MAVP.lookback(1, 10000, 8), 59994), check(TA.MAVP.lookback(1, 1, 11), 0),
       check(TA.MA.lookback(1, 11), 0), check(TA.MA.lookback(20, 10), 0),
       check(TA.DPO.lookback(2), 2), check(TA.KVO.lookback(2, 3, 20), 20),
       check(TA.STOCH.lookback(1, 1, 11, 1, 11), 0),
       check(TA.CDLHIKKAKEMOD.lookback.setting(Candle.Setting{Candle.HighLow{}, 0, 0.2}), 6)
-    ])))
-    IO.print(Bool.show(all([
+    ]))
+    Assert.check("SMA.lookback", all([
       invalid(TA.SMA.lookback(0)), invalid(TA.MOM.lookback(1073741825)), invalid(TA.MA.lookback(2, 11)),
       invalid(TA.MAVP.lookback(4, 3, 0)), invalid(TA.RSI.lookback(1)), invalid(TA.CVI.lookback(3, 0)),
       invalid(TA.SAR.lookback(nan, 0.2)), invalid(TA.MAMA.lookback(0.0, 0.1)),
@@ -116,8 +117,4 @@ def main() -> IO(Unit):
       invalid(TA.VAR.lookback(3, nan)), invalid(TA.CDLMORNINGSTAR.lookback(nan)),
       invalid(TA.Pattern.lookback.checked(Patterns.CDLDOJI{}, TA.Pattern.defaults(), nan)),
       invalid(TA.CDLHIKKAKEMOD.lookback.setting(Candle.Setting{Candle.HighLow{}, 1, F32.neg(1.0)}))
-    ])))
-
-#|True
-#|True
-#|True
+    ]))
