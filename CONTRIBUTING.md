@@ -68,10 +68,13 @@ Proofs resolve `bend-mathlib` from BendHub. Runtime code uses Base.
 
 ## Documentation
 
+Keep one source of truth for each detail. The [F32 facade](src/f32.bend)
+defines indicator names and signatures. The implementation defines behavior,
+with laws for checked contracts and reference fixtures for expected results.
+Link to those sources when explaining behavior.
+
 Keep the README focused on purpose, usage, essential contracts, and links.
 Describe supported behavior and leave milestone recaps to release notes.
-Use the [F32 facade](src/f32.bend) for indicator names and signatures.
-Keep behavior in the implementation, laws, and reference fixtures.
 Keep setup and check commands here.
 
 ## Changes and review
