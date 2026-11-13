@@ -88,7 +88,6 @@ def files.deleted(root: String, files: List<&2, String>) -> IO(Result<String, Li
   bind(String, List<&2, String>, command("git", ["-C", root, "ls-files", "--deleted", "-z"]), s =>
     done(List<&2, String>, List.sort(~String, ~String.is_le, files.keep(files, fields(s)))))
 
-# Includes untracked, non-ignored work; removes tracked files deleted locally.
 def files(+root: String) -> IO(Result<String, List<&2, String>>):
   bind(String, List<&2, String>, command("git", ["-C", root, "ls-files", "--cached", "--others", "--exclude-standard", "-z"]), s => files.deleted(root, fields(s)))
 

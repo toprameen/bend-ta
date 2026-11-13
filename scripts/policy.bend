@@ -19,10 +19,7 @@ def proof_files(+files: List<&2, String>) -> Bool:
   Bool.and(List.contains(~String, ~String.eq, files, "LAWS.bend"),
     List.contains(~String, ~String.eq, files, "PROOF.bend"))
 
-# A small lexical check for quoted foreign imports, excluding comments and
-# string/character contents. Full syntax/type validation belongs to Bend.
 type Scanner is Data:
-  # Modes: code, comment, string, character payload, escape, closing quote.
   Scanner{mode: U32, escaped: Bool, word: String, pending_import: Bool, clean: Bool}
 
 def pending(word: String, previous: Bool) -> Bool:
@@ -94,12 +91,10 @@ def step(+c: Char, state: Scanner) -> Scanner:
     case Scanner{1, escaped, word, pending, clean}:
       Scanner{Bool.pick(U32, Char.is_eq(c, '\n'), 0, 1), False{}, "", pending, clean}
     case Scanner{3, escaped, word, pending, clean}:
-      # The first character is payload, including a raw apostrophe in '''.
       Scanner{Bool.pick(U32, Char.is_eq(c, '\\'), 4, 5), False{}, "", False{}, clean}
     case Scanner{4, escaped, word, pending, clean}:
       Scanner{5, False{}, "", False{}, clean}
     case Scanner{5, escaped, word, pending, clean}:
-      # Unicode escapes contain only their braces/digits before this quote.
       quote.close(5, clean, Char.is_eq(c, '\''))
     case Scanner{mode, escaped, word, pending, clean}:
       quoted(c, mode, escaped, clean)

@@ -6,8 +6,8 @@ type Error is Data:
 type Config is Data:
   Config{period: U32, depth: Nat}
 
-# A power-of-two capacity that fits either a one-word or two-word element
-# within Bend's block-class limit. Allocation still depends on available RAM.
+# Bend caps array depth plus log2(words per element) at 31, leaving depth 30
+# for two-word elements.
 def max_period() -> U32:
   1073741824
 

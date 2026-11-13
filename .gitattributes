@@ -1,2 +1,1 @@
-# Bend must also be supported by GitHub's deployed Linguist version.
 *.bend linguist-language=Bend linguist-detectable=true

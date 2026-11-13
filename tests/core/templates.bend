@@ -1,5 +1,3 @@
-# An independent numeric representation tests the shared template seam.
-# This two-field wrapper is a test adapter, not an F64 implementation.
 import Base
 import ../../src/core/extrema_queue.bend as Queue
 import ../../src/core/ema.bend as Ema
