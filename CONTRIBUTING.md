@@ -66,16 +66,23 @@ F32 operations as opaque. Use reference fixtures for numerical behavior,
 backend tests for compiled behavior, and benchmarks for performance.
 Proofs resolve `bend-mathlib` from BendHub. Runtime code uses Base.
 
-## Documentation
+## Documentation and code comments
 
-Keep one source of truth for each detail. The [F32 facade](src/f32.bend)
-defines indicator names and signatures. The implementation defines behavior,
-with laws for checked contracts and reference fixtures for expected results.
-Link to those sources when explaining behavior.
+We actively avoid adding documentation and code comments. In the agentic era,
+AI agents can read the code directly. A second description of the same
+behavior can fall out of sync and mislead people and agents alike.
+We keep the implementation as the single source of truth for behavior.
 
-Keep the README focused on purpose, usage, essential contracts, and links.
-Describe supported behavior and leave milestone recaps to release notes.
-Keep setup and check commands here.
+Add a code comment **only when absolutely necessary** to explain the
+rationale for an obscure constraint or a non-obvious design decision. In the
+pull request, explain why that rationale cannot be inferred from the code.
+Reviewers should remove comments that fail to meet this standard.
+
+Put necessary documentation in existing files. Keep the project purpose,
+getting-started instructions, and essential usage constraints in
+`README.md`. Keep contributor setup and checks in `CONTRIBUTING.md` and
+benchmark procedures and results in `benchmarks/`. Avoid standalone guides
+and hand-maintained catalogs.
 
 ## Changes and review
 
