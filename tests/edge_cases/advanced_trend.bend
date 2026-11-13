@@ -1,7 +1,6 @@
 import Base
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as Bar
-import ../../src/core/momentum_smooth.bend as Smooth
 
 def same(xs: List<&2, Maybe<&2, F32>>, ys: List<&2, Maybe<&2, F32>>) -> Bool:
   match xs ys:
