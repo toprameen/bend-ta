@@ -1,9 +1,16 @@
 import Base
 import ../../src/f32.bend as TA
+import ../../src/core/config.bend as Config
 import ../../src/core/window.bend as Window
 import ../../src/core/series.bend as Series
 import ../../src/core/extrema.bend as Extrema
 import ../../src/core/moments.bend as Moments
+
+def config.case(result: Result<&2, &2, Config.Error, Config.Config>) -> String:
+  match result:
+    case Fail{e}: "invalid"
+    case Done{Config.Config{period, depth}}:
+      U32.show(period) ++ ":" ++ Nat.show(depth)
 
 def show(~O: Data, ~value: O -> String, xs: List<&2, Maybe<&2, O>>) -> String:
   List.show(~&2, ~Maybe<&2, O>, ~(v => Maybe.show(~&2, ~O, ~value, v)), xs)
@@ -96,6 +103,13 @@ def sum.case(result: Result<&2, &1, TA.Error(), TA.SUM.State()>) -> String:
 
 def main() -> IO(Unit):
   do IO<Unit>:
+    IO.print(config.case(Config.make(0)))
+    IO.print(config.case(Config.make(1)))
+    IO.print(config.case(Config.make(3)))
+    IO.print(config.case(Config.make(4)))
+    IO.print(config.case(Config.make(5)))
+    IO.print(config.case(Config.make(1073741824)))
+    IO.print(config.case(Config.make(1073741825)))
     IO.print(window.case([], TA.Window.init(3)))
     IO.print(window.case([1.0, 2.0, 3.0, 4.0, 5.0], TA.Window.init(3)))
     IO.print(window.case([7.0, 8.0], TA.Window.init(1)))
@@ -109,6 +123,13 @@ def main() -> IO(Unit):
     IO.print(sum.case(TA.SUM.init(3)))
     IO.print(F32.show(TA.Moments.stddev(Moments.Moments{2.0, 4.0})))
 
+#|invalid
+#|1:0
+#|3:2
+#|4:2
+#|5:3
+#|1073741824:30
+#|invalid
 #|[] | None,None,None | 0 | []
 #|[None, None, None, Some(1), Some(2)] | Some(5),Some(3),None | 3 | [3,4,5,]
 #|[None, Some(7)] | Some(8),None,None | 1 | [8,]

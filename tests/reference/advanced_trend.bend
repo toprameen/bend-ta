@@ -52,6 +52,18 @@ def check(~O: Data, ~view: O -> List<&2, F32>, result: Result<&2, &2, TA.Momentu
     case Fail{e}: False{}
     case Done{xs}: shape(~O, ~view, xs, 0, warm, first, last)
 
+def exact.values(xs: List<&2, Maybe<&2, F32>>, ys: List<&2, Maybe<&2, F32>>) -> Bool:
+  match xs ys:
+    case Nil{} Nil{}: True{}
+    case None{} <> rest None{} <> tail: exact.values(rest, tail)
+    case Some{x} <> rest Some{y} <> tail: Bool.and(F32.is_eq(x, y), exact.values(rest, tail))
+    case _ _: False{}
+
+def exact(result: Result<&2, &2, TA.Momentum.Error(), List<&2, Maybe<&2, F32>>>, expected: List<&2, Maybe<&2, F32>>) -> Bool:
+  match result:
+    case Fail{e}: False{}
+    case Done{xs}: exact.values(xs, expected)
+
 def all(xs: List<&2, Bool>) -> Bool:
   match xs:
     case Nil{}: True{}
@@ -123,12 +135,30 @@ def chunks() -> Bool:
     check(~TA.KSTEXT.Value(), ~lines, continued(~F32, ~TA.KSTEXT.Value(), ~TA.KSTEXT.State(), ~TA.KSTEXT.next, [10.0, 11.0, 9.0, 12.0, 8.0], [13.0, 10.0, 14.0, 11.0, 15.0, 12.0, 16.0, 13.0, 17.0, 14.0, 18.0, 15.0, 19.0, 16.0, 20.0, 17.0, 21.0, 18.0, 22.0, 19.0, 23.0, 20.0, 24.0, 21.0, 25.0, 22.0, 26.0, 23.0, 27.0, 24.0, 28.0], TA.KSTEXT.init(1, 2, 3, 4, 2, 3, 2, 4, 3, 1, 1)), 9, [208.8278045654297, 148.0941925048828], [94.83035278320312, 77.7447280883789])
   ])
 
+def reversal_bars() -> List<&2, Bar.HL<F32>>:
+  [Bar.HL{10.0, 8.0}, Bar.HL{11.0, 9.0}, Bar.HL{12.0, 10.0}, Bar.HL{10.0, 8.0},
+   Bar.HL{9.0, 7.0}, Bar.HL{11.0, 9.0}, Bar.HL{12.0, 10.0}, Bar.HL{8.0, 6.0}]
+
+def boundaries() -> Bool:
+  all([
+    exact(TA.SAR.batch(reversal_bars(), 0.0, 0.0),
+      [None{}, Some{8.0}, Some{8.0}, Some{12.0}, Some{12.0}, Some{12.0}, Some{7.0}, Some{12.0}]),
+    exact(TA.SAREXT.batch(reversal_bars(), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+      [None{}, Some{8.0}, Some{8.0}, Some{F32.sub(0.0, 12.0)}, Some{F32.sub(0.0, 12.0)}, Some{F32.sub(0.0, 12.0)}, Some{7.0}, Some{F32.sub(0.0, 12.0)}]),
+    exact(TA.SAR.batch([Bar.HL{10.0, 8.0}, Bar.HL{11.0, 7.0}], 0.0, 0.0), [None{}, Some{11.0}]),
+    exact(TA.CG.batch([1.0, F32.sub(0.0, 1.0), 2.0, F32.sub(0.0, 2.0)], 2),
+      [None{}, Some{F32.sub(0.0, 1.5)}, Some{0.0}, Some{F32.sub(0.0, 1.5)}]),
+    exact(TA.MCGD.batch([2.0, 0.0, 2.0, 0.0], 2), [None{}, Some{2.0}, Some{2.0}, Some{2.0}])
+  ])
+
 def main() -> IO(Unit):
   do IO<Unit>:
     IO.print(Bool.show(references()))
     IO.print(Bool.show(invalids()))
     IO.print(Bool.show(chunks()))
+    IO.print(Bool.show(boundaries()))
 
+#|True
 #|True
 #|True
 #|True

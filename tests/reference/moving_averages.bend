@@ -46,6 +46,18 @@ def main() -> IO(Unit):
     IO.print(show(TA.SMA.batch([F32.neg(3.0), 0.0, 3.0, 6.0], 3)))
     IO.print(sma_stream(TA.SMA.init(3)))
     IO.print(ema_stream(TA.EMA.init(3)))
+    IO.print(show(TA.SMA.batch([], 3)))
+    IO.print(show(TA.EMA.batch([], 3)))
+    IO.print(show(TA.SMA.batch([5.0, 10.0], 3)))
+    IO.print(show(TA.EMA.batch([5.0, 10.0], 3)))
+    IO.print(show(TA.SMA.batch([3.0, 6.0, 9.0], 1)))
+    IO.print(show(TA.EMA.batch([3.0, 6.0, 9.0], 1)))
+    IO.print(show(TA.SMA.batch([1000000.0, 0.01, 10.0], 1)))
+    IO.print(show(TA.EMA.batch([1000000.0, 0.01, 10.0], 1)))
+    IO.print(show(TA.SMA.batch([3.0], 0)))
+    IO.print(show(TA.EMA.batch([], 0)))
+    IO.print(show(TA.SMA.batch([], 1073741825)))
+    IO.print(show(TA.EMA.batch([], 4294967295)))
 
 #|[None, None, Some(6), Some(9), Some(12), Some(15)]
 #|[None, None, Some(6), Some(10.5), Some(11.25)]
@@ -54,3 +66,15 @@ def main() -> IO(Unit):
 #|[None, None, Some(0), Some(3)]
 #|[None, None, Some(6), Some(9)]
 #|[None, None, Some(6), Some(10.5)]
+#|[]
+#|[]
+#|[None, None]
+#|[None, None]
+#|[Some(3), Some(6), Some(9)]
+#|[Some(3), Some(6), Some(9)]
+#|[Some(1000000), Some(0.01), Some(10)]
+#|[Some(1000000), Some(0.01), Some(10)]
+#|invalid
+#|invalid
+#|invalid
+#|invalid
