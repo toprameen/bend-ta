@@ -90,11 +90,10 @@ Native F64 is not available in the tested Bend version. A software F64 adapter
 would be named `f64_soft.bend` so its cost is explicit; it should remain optional.
 Different imported numeric types are not automatically interchangeable.
 
-Wilder smoothing, rolling extrema, RSI, MACD and Bollinger Bands are now
-implemented; see the [family guide](foundation-indicators.md). Further
-extensions must specify seeds, warm-up and output alignment, and add a working
-implementation with independent reference examples. Specialized filters and dynamic-period interfaces have separate family guides;
-additional numeric backends require their own implementation and validation.
+Specify seeds, warm-up, output alignment and numerical limits for each extension,
+with independent reference examples. Indicator configuration lives in each
+state. The family guides describe startup and differences from TA-Lib's
+compatibility and unstable-period settings.
 
 The two-field numeric wrapper in `tests/core/templates.bend` tests shared code
 and array layouts with a representation different from F32. It is a test adapter,
@@ -106,5 +105,4 @@ run common contract cases plus precision-specific numerical reference vectors.
 See [foundation.md](foundation.md) for generalized input/output traversal and
 state-preserving scans, owned windows/lags, rolling sums, Wilder smoothing,
 fresh-window extrema/population moments, and typed bar/candle-setting interfaces.
-These primitives support the catalog's F32 interfaces. Additional numeric
-facades and universal TA-Lib compatibility require separate validation.
+These primitives support the [F32 facade](../src/f32.bend).

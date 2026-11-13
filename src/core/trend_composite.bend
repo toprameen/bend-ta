@@ -1,8 +1,6 @@
 import Base
-import ./bar.bend as Bar
 import ./window.bend as Window
 import ./ma.bend as Ma
-import ./ema.bend as Ema
 import ./parameters.bend as Params
 import ./momentum_smooth.bend as Smooth
 import ./momentum_composite.bend as Composite

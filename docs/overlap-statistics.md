@@ -277,4 +277,4 @@ including authored `ta_codegen/input` specifications and public implementations
 in `src/ta_func`. These implementations adapt the referenced mathematical
 algorithms to the project's generic state and numeric interfaces.
 
-Retain [the complete upstream license notice](../THIRD_PARTY_NOTICES.md).
+Retain [the complete upstream license notice](../NOTICE).

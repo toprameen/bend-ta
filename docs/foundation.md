@@ -1,9 +1,8 @@
 # Shared TA foundation
 
 The foundation uses generic Bend templates with F32 bindings in
-[`src/f32.bend`](../src/f32.bend). It supplies working building blocks for new
-indicators. Catalog coverage and numerical compatibility are described in the
-[function catalog](ta-lib-indicator-catalog.md).
+[`src/f32.bend`](../src/f32.bend). The shared modules provide stream traversal,
+owned windows, smoothing, and typed inputs for indicators.
 
 ## Traversal and ownership
 
@@ -142,5 +141,5 @@ boundaries and meaningful numerical fixtures.
 Use compact tests through these interfaces; temporary numerical matrices and
 mutations need not become permanent suites.
 
-The [straightforward indicator guide](direct-indicators.md) documents the math,
+The [direct indicator guide](direct-indicators.md) documents the math,
 bar, cumulative and lagged interfaces built on this foundation.

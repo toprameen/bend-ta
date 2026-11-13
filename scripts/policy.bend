@@ -10,7 +10,7 @@ def suffixes(choices: List<&2, String>, +file: String) -> Bool:
 def allowed(+file: String) -> Bool:
   Bool.and(Bool.not(Bool.or(String.eq(file, "package.json"), String.ends_with(file, "/package.json"))),
     Bool.or(suffixes([".bend", ".md", ".yml", ".yaml", ".json", ".csv", ".tsv", ".txt"], file),
-      List.contains(~String, ~String.eq, [".gitignore", ".gitattributes", ".editorconfig", "LICENSE", "NOTICE", ".github/CODEOWNERS"], file)))
+      List.contains(~String, ~String.eq, [".gitignore", ".gitattributes", ".editorconfig", "LICENSE", "NOTICE"], file)))
 
 def source_entry(file: String) -> Bool:
   Bool.not(String.eq(file, "LAWS.bend"))

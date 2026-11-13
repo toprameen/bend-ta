@@ -1,10 +1,7 @@
-# Straightforward TA-Lib catalog group
+# Math, price transforms and changes
 
-All **32 entries originally marked Direct** in the [catalog](ta-lib-indicator-catalog.md)
-now have F32 interfaces. RMA was supplied by the shared foundation; this group
-adds 31 functions. Shared formulas remain generic Bend core code, and numeric
-intrinsics are bound directly in the F32 facade. There is no foreign runtime
-implementation or generated wrapper dependency in the repository.
+The [F32 facade](../src/f32.bend) binds Base operations to the shared formulas
+for math, price transforms, and lagged price changes.
 
 ## Stateless functions
 
@@ -81,7 +78,7 @@ This is an explicit rounding policy, not a claim of bit identity. As elsewhere,
 very large opposite-sign spreads can overflow subtraction; F32 cannot recover
 price differences already lost during input quantization.
 
-## Cumulative sum and existing RMA
+## Cumulative sum and Wilder smoothing
 
 CUMSUM has `init()` (zero), `next(state,x)` and `batch(xs)`. Its state is the
 running F32 total. It emits immediately and uses plain left-to-right addition.
@@ -90,18 +87,15 @@ state through `Series.scan` to continue across chunks. Resetting is explicit.
 Compensation, automatic session resets and protection against loss of small
 increments on a large total are not supplied.
 
-RMA remains the [foundation's Wilder smoother](foundation.md): SMA seed, then
-coefficient 1/period, first output at period-1, period-one identity. Its shared
-seed/recurrence and existing interfaces were preserved. TA-Lib's double/FMA and
-unstable-period configuration are still separate compatibility concerns.
+RMA uses the [shared Wilder smoother](foundation.md) with an SMA seed,
+coefficient 1/period, and first output at index period-1. Period 1 returns each
+input directly.
 
 ## Reference and validation scope
 
-The implementation follows the catalog's pinned core revision
-[`ccd3172940ed1d9daa4e7197f2265810852e8910`](https://github.com/TA-Lib/ta-lib/tree/ccd3172940ed1d9daa4e7197f2265810852e8910),
-with the documented ROC choice. A local build of that exact snapshot identifies
-itself as development version 0.8.4; the catalog's separate v0.8.3 check only
-established a matching function-name set.
+The implementation follows the TA-Lib revision recorded in [NOTICE](../NOTICE)
+with the documented ROC arithmetic. The C reference build reports development
+version 0.8.4.
 
 The concise [transform fixture](../tests/reference/transforms.bend) covers every
 stateless binding with nontrivial inputs, domain results, signed zero, guards
@@ -114,5 +108,3 @@ Broader reference comparisons run outside the checkout against the pinned C
 library on the same F32-quantized inputs, with explicit tolerances and NaN/Inf
 classification. Numeric-zero signs may differ from a particular reference
 backend: the local reference TAN(-0) returned +0 while Base F32 retained -0.
-No universal error bound, double-precision bit parity, GPU result or all-catalog
-implementation is claimed. All maintained project code and checks remain Bend.

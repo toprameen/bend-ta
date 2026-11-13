@@ -3,7 +3,7 @@
   "cpu": "Apple M3 Max",
   "ram_bytes": 68719476736,
   "node": "v25.8.2",
-  "base": "7c66197abf62448439874f64924b5f3afd57cc68",
+  "base": "47efbd08018b99ec43c4b0378d59cc66b489172d",
   "compiler": "Bend2.0.39",
   "source_hashes": {
     "src/core/adaptive_window.bend": "4ee6b67cfa09b1dcc9f9715549f698c5c384b072bd3ffa61188d6028df121b3a",

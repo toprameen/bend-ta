@@ -40,13 +40,6 @@ def regress.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> 
     case (window, False{}): (window, None{})
     case (Window.Window{buffer, +period, size, pos}, True{}): regress.anchor(~N, ~from, ~add, ~sub, ~mul, ~div, period, Window.lag(~N, Window.Window{buffer, period, size, pos}, U32.sub(period, 1)))
 
-def regress.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, result: Window.State<N> & Maybe<&2, N>) -> Window.State<N> & Maybe<&2, Regression<N>>:
-  match result:
-    case (window, old): regress.ready(~N, ~from, ~add, ~sub, ~mul, ~div, Window.full(~N, window))
-
-def regress.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, window: Window.State<N>, price: N) -> Window.State<N> & Maybe<&2, Regression<N>>:
-  regress.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, Window.push(~N, window, price))
-
 def regress.init(~N: Data, ~from: U32 -> N, period: U32, depth: Nat) -> Average.State<N>:
   Average.init(~N, ~from, period, depth, 1)
 

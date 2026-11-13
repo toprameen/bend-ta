@@ -1,7 +1,6 @@
 import Base
 import bend-mathlib@0.8.1.0/nat.bend as MNat
 import bend-mathlib@0.8.1.0/u32.bend as MU32
-import bend-mathlib@0.8.1.0/bool.bend as MBool
 import ../src/core/window.bend as Window
 import ./window_storage.bend as Storage
 import ./window_geometry.bend as Geometry

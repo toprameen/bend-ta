@@ -119,5 +119,5 @@ pinned C oracle; no external numerical tool is needed by repository checks.
 
 The recognizer predicates are derived from TA-Lib. The pinned source credits
 Angelo Ciceri for the original recognizers and Mario Fortier and other listed
-contributors for maintenance. Retain [the complete upstream license notice](../THIRD_PARTY_NOTICES.md)
+contributors for maintenance. Retain [the complete upstream license notice](../NOTICE)
 with this derived implementation.

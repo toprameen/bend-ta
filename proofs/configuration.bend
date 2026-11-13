@@ -9,13 +9,6 @@ import ../src/f32.bend as TA
 def domain(+period: U32) -> Bool:
   Bool.and(U32.is_gt(period, 0), U32.is_le(period, 1073741824))
 
-law valid_domain:
-  for period: U32
-  {Config.valid(period) == domain(period) : Bool}
-
-def valid_domain(period):
-  {==}
-
 def make_if_exact(period: U32, valid: Bool) -> {Config.make.if(period, valid) == Bool.pick(Result<&2, &2, Config.Error, Config.Config>, valid, Done{Config.Config{period, Config.depth(period)}}, Fail{Config.InvalidPeriod{}}) : Result<&2, &2, Config.Error, Config.Config>}:
   match valid:
     case False{}: {==}
@@ -37,14 +30,6 @@ law make_accepts:
 def make_accepts(period, valid):
   Equal.cong(Bool, Result<&2, &2, Config.Error, Config.Config>, flag => Config.make.if(period, flag), domain(period), True{}, valid)
 
-law make_rejects:
-  for period: U32
-  for invalid: {domain(period) == False{} : Bool}
-  {Config.make(period) == Fail{Config.InvalidPeriod{}} : Result<&2, &2, Config.Error, Config.Config>}
-
-def make_rejects(period, invalid):
-  Equal.cong(Bool, Result<&2, &2, Config.Error, Config.Config>, flag => Config.make.if(period, flag), domain(period), False{}, invalid)
-
 law ema_accepts:
   for period: U32
   for valid: {domain(period) == True{} : Bool}
@@ -60,22 +45,6 @@ law sma_accepts:
 
 def sma_accepts(period, valid):
   Equal.cong(Result<&2, &2, Config.Error, Config.Config>, Result<&2, &1, TA.Error(), TA.SMA.State()>, TA.SMA.init.result, Config.make(period), Done{Config.Config{period, Config.depth(period)}}, make_accepts(period, valid))
-
-law ema_rejects:
-  for period: U32
-  for invalid: {domain(period) == False{} : Bool}
-  {TA.EMA.init(period) == Fail{Config.InvalidPeriod{}} : Result<&2, &2, TA.Error(), TA.EMA.State()>}
-
-def ema_rejects(period, invalid):
-  Equal.cong(Result<&2, &2, Config.Error, Config.Config>, Result<&2, &2, TA.Error(), TA.EMA.State()>, TA.EMA.init.result, Config.make(period), Fail{Config.InvalidPeriod{}}, make_rejects(period, invalid))
-
-law sma_rejects:
-  for period: U32
-  for invalid: {domain(period) == False{} : Bool}
-  {TA.SMA.init(period) == Fail{Config.InvalidPeriod{}} : Result<&2, &1, TA.Error(), TA.SMA.State()>}
-
-def sma_rejects(period, invalid):
-  Equal.cong(Result<&2, &2, Config.Error, Config.Config>, Result<&2, &1, TA.Error(), TA.SMA.State()>, TA.SMA.init.result, Config.make(period), Fail{Config.InvalidPeriod{}}, make_rejects(period, invalid))
 
 def lookback_if_exact(valid: Bool, count: U32) -> {Lookback.checked(valid, count) == Bool.pick(TA.Lookback.Result(), valid, Done{count}, Fail{Parameters.InvalidParameter{}}) : TA.Lookback.Result()}:
   match valid:

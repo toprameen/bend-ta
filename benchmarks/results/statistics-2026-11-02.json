@@ -1,5 +1,5 @@
 {
-  "baseline_commit": "b255c7a32a862d587bcc52919ab975b2395f00f9",
+  "baseline_commit": "e881503b6baeceb2d6f6797a7dc428d3a250c3de",
   "baseline_source": {
     "src/core/adaptive_window.bend": "4ee6b67cfa09b1dcc9f9715549f698c5c384b072bd3ffa61188d6028df121b3a",
     "src/core/advanced_oscillator.bend": "b28f8487a1a0f432d29a8f07e591be038e8f2f8fd08d6c03a357a886c8b9af18",

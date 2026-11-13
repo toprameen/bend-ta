@@ -81,7 +81,7 @@ The compact `tests/reference/volume.bend` fixture supplies hand-calculated
 examples, a pinned C example for CVI/MASSI, continuation and configuration
 checks, and an NVI overflow-retention case. Broader pinned-C comparisons and
 temporary numerical harnesses live outside the repository. Algorithms follow
-the catalog's pinned revision; retain [the upstream notice](../THIRD_PARTY_NOTICES.md).
+the pinned TA-Lib revision. Retain [the upstream notice](../NOTICE).
 
 ## Volume filters and relative volatility
 

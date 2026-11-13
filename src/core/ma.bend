@@ -23,37 +23,6 @@ type State<-N: Data> is Type:
   Weighted{state: Average.State<N>}
   Cascade{kind: U32, factor: N, stages: List<&2, Ema.State<N>>}
 
-type Weighting<-N: Data> is Data:
-  Weighting{period: U32, triangular: Bool, origin: N}
-
-type Weight<-N: Data> is Data:
-  Weight{at: U32, sum: N, divisor: N}
-
-def weight(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, config: Weighting<N>, acc: Weight<N>, x: N) -> Weight<N>:
-  match config acc:
-    case Weighting{period, triangular, origin} Weight{+at, sum, divisor}:
-      +w = from(Bool.pick(U32, triangular, U32.min(U32.add(at, 1), U32.sub(period, at)), U32.add(at, 1)))
-      Weight{U32.add(at, 1), add(sum, mul(w, sub(x, origin))), add(divisor, w)}
-
-def weighted.finish(~N: Data, ~add: N -> N -> N, ~div: N -> N -> N, origin: N, period: U32, triangular: Bool, result: Window.State<N> & Weight<N>) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, Weight{at, sum, divisor}):
-      (window, Some{add(origin, div(sum, divisor))})
-
-def weighted.anchor(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, +period: U32, +triangular: Bool, result: Window.State<N> & Maybe<&2, N>) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, None{}): (window, None{})
-    case (window, Some{+origin}): weighted.finish(~N, ~add, ~div, origin, period, triangular, Window.fold(~N, ~Weighting<N>, ~Weight<N>, ~(c => a => x => weight(~N, ~from, ~add, ~sub, ~mul, c, a, x)), window, Weighting{period, triangular, origin}, Weight{0, from(0), from(0)}))
-
-def weighted.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, period: U32, triangular: Bool, result: Window.State<N> & Bool) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, False{}): (window, None{})
-    case (window, True{}): weighted.anchor(~N, ~from, ~add, ~sub, ~mul, ~div, period, triangular, Window.lag(~N, window, 0))
-
-def weighted.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, period: U32, triangular: Bool, result: Window.State<N> & Maybe<&2, N>) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, old): weighted.ready(~N, ~from, ~add, ~sub, ~mul, ~div, period, triangular, Window.full(~N, window))
-
 def cascade.stages(~N: Data, ~from: U32 -> N, ~div: N -> N -> N, count: Nat, +period: U32) -> List<&2, Ema.State<N>>:
   match count:
     case 0n: Nil{}
@@ -94,30 +63,6 @@ def cascade.output(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N ->
   match result:
     case (stages, None{}): (Cascade{kind, factor, stages}, None{})
     case (stages, Some{values}): (Cascade{kind, factor, stages}, Some{cascade.value(~N, ~from, ~add, ~sub, ~mul, kind, factor, values)})
-
-def mean.step(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, origin: N, sum: N, price: N) -> N:
-  add(sum, sub(price, origin))
-
-def mean.finish(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N, origin: N, period: U32, result: Window.State<N> & N) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, sum): (window, Some{add(origin, div(sum, from(period)))})
-
-def mean.anchor(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, period: U32, result: Window.State<N> & Maybe<&2, N>) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, None{}): (window, None{})
-    case (window, Some{+origin}): mean.finish(~N, ~from, ~add, ~div, origin, period, Window.fold(~N, ~N, ~N, ~(c => a => x => mean.step(~N, ~add, ~sub, c, a, x)), window, origin, from(0)))
-
-def mean.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, result: Window.State<N> & Bool) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, False{}): (window, None{})
-    case (Window.Window{buffer, +period, size, pos}, True{}): mean.anchor(~N, ~from, ~add, ~sub, ~div, period, Window.lag(~N, Window.Window{buffer, period, size, pos}, 0))
-
-def mean.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, result: Window.State<N> & Maybe<&2, N>) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, old): mean.ready(~N, ~from, ~add, ~sub, ~div, Window.full(~N, window))
-
-def mean.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N, window: Window.State<N>, price: N) -> Window.State<N> & Maybe<&2, N>:
-  mean.pushed(~N, ~from, ~add, ~sub, ~div, Window.push(~N, window, price))
 
 def next.simple(~N: Data, result: Average.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
@@ -163,10 +108,6 @@ def adaptive.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N ->
   match result:
     case (window, False{}): (Adaptive{window, period, value, None{}}, None{})
     case (window, True{}): adaptive.previous(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, x, Window.lag(~N, window, 1))
-
-def adaptive.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, period: U32, value: Maybe<&2, N>, x: N, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
-  match result:
-    case (window, old): adaptive.ready(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, x, Window.full(~N, window))
 
 def adaptive.accepted(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +period: U32, value: Maybe<&2, N>, +input: N, previous: N, first: N, +total: Average.Sum<N>, window: Window.State<N>, good: Bool) -> State<N> & Maybe<&2, N>:
   match good:

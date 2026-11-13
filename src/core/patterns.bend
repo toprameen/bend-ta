@@ -2,7 +2,6 @@ import Base
 import ./bar.bend as Bar
 import ./candle.bend as Candle
 import ./config.bend as Config
-import ./parameters.bend as Parameters
 
 type Name is Data:
   CDL2CROWS{}

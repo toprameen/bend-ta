@@ -89,10 +89,10 @@ README focused on purpose, a usable example, essential contracts and links to
 reference material. Avoid development-stage labels, milestone recaps,
 implementation totals, temporary repository status and speculative plans.
 
-Keep evolving inventories, parameter tables and toolchain details in their
-owning reference documents; link to them instead of repeating them. Keep usage,
-precision and numerical limits accurate as behavior changes. Durability comes
-from choosing the right level of detail, not from omitting useful constraints.
+Use the F32 facade for indicator names and signatures. Document behavior that
+signatures alone cannot convey in the family guides, including seed rules,
+warm-up, alignment, parameter limits, and numerical tradeoffs. Keep toolchain
+details in the local checks section and link to it from other guides.
 
 ## Changes and review
 
@@ -108,7 +108,7 @@ Do not weaken existing assertions merely to make a check pass.
 
 ## CI and enforcement
 
-The `Bend-only and tests` job runs on pull requests, main pushes and merge groups
+The `Bend-only and tests` job runs on pull requests and main pushes
 with a read-only repository token. It installs a checksum-pinned Bend release
 and a checksum-pinned Lean toolchain, then runs the same policy, proof and test
 commands contributors use locally. Its small shell

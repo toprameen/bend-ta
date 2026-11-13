@@ -36,9 +36,8 @@ Use `lookback` to query startup alignment, `clone` to branch a state, and
 
 ## Indicator reference
 
-The [function catalog](docs/ta-lib-indicator-catalog.md) records implementation
-status, parameters and reference sources. The [F32 interface](src/f32.bend)
-defines the callable functions and result types.
+The [F32 interface](src/f32.bend) defines the available indicators, their
+arguments, and result types. The guides explain how each family behaves.
 
 | Family | Guide |
 |---|---|
@@ -91,9 +90,5 @@ For repeatable performance measurements, see the [rolling benchmarks](benchmarks
 ## License
 
 Original contributions to bend-ta are licensed under the
-[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for copyright and attribution
-information.
-
-TA-Lib-derived portions retain their BSD 3-Clause terms; see
-[third-party notices](THIRD_PARTY_NOTICES.md) for the full notice and
-reference-source attribution.
+[Apache License 2.0](LICENSE). Portions adapted from TA-Lib retain their
+BSD 3-Clause terms, included in [NOTICE](NOTICE).

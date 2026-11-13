@@ -1,8 +1,8 @@
 # Momentum and directional indicators
 
-The F32 facade implements the catalog's 44 Foundation momentum entries through
-shared generic cores. The common initialization recipes live in
-`core/momentum_init.bend`; the facade validates configuration and binds numeric
+The F32 facade binds the shared momentum and directional algorithms. The
+common initialization recipes live in
+`core/momentum_init.bend`. The facade validates configuration and binds numeric
 operations and MA construction. Inputs and periods are runtime values. All functions expose
 `State()`, `init(parameters...)`, `next(state, observation)` and
 `batch(observations, parameters...)`. Batch uses the same transition as streaming;
@@ -169,7 +169,4 @@ portable checks; external generators and raw logs are not repository sources.
 The implementations and reference examples were derived from the pinned
 TA-Lib authored algorithms under
 [`ta_codegen/input`](https://github.com/TA-Lib/ta-lib/tree/ccd3172940ed1d9daa4e7197f2265810852e8910/ta_codegen/input).
-The catalog links each specification, authored algorithm and generated public
-implementation. TA-Lib's license notice is retained here:
-
-> Retain [the complete upstream license notice](../THIRD_PARTY_NOTICES.md).
+Retain [the complete upstream license notice](../NOTICE).
