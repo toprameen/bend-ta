@@ -114,11 +114,9 @@ and a checksum-pinned Lean toolchain, then runs the same policy, proof and test
 commands contributors use locally. Its small shell
 bootstrap only downloads, verifies and installs tools.
 
-Maintainers should require this status check for `main` after the workflow has
-been published and run, and require code-owner review for enforcement changes.
-`CODEOWNERS` covers the workflow, policy, agent instructions and tooling, including
-the ownership file itself. These files alone do not enable GitHub branch protection;
-that is a separate repository setting, subject to the account's plan while private.
+Maintainers should require this status check for `main` through GitHub branch
+protection and review changes to the workflow, policy, agent instructions,
+tooling and proof contracts through the usual pull request process.
 
 Changes to this policy require an explicit maintainer decision. Contributor and
 agent instructions must be usable without the maintainer's private workspace.
