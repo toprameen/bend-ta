@@ -131,11 +131,31 @@ def reference.group5() -> Bool:
   ]
   all(checks)
 
+def talib_0_8_4.macd() -> List<&2, Maybe<&2, TA.MACD.Value()>>:
+  [None{}, None{},
+   None{}, None{},
+   None{}, Some{Smooth.MACDValue{0.71111111, 0.01481481, 0.6962963}},
+   Some{Smooth.MACDValue{F32.neg(0.00296296), 0.00592593, F32.neg(0.00888889)}}, Some{Smooth.MACDValue{0.92167901, 0.46380247, 0.45787654}},
+   Some{Smooth.MACDValue{0.06082634, 0.2623144, F32.neg(0.20148807)}}, Some{Smooth.MACDValue{0.93910211, 0.60070826, 0.33839385}},
+   Some{Smooth.MACDValue{0.06433004, 0.33251915, F32.neg(0.26818911)}}, Some{Smooth.MACDValue{0.93888761, 0.63570338, 0.30318423}},
+   Some{Smooth.MACDValue{0.0634291, 0.34956624, F32.neg(0.28613714)}}, Some{Smooth.MACDValue{0.93808964, 0.64382794, 0.2942617}},
+   Some{Smooth.MACDValue{0.06286451, 0.35334622, F32.neg(0.29048172)}}, Some{Smooth.MACDValue{0.93772228, 0.64553425, 0.29218803}},
+   Some{Smooth.MACDValue{0.06263456, 0.3540844, F32.neg(0.29144985)}}, Some{Smooth.MACDValue{0.93758113, 0.64583277, 0.29174836}},
+   Some{Smooth.MACDValue{0.06254881, 0.35419079, F32.neg(0.29164198)}}, Some{Smooth.MACDValue{0.93752933, 0.64586006, 0.29166927}},
+   Some{Smooth.MACDValue{0.06251761, 0.35418884, F32.neg(0.29167122)}}, Some{Smooth.MACDValue{0.93751057, 0.64584971, 0.29166087}},
+   Some{Smooth.MACDValue{0.06250635, 0.35417803, F32.neg(0.29167168)}}, Some{Smooth.MACDValue{0.93750381, 0.64584092, 0.29166289}},
+   Some{Smooth.MACDValue{0.06250228, 0.3541716, F32.neg(0.29166932)}}, Some{Smooth.MACDValue{0.93750137, 0.64583649, 0.29166489}},
+   Some{Smooth.MACDValue{0.06250082, 0.35416865, F32.neg(0.29166783)}}, Some{Smooth.MACDValue{0.93750049, 0.64583457, 0.29166592}},
+   Some{Smooth.MACDValue{0.0625003, 0.35416744, F32.neg(0.29166714)}}, Some{Smooth.MACDValue{0.93750018, 0.64583381, 0.29166637}},
+   Some{Smooth.MACDValue{0.06250011, 0.35416696, F32.neg(0.29166685)}}, Some{Smooth.MACDValue{0.93750006, 0.64583351, 0.29166655}},
+   Some{Smooth.MACDValue{0.06250004, 0.35416677, F32.neg(0.29166674)}}, Some{Smooth.MACDValue{0.93750002, 0.6458334, 0.29166662}},
+   Some{Smooth.MACDValue{0.06250001, 0.35416671, F32.neg(0.29166669)}}, Some{Smooth.MACDValue{0.93750001, 0.64583336, 0.29166665}}]
+
 def reference.group6() -> Bool:
   +checks : List<&2, Bool> = [
     check(~TA.STOCH.Value(), ~stoch, TA.KDJ.batch(data.HLC(), 3, 2, 0, 2, 0), 36, 4, [48.214285714285715, 50.29761904761905, 44.04761904761904], [56.25, 56.25, 56.25]),
     check(~TA.KST.Value(), ~lines, TA.KST.batch(data.F32(), 1, 2, 3, 4, 2, 3, 2, 3, 2), 36, 7, [184.5914270914271, 136.58750971250973], [64.82409002698859, 67.2479410015642]),
-    check(~TA.MACD.Value(), ~macd, TA.MACD.batch(data.F32(), 2, 4, 3), 36, 5, [0.7111111111111121, 0.014814814814815355, 0.6962962962962967], [0.937500008290268, 0.6458333572659269, 0.2916666510243411]),
+    Assert.batch(~TA.Momentum.Error(), ~TA.MACD.Value(), ~(a => b => same(macd(a), macd(b))), TA.MACD.batch(data.F32(), 2, 4, 3), talib_0_8_4.macd()),
     check(~TA.MACD.Value(), ~macd, TA.MACDFIX.batch(data.F32(), 2), 36, 26, [3.243269230769233, 3.313942307692309, F32.neg(0.07067307692307612)], [3.412083551563814, 3.3748148182178643, 0.03726873334594982])
   ]
   all(checks)
@@ -176,12 +196,22 @@ def reference.group10() -> Bool:
   ]
   all(checks)
 
+def talib_0_8_4.rsi() -> List<&2, Maybe<&2, F32>>:
+  [None{}, None{}, None{}, Some{66.66666667}, Some{33.33333333},
+   Some{65.59139785}, Some{45.6928839}, Some{66.2004662}, Some{46.46216769}, Some{66.46169613},
+   Some{46.79565237}, Some{66.57600227}, Some{46.94225112}, Some{66.62645644}, Some{47.00709074},
+   Some{66.64881221}, Some{47.03584639}, Some{66.65873466}, Some{47.04861447}, Some{66.66314198},
+   Some{47.05428676}, Some{66.66510027}, Some{47.05680731}, Some{66.66597052}, Some{47.05792745},
+   Some{66.66635727}, Some{47.05842528}, Some{66.66652916}, Some{47.05864653}, Some{66.66660555},
+   Some{47.05874486}, Some{66.6666395}, Some{47.05878857}, Some{66.66665459}, Some{47.05880799},
+   Some{66.6666613}]
+
 def reference.group11() -> Bool:
   +checks : List<&2, Bool> = [
     check(~TA.VORTEX.Value(), ~vortex, TA.VORTEX.batch(data.HLC(), 3), 36, 3, [1.0769230769230769, 0.7692307692307693], [1.0, 0.4117647058823529]),
     check(~F32, ~scalar, TA.WAD.batch(data.HLC()), 36, 0, [0.0], [19.0]),
     check(~F32, ~scalar, TA.WILLR.batch(data.HLC(), 3), 36, 2, [F32.neg(66.66666666666666)], [F32.neg(25.0)]),
-    check(~F32, ~scalar, TA.RSI.batch(data.F32(), 3), 36, 3, [66.66666666666666], [66.66666130134134])
+    Assert.batch(~TA.Momentum.Error(), ~F32, ~(a => b => close(a, b)), TA.RSI.batch(data.F32(), 3), talib_0_8_4.rsi())
   ]
   all(checks)
 

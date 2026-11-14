@@ -93,11 +93,21 @@ def hl(+x: F32) -> Bar.HL<F32>:
 def hlc(+x: F32) -> Bar.HLC<F32>:
   Bar.HLC{F32.add(x, 2.0), F32.sub(x, 2.0), x}
 
+def talib_0_8_4.sar() -> List<&2, Maybe<&2, F32>>:
+  [None{}, Some{8.0}, Some{13.0}, Some{7.0}, Some{14.0},
+   Some{6.0}, Some{6.0}, Some{6.18}, Some{6.5728}, Some{6.949888},
+   Some{7.55289472}, Some{8.11972104}, Some{8.91014335}, Some{9.63733189}, Some{10.5735987},
+   Some{11.41623883}, Some{12.0}, Some{12.96}, Some{13.0}, Some{14.0},
+   Some{14.0}, Some{15.0}, Some{15.0}, Some{16.0}, Some{16.0},
+   Some{17.0}, Some{17.0}, Some{18.0}, Some{18.0}, Some{19.0},
+   Some{19.0}, Some{20.0}, Some{20.0}, Some{21.0}, Some{21.0},
+   Some{22.0}]
+
 def references() -> Bool:
   all([
     check(~F32, ~scalar, TA.FRAMA.batch(Series.map(~F32, ~Bar.HL<F32>, ~(x => hl(x)), prices()), 4), 4, [11.902464866638184], [15.895751953125]),
     check(~F32, ~scalar, TA.MCGD.batch(prices(), 4), 3, [9.93891429901123], [18.383743286132812]),
-    check(~F32, ~scalar, TA.SAR.batch(Series.map(~F32, ~Bar.HL<F32>, ~(x => hl(x)), prices()), 0.019999999552965164, 0.20000000298023224), 1, [8.0], [22.0]),
+    Assert.batch(~TA.Momentum.Error(), ~F32, ~(a => b => close(a, b)), TA.SAR.batch(Series.map(~F32, ~Bar.HL<F32>, ~(x => hl(x)), prices()), 0.019999999552965164, 0.20000000298023224), talib_0_8_4.sar()),
     check(~F32, ~scalar, TA.SAREXT.batch(Series.map(~F32, ~Bar.HL<F32>, ~(x => hl(x)), prices()), 0.0, 0.029999999329447746, 0.019999999552965164, 0.029999999329447746, 0.20000000298023224, 0.03999999910593033, 0.019999999552965164, 0.30000001192092896), 1, [8.0], [22.0]),
     check(~TA.SUPERTREND.Value(), ~trend, TA.SUPERTREND.batch(Series.map(~F32, ~Bar.HLC<F32>, ~(x => hlc(x)), prices()), 4, 1.5), 4, [0.875, 1.0], [19.642927169799805, 1.0]),
     check(~F32, ~scalar, TA.CG.batch(prices(), 4), 3, [F32.sub(0.0, 2.452380895614624)], [F32.sub(0.0, 2.441176414489746)]),

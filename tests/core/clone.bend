@@ -8,8 +8,13 @@ import ../../src/core/parameters.bend as Params
 import ../../src/core/overlap.bend as Overlap
 import ../../src/core/window.bend as Window
 import ../../src/core/variable.bend as Variable
+import ../../src/core/bar.bend as Bar
+import ../../src/core/window_signals.bend as Signals
+import ../../src/core/patterns.bend as Pattern
+import ../reference/hilbert.bend as Hilbert
+import ../reference/hikkake.bend as Hikkake
 
-def near(+a: F32, +b: F32) -> Bool:
+def near(a: F32, b: F32) -> Bool:
   F32.is_le(F32.abs(F32.sub(a, b)), 0.00001)
 
 def slot(a: Maybe<&2, F32>, b: Maybe<&2, F32>) -> Bool:
@@ -126,6 +131,105 @@ def multi.ready(result: Window.State<Number> & List<&2, Maybe<&2, Number>>) -> B
 def push(state: Window.State<Number>, value: Number) -> Window.State<Number> & Maybe<&2, Number>:
   Window.push(~Number,state,value)
 
+type Probe<-I: Data, -O: Data> is Data:
+  Probe{input: I, expected: O}
+
+def output(~O: Data, ~S: Type, result: S & Maybe<&2, O>) -> Maybe<&2, O>:
+  (state, value) = result
+  value
+
+def after_preview(
+  ~I: Data, ~O: Data, ~S: Type,
+  ~eq: O -> O -> Bool,
+  ~step: S -> I -> S & Maybe<&2, O>,
+  actual: S & Maybe<&2, O>, expected: O, follow: Probe<I, O>
+) -> Bool:
+  match actual follow:
+    case Tuple{state, value} Probe{input, want}:
+      Bool.and(Assert.maybe(~O, ~eq, value, Some{expected}),
+        Assert.maybe(~O, ~eq, output(~O, ~S, step(state, input)), Some{want}))
+
+def preview_forks(
+  ~I: Data, ~O: Data, ~S: Type,
+  ~eq: O -> O -> Bool,
+  ~step: S -> I -> S & Maybe<&2, O>,
+  ~preview: S -> I -> S & Maybe<&2, O>,
+  states: S & S, +probe: Probe<I, O>, follow: Probe<I, O>
+) -> Bool:
+  match states probe:
+    case Tuple{a, b} Probe{input, expected}:
+      Bool.and(after_preview(~I, ~O, ~S, ~eq, ~step, preview(a, input), expected, follow),
+        Assert.maybe(~O, ~eq, output(~O, ~S, step(b, input)), Some{expected}))
+
+def preview_ready(
+  ~I: Data, ~O: Data, ~S: Type,
+  ~eq: O -> O -> Bool,
+  ~step: S -> I -> S & Maybe<&2, O>,
+  ~clone: S -> S & S,
+  ~preview: S -> I -> S & Maybe<&2, O>,
+  scanned: S & List<&2, Maybe<&2, O>>, probe: Probe<I, O>, follow: Probe<I, O>
+) -> Bool:
+  (state, values) = scanned
+  preview_forks(~I, ~O, ~S, ~eq, ~step, ~preview, clone(state), probe, follow)
+
+def preview_case(
+  ~I: Data, ~O: Data, ~S: Type, ~E: Data,
+  ~eq: O -> O -> Bool,
+  ~step: S -> I -> S & Maybe<&2, O>,
+  ~clone: S -> S & S,
+  ~preview: S -> I -> S & Maybe<&2, O>,
+  initialized: Result<&2, &1, E, S>, prefix: List<&2, I>, probe: Probe<I, O>, follow: Probe<I, O>
+) -> Bool:
+  match initialized:
+    case Fail{error}: False{}
+    case Done{state}:
+      preview_ready(~I, ~O, ~S, ~eq, ~step, ~clone, ~preview, Series.scan(~I, ~O, ~S, ~step, prefix, state), probe, follow)
+
+def same_cloud(actual: TA.ICHIMOKU.Value(), expected: TA.ICHIMOKU.Value()) -> Bool:
+  match actual expected:
+    case Signals.CloudValue{a, b, c, d} Signals.CloudValue{w, x, y, z}:
+      Bool.and(near(a, w), Bool.and(near(b, x), Bool.and(near(c, y), near(d, z))))
+
+def same_signal(actual: TA.Pattern.Signal(), expected: TA.Pattern.Signal()) -> Bool:
+  match actual expected:
+    case Pattern.Signal{negative, strength} Pattern.Signal{+want_negative, want_strength}:
+      Bool.and(Bool.pick(Bool, negative, want_negative, Bool.not(want_negative)), U32.is_eq(strength, want_strength))
+
+def ema_preview(initialized: Result<&2, &2, TA.Error(), TA.EMA.State()>) -> Bool:
+  match initialized:
+    case Fail{error}: False{}
+    case Done{state}:
+      preview_ready(~F32, ~F32, ~TA.EMA.State(), ~near, ~TA.EMA.next, ~TA.EMA.clone, ~TA.EMA.preview,
+        Series.scan(~F32, ~F32, ~TA.EMA.State(), ~TA.EMA.next, [2.0, 4.0, 6.0], state), Probe{12.0, 8.0}, Probe{2.0, 3.0})
+
+def clone_ema() -> Bool:
+  ema_preview(TA.EMA.init(3))
+
+def clone_ichimoku() -> Bool:
+  preview_case(~Bar.HL<F32>, ~TA.ICHIMOKU.Value(), ~TA.ICHIMOKU.State(), ~Params.Error,
+    ~same_cloud, ~TA.ICHIMOKU.next, ~TA.ICHIMOKU.clone, ~TA.ICHIMOKU.preview, TA.ICHIMOKU.init(2, 3, 4),
+    [Bar.HL{3.0, 1.0}, Bar.HL{5.0, 1.0}, Bar.HL{4.0, 2.0}],
+    Probe{Bar.HL{8.0, 4.0}, Signals.CloudValue{5.0, 4.5, 4.75, 4.5}},
+    Probe{Bar.HL{6.0, 3.0}, Signals.CloudValue{4.0, 3.5, 3.75, 3.5}})
+
+def clone_mavp() -> Bool:
+  preview_case(~TA.MAVP.Sample(), ~F32, ~TA.MAVP.State(), ~Params.Error,
+    ~near, ~TA.MAVP.next, ~TA.MAVP.clone, ~TA.MAVP.preview, TA.MAVP.init(2, 5, 0),
+    Series.map(~F32, ~TA.MAVP.Sample(), ~sample, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+    Probe{Variable.Sample{20.0, 3.0}, F32.div(35.0, 3.0)}, Probe{Variable.Sample{9.0, 5.0}, 7.0})
+
+def clone_hikkake() -> Bool:
+  preview_case(~Bar.OHLC<F32>, ~TA.Pattern.Signal(), ~TA.CDLHIKKAKEMOD.State(), ~TA.Pattern.Error(),
+    ~same_signal, ~TA.CDLHIKKAKEMOD.next, ~TA.CDLHIKKAKEMOD.clone, ~TA.CDLHIKKAKEMOD.preview, TA.CDLHIKKAKEMOD.init(),
+    List.take(&2, Bar.OHLC<F32>, Hikkake.modified(), 16n),
+    Probe{Bar.OHLC{5.0, 15.0, 0.0, 5.0}, Pattern.Signal{True{}, 200}},
+    Probe{Bar.OHLC{4.0, 15.0, 4.0, 4.0}, Pattern.Signal{True{}, 200}})
+
+def clone_hilbert() -> Bool:
+  preview_case(~F32, ~F32, ~TA.HT_TRENDLINE.State(), ~Params.Error,
+    ~Hilbert.near, ~TA.HT_TRENDLINE.next, ~TA.HT_TRENDLINE.clone, ~TA.HT_TRENDLINE.preview, TA.HT_TRENDLINE.init(),
+    Hilbert.samples(63n, 0), Probe{20.0, 10.98901099}, Probe{7.0, 10.61758242})
+
 def main() -> IO(Unit):
   do IO<Unit>:
     Unit <- Assert.check("SMA.init case 1", sma.start(0,TA.SMA.init(3)))
@@ -134,4 +238,9 @@ def main() -> IO(Unit):
     Unit <- Assert.check("BBANDS.init", bands.start(TA.BBANDS.init(3,1.0,1.0,0)))
     Unit <- Assert.check("MAX.init", maximum.start(TA.MAX.init(3)))
     Unit <- Assert.check("MAVP.init", variable.start(TA.MAVP.init(2,4,0)))
-    Assert.check("multi.ready", multi.ready(Series.scan(~Number, ~Number, ~Window.State<Number>, ~push, [Number{1.0,77},Number{2.0,88},Number{3.0,99}], Window.init(~Number,3,2n,Number{0.0,0}))))
+    Unit <- Assert.check("multi.ready", multi.ready(Series.scan(~Number, ~Number, ~Window.State<Number>, ~push, [Number{1.0,77},Number{2.0,88},Number{3.0,99}], Window.init(~Number,3,2n,Number{0.0,0}))))
+    Unit <- Assert.check("EMA clone and preview", clone_ema())
+    Unit <- Assert.check("ICHIMOKU clone and preview", clone_ichimoku())
+    Unit <- Assert.check("shared MAVP clone and preview", clone_mavp())
+    Unit <- Assert.check("hikkake clone and preview", clone_hikkake())
+    Assert.check("Hilbert history clone and preview", clone_hilbert())

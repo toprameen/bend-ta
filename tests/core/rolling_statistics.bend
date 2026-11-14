@@ -55,22 +55,24 @@ def recovered(skip: Nat, result: Result<&2, &2, Params.Error, List<&2, Maybe<&2,
     case Fail{e}: False{}
     case Done{xs}: tail(xs, skip)
 
-def fork.previewed(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, +suffix: List<&2, I>, +expected: List<&2, Maybe<&2, F32>>, result: S & Maybe<&2, F32>, other: List<&2, Maybe<&2, F32>>) -> Bool:
+def fork.previewed(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, +suffix: List<&2, I>, +expected: List<&2, Maybe<&2, F32>>, prediction: F32, result: S & Maybe<&2, F32>, other: List<&2, Maybe<&2, F32>>) -> Bool:
   match result:
-    case (state, value): Bool.and(Ref.same(Series.batch(~I, ~F32, ~S, ~next, suffix, state), expected), Ref.same(other, expected))
+    case (state, value):
+      Bool.and(Assert.maybe(~F32, ~(a => b => Ref.near(a, b)), value, Some{prediction}),
+        Bool.and(Ref.same(Series.batch(~I, ~F32, ~S, ~next, suffix, state), expected), Ref.same(other, expected)))
 
-def fork.copied(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, ~preview: S -> I -> S & Maybe<&2, F32>, +suffix: List<&2, I>, +expected: List<&2, Maybe<&2, F32>>, probe: I, result: S & S) -> Bool:
+def fork.copied(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, ~preview: S -> I -> S & Maybe<&2, F32>, +suffix: List<&2, I>, +expected: List<&2, Maybe<&2, F32>>, probe: I, prediction: F32, result: S & S) -> Bool:
   match result:
-    case (a, b): fork.previewed(~I, ~S, ~next, suffix, expected, preview(a, probe), Series.batch(~I, ~F32, ~S, ~next, suffix, b))
+    case (a, b): fork.previewed(~I, ~S, ~next, suffix, expected, prediction, preview(a, probe), Series.batch(~I, ~F32, ~S, ~next, suffix, b))
 
-def fork.scanned(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, ~clone: S -> S & S, ~preview: S -> I -> S & Maybe<&2, F32>, suffix: List<&2, I>, expected: List<&2, Maybe<&2, F32>>, probe: I, result: S & List<&2, Maybe<&2, F32>>) -> Bool:
+def fork.scanned(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, ~clone: S -> S & S, ~preview: S -> I -> S & Maybe<&2, F32>, suffix: List<&2, I>, expected: List<&2, Maybe<&2, F32>>, probe: I, prediction: F32, result: S & List<&2, Maybe<&2, F32>>) -> Bool:
   match result:
-    case (state, values): fork.copied(~I, ~S, ~next, ~preview, suffix, expected, probe, clone(state))
+    case (state, values): fork.copied(~I, ~S, ~next, ~preview, suffix, expected, probe, prediction, clone(state))
 
-def fork(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, ~clone: S -> S & S, ~preview: S -> I -> S & Maybe<&2, F32>, prefix: List<&2, I>, suffix: List<&2, I>, expected: List<&2, Maybe<&2, F32>>, probe: I, result: Result<&2, &1, Params.Error, S>) -> Bool:
+def fork(~I: Data, ~S: Type, ~next: S -> I -> S & Maybe<&2, F32>, ~clone: S -> S & S, ~preview: S -> I -> S & Maybe<&2, F32>, prefix: List<&2, I>, suffix: List<&2, I>, expected: List<&2, Maybe<&2, F32>>, probe: I, prediction: F32, result: Result<&2, &1, Params.Error, S>) -> Bool:
   match result:
     case Fail{e}: False{}
-    case Done{state}: fork.scanned(~I, ~S, ~next, ~clone, ~preview, suffix, expected, probe, Series.scan(~I, ~F32, ~S, ~next, prefix, state))
+    case Done{state}: fork.scanned(~I, ~S, ~next, ~clone, ~preview, suffix, expected, probe, prediction, Series.scan(~I, ~F32, ~S, ~next, prefix, state))
 
 def cached(state: Moments.Cached<F32>, value: F32) -> Moments.Cached<F32> & Maybe<&2, Moments.Value<F32>>:
   Moments.cached.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, state, value)
@@ -105,8 +107,11 @@ def main() -> IO(Unit):
     Unit <- Assert.check("VAR.batch case 1", recovered(384n, TA.VAR.batch(inputs(400n, 2, 0, Nil{}), 256, 1.0)))
     Unit <- Assert.check("CORREL.batch case 1", recovered(384n, TA.CORREL.batch(Series.map(~F32, ~Pair.PairValue<F32>, ~pair, inputs(400n, 2, 0, Nil{})), 256)))
     Unit <- Assert.check("VAR.batch case 2", recovered(2n, TA.VAR.batch([F32.neg(3.0e-23), F32.neg(2.0e-23), F32.neg(1.0e-23), 0.0, 1.0e-23, 2.0e-23, 3.0e-23, F32.neg(3.0e-23)], 3, 1.0)))
-    Unit <- Assert.check("VAR.next", fork(~F32, ~TA.VAR.State(), ~TA.VAR.next, ~TA.VAR.clone, ~TA.VAR.preview, [1.0,2.0,3.0], [4.0,5.0], [Some{F32.div(2.0,3.0)},Some{F32.div(2.0,3.0)}], 100.0, TA.VAR.init(3, 1.0)))
-    Unit <- Assert.check("CORREL.next", fork(~TA.PairValue(), ~TA.CORREL.State(), ~TA.CORREL.next, ~TA.CORREL.clone, ~TA.CORREL.preview, [Pair.PairValue{1.0,1.0},Pair.PairValue{2.0,2.0},Pair.PairValue{3.0,9.0}], [Pair.PairValue{4.0,4.0},Pair.PairValue{5.0,5.0}], [Some{0.277350098},Some{F32.neg(0.755928946)}], Pair.PairValue{100.0,0.0}, TA.CORREL.init(3)))
+    Unit <- Assert.check("VAR clone and preview", fork(~F32, ~TA.VAR.State(), ~TA.VAR.next, ~TA.VAR.clone, ~TA.VAR.preview,
+      [1.0, 2.0, 3.0], [4.0, 5.0], [Some{F32.div(2.0, 3.0)}, Some{F32.div(2.0, 3.0)}], 100.0, F32.div(6338.0, 3.0), TA.VAR.init(3, 1.0)))
+    Unit <- Assert.check("CORREL clone and preview", fork(~TA.PairValue(), ~TA.CORREL.State(), ~TA.CORREL.next, ~TA.CORREL.clone, ~TA.CORREL.preview,
+      [Pair.PairValue{1.0, 1.0}, Pair.PairValue{2.0, 2.0}, Pair.PairValue{3.0, 9.0}], [Pair.PairValue{4.0, 4.0}, Pair.PairValue{5.0, 5.0}],
+      [Some{0.277350098}, Some{F32.neg(0.755928946)}], Pair.PairValue{100.0, 0.0}, F32.neg(0.665327344), TA.CORREL.init(3)))
     Unit <- Assert.check("mean.zero", mean.zero(Series.batch(~F32, ~Moments.Value<F32>, ~Moments.Cached<F32>, ~cached, [F32.neg(2.0e18), F32.neg(1.0e18), 0.0, 1.0e18], Moments.cached.init(~F32, ~U32.to_f32, 3, 2n))))
     Unit <- Assert.check("CORREL.batch case 2", recovered(2n, TA.CORREL.batch([Pair.PairValue{F32.neg(1.0e-9),1.0e9},Pair.PairValue{0.0,0.0},Pair.PairValue{1.0e-9,1.0e9}], 3)))
     Unit <- Assert.check("BETA.batch", recovered(3n, TA.BETA.batch([Pair.PairValue{11868269.0,1.0},Pair.PairValue{11868268.0,1.0e9},Pair.PairValue{11868268.0,1.0e9},Pair.PairValue{11868269.0,1.0e18}], 3)))
