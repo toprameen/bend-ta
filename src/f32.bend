@@ -58,6 +58,15 @@ import ./core/momentum_init.bend as MomentumInit
 def Error() -> Data:
   Config.Error
 
+def Parameter.Error() -> Data:
+  Params.Error
+
+def Stream.scan(
+  ~I: Data, ~O: Data, ~S: Type, ~step: S -> I -> S & Maybe<&2, O>,
+  xs: List<&2, I>, state: S
+) -> S & List<&2, Maybe<&2, O>>:
+  Series.scan(~I, ~O, ~S, ~step, xs, state)
+
 def EMA.State() -> Data:
   Ema.State<F32>
 
@@ -435,7 +444,7 @@ def ROCR100.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Error(), Lis
   change.batch(~ROCR100.next, xs, ROCR100.init(period))
 
 def VolumeError() -> Data:
-  Params.Error
+  Parameter.Error()
 
 def volume.depth(+period: U32) -> Nat:
   Config.depth(period)
@@ -583,13 +592,13 @@ def volume.ATR.valid(+period: U32, valid: Bool) -> Result<&2, &1, Params.Error, 
 def parameters.ATR(+period: U32) -> Bool:
   Bool.and(Params.period(period), U32.is_ge(period, 1))
 
-def ATR.init(+period: U32) -> Result<&2, &1, Params.Error, ATR.State()>:
+def ATR.init(+period: U32) -> Result<&2, &1, Parameter.Error(), ATR.State()>:
   volume.ATR.valid(period, parameters.ATR(period))
 
 def ATR.next(state: ATR.State(), bar: Bars.HLC<F32>) -> ATR.State() & Maybe<&2, F32>:
   Volatility.atr.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.max, state, bar)
 
-def ATR.batch(xs: List<&2, Bars.HLC<F32>>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
+def ATR.batch(xs: List<&2, Bars.HLC<F32>>, period: U32) -> Result<&2, &2, Parameter.Error(), List<&2, Maybe<&2, F32>>>:
   Series.initialized(~Bars.HLC<F32>, ~F32, ~ATR.State(), ~Params.Error, ~ATR.next, xs, ATR.init(period))
 
 def NATR.State() -> Data:
@@ -1438,7 +1447,7 @@ def VIDYA.batch(xs: List<&2, F32>, period: U32, cmo: U32) -> Result<&2, &2, Para
   Series.initialized(~F32, ~F32, ~VIDYA.State(), ~Params.Error, ~VIDYA.next, xs, VIDYA.init(period, cmo))
 
 def MAMA.Error() -> Data:
-  Params.Error
+  Parameter.Error()
 
 def MAMA.State() -> Data:
   Mama.State<F32>
@@ -1930,6 +1939,17 @@ def MIDPRICE.batch(xs: List<&2, Bars.HL<F32>>, period: U32) -> Result<&2, &2, Pa
 def BBANDS.Value() -> Data:
   Overlap.Bands<F32>
 
+def BBANDS.upper(value: BBANDS.Value()) -> F32:
+  match value:
+    case Overlap.Bands{upper, middle, lower}: upper
+
+def BBANDS.middle(value: BBANDS.Value()) -> F32:
+  overlap.middle(value)
+
+def BBANDS.lower(value: BBANDS.Value()) -> F32:
+  match value:
+    case Overlap.Bands{upper, middle, lower}: lower
+
 def BBANDS.State() -> Type:
   Overlap.Bollinger<F32>
 
@@ -2068,7 +2088,7 @@ def CKSP.batch(xs: List<&2, Bars.HLC<F32>>, period: U32, multiplier: F32, stop_p
   Series.initialized(~Bars.HLC<F32>, ~CKSP.Value(), ~CKSP.State(), ~Params.Error, ~CKSP.next, xs, CKSP.init(period, multiplier, stop_period))
 
 def Momentum.Error() -> Data:
-  Params.Error
+  Parameter.Error()
 
 def Momentum.configure(~S: Type, valid: Bool, create: Unit -> Result<&2, &1, Momentum.Error(), S>) -> Result<&2, &1, Momentum.Error(), S>:
   match valid:
@@ -2365,6 +2385,18 @@ def Momentum.selector(+period: U32, +kind: U32) -> Bool:
 
 def MACD.Value() -> Data:
   MomentumSmooth.MACDValue<F32>
+
+def MACD.line(value: MACD.Value()) -> F32:
+  match value:
+    case MomentumSmooth.MACDValue{line, signal, histogram}: line
+
+def MACD.signal(value: MACD.Value()) -> F32:
+  match value:
+    case MomentumSmooth.MACDValue{line, signal, histogram}: signal
+
+def MACD.histogram(value: MACD.Value()) -> F32:
+  match value:
+    case MomentumSmooth.MACDValue{line, signal, histogram}: histogram
 
 def STOCH.Value() -> Data:
   MomentumSmooth.StochValue<F32>
@@ -3068,7 +3100,7 @@ def MACDEXT.State() -> Type:
   TrendComposite.Macd<F32>
 
 def MACDEXT.Value() -> Data:
-  MomentumSmooth.MACDValue<F32>
+  MACD.Value()
 
 def parameters.MACDEXT(+fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32, +signal: U32, +signal_kind: U32) -> Bool:
   Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1)), Momentum.selector(fast, fast_kind)), Momentum.selector(slow, slow_kind)), Momentum.selector(signal, signal_kind))

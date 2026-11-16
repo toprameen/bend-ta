@@ -1,6 +1,8 @@
 import Base
 import ./src/f32.bend as TA
 import ./src/core/bar.bend as Bars
+import ./src/core/momentum_smooth.bend as Momentum
+import ./src/core/overlap.bend as Overlap
 import ./src/core/window.bend as Window
 import ./src/core/clone.bend as Clone
 import ./src/core/series.bend as Series
@@ -47,6 +49,42 @@ law bar_ohlc_fields:
   for low: F32
   for close: F32
   {TA.Bar.ohlc(open, high, low, close) == Bars.OHLC{open, high, low, close} : TA.Bar.OHLC()}
+
+law macd_line:
+  for line: F32
+  for signal: F32
+  for histogram: F32
+  {TA.MACD.line(Momentum.MACDValue{line, signal, histogram}) == line : F32}
+
+law macd_signal:
+  for line: F32
+  for signal: F32
+  for histogram: F32
+  {TA.MACD.signal(Momentum.MACDValue{line, signal, histogram}) == signal : F32}
+
+law macd_histogram:
+  for line: F32
+  for signal: F32
+  for histogram: F32
+  {TA.MACD.histogram(Momentum.MACDValue{line, signal, histogram}) == histogram : F32}
+
+law bbands_upper:
+  for upper: F32
+  for middle: F32
+  for lower: F32
+  {TA.BBANDS.upper(Overlap.Bands{upper, middle, lower}) == upper : F32}
+
+law bbands_middle:
+  for upper: F32
+  for middle: F32
+  for lower: F32
+  {TA.BBANDS.middle(Overlap.Bands{upper, middle, lower}) == middle : F32}
+
+law bbands_lower:
+  for upper: F32
+  for middle: F32
+  for lower: F32
+  {TA.BBANDS.lower(Overlap.Bands{upper, middle, lower}) == lower : F32}
 
 law window_clone:
   for ~A: Data
@@ -144,6 +182,15 @@ law scan_ordered:
   for xs: List<&2, I>
   for state: S
   {Series.scan(~I, ~O, ~S, ~step, xs, state) == SeriesProof.scan_spec(~I, ~O, ~S, ~step, xs, state) : S & List<&2, Maybe<&2, O>>}
+
+law stream_scan_ordered:
+  for ~I: Data
+  for ~O: Data
+  for ~S: Type
+  for ~step: S -> I -> S & Maybe<&2, O>
+  for xs: List<&2, I>
+  for state: S
+  {TA.Stream.scan(~I, ~O, ~S, ~step, xs, state) == SeriesProof.scan_spec(~I, ~O, ~S, ~step, xs, state) : S & List<&2, Maybe<&2, O>>}
 
 law batch_ordered:
   for ~I: Data

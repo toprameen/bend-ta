@@ -17,10 +17,13 @@ def averages() -> Result<&2, &2, TA.Error(), List<&2, Maybe<&2, F32>>>:
 The result is `Done{[None{}, None{}, Some{6.0}, Some{9.0}]}`. `None` marks
 warm-up. An invalid period returns `Fail`.
 
-Run `bend examples/moving_averages.bend` from the repository root.
+The [moving averages example](examples/moving_averages.bend) shows batch and
+single-observation streaming with `init` and `next`. Run it with
+`bend examples/moving_averages.bend`.
 
-Use `init` and `next` for streaming, passing the returned state into each
-update. `batch` returns one slot per observation.
+`TA.Stream.scan` processes a chunk from an existing state and returns the
+state for the next chunk. Both `scan` and `batch` return one output slot per
+observation.
 
 ## Data and arithmetic
 

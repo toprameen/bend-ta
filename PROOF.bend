@@ -41,6 +41,24 @@ def Laws.bar_hlcv_fields(high, low, close, volume):
 def Laws.bar_ohlc_fields(open, high, low, close):
   {==}
 
+def Laws.macd_line(line, signal, histogram):
+  {==}
+
+def Laws.macd_signal(line, signal, histogram):
+  {==}
+
+def Laws.macd_histogram(line, signal, histogram):
+  {==}
+
+def Laws.bbands_upper(upper, middle, lower):
+  {==}
+
+def Laws.bbands_middle(upper, middle, lower):
+  {==}
+
+def Laws.bbands_lower(upper, middle, lower):
+  {==}
+
 def Laws.window_clone(A, state):
   Ownership.window_clone(~A, state)
 
@@ -84,6 +102,9 @@ def Laws.scan_length(I, O, S, step, xs, state):
   SeriesProof.scan_length(~I, ~O, ~S, ~step, xs, state)
 
 def Laws.scan_ordered(I, O, S, step, xs, state):
+  SeriesProof.scan_ordered(~I, ~O, ~S, ~step, xs, state)
+
+def Laws.stream_scan_ordered(I, O, S, step, xs, state):
   SeriesProof.scan_ordered(~I, ~O, ~S, ~step, xs, state)
 
 def Laws.batch_ordered(I, O, S, step, xs, state):
