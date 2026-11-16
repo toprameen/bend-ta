@@ -1,7 +1,7 @@
 import Base
 import ../../src/f32.bend as TA
 
-def atr_matches(result: Result<&2, &2, TA.VolumeError(), List<&2, Maybe<&2, F32>>>) -> Bool:
+def atr_matches(result: Result<&2, &2, TA.Parameter.Error(), List<&2, Maybe<&2, F32>>>) -> Bool:
   match result:
     case Done{[None{}, Some{value}]}: F32.is_eq(value, 7.0)
     case _: False{}
