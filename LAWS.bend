@@ -1,5 +1,6 @@
 import Base
 import ./src/f32.bend as TA
+import ./src/core/bar.bend as Bars
 import ./src/core/window.bend as Window
 import ./src/core/clone.bend as Clone
 import ./src/core/series.bend as Series
@@ -10,6 +11,42 @@ import ./src/core/sma.bend as Sma
 import ./src/core/parameters.bend as Parameters
 import ./proofs/contracts.bend as Contracts
 import ./proofs/window_history.bend as History
+
+law bar_hl_fields:
+  for high: F32
+  for low: F32
+  {TA.Bar.hl(high, low) == Bars.HL{high, low} : TA.Bar.HL()}
+
+law bar_hlc_fields:
+  for high: F32
+  for low: F32
+  for close: F32
+  {TA.Bar.hlc(high, low, close) == Bars.HLC{high, low, close} : TA.Bar.HLC()}
+
+law bar_hlv_fields:
+  for high: F32
+  for low: F32
+  for volume: F32
+  {TA.Bar.hlv(high, low, volume) == Bars.HLV{high, low, volume} : TA.Bar.HLV()}
+
+law bar_cv_fields:
+  for close: F32
+  for volume: F32
+  {TA.Bar.cv(close, volume) == Bars.CV{close, volume} : TA.Bar.CV()}
+
+law bar_hlcv_fields:
+  for high: F32
+  for low: F32
+  for close: F32
+  for volume: F32
+  {TA.Bar.hlcv(high, low, close, volume) == Bars.HLCV{high, low, close, volume} : TA.Bar.HLCV()}
+
+law bar_ohlc_fields:
+  for open: F32
+  for high: F32
+  for low: F32
+  for close: F32
+  {TA.Bar.ohlc(open, high, low, close) == Bars.OHLC{open, high, low, close} : TA.Bar.OHLC()}
 
 law window_clone:
   for ~A: Data

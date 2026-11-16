@@ -24,6 +24,7 @@ update. `batch` returns one slot per observation.
 
 ## Data and arithmetic
 
+For ATR, build bars with `TA.Bar.hlc(high, low, close)`.
 Supply finite observations in arrival order with aligned bar fields. Handle
 missing data, timestamps, sessions, and price adjustments before calculation.
 F32 arithmetic can overflow or round away small changes.

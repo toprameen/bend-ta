@@ -23,6 +23,24 @@ def sma_configuration_if(period: U32, valid: Bool) -> {TA.SMA.init.result(Bool.p
     case False{}: {==}
     case True{}: {==}
 
+def Laws.bar_hl_fields(high, low):
+  {==}
+
+def Laws.bar_hlc_fields(high, low, close):
+  {==}
+
+def Laws.bar_hlv_fields(high, low, volume):
+  {==}
+
+def Laws.bar_cv_fields(close, volume):
+  {==}
+
+def Laws.bar_hlcv_fields(high, low, close, volume):
+  {==}
+
+def Laws.bar_ohlc_fields(open, high, low, close):
+  {==}
+
 def Laws.window_clone(A, state):
   Ownership.window_clone(~A, state)
 

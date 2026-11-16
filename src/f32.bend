@@ -193,7 +193,43 @@ def Moments.stddev(value: Moments.Value()) -> F32:
 def is_finite(value: F32) -> Bool:
   U32.is_ne(U32.and(F32.bits(value), 2139095040), 2139095040)
 
-def Bar.valid(bar: Bars.OHLC<F32>) -> Bool:
+def Bar.HL() -> Data:
+  Bars.HL<F32>
+
+def Bar.hl(high: F32, low: F32) -> Bar.HL():
+  Bars.HL{high, low}
+
+def Bar.HLC() -> Data:
+  Bars.HLC<F32>
+
+def Bar.hlc(high: F32, low: F32, close: F32) -> Bar.HLC():
+  Bars.HLC{high, low, close}
+
+def Bar.HLV() -> Data:
+  Bars.HLV<F32>
+
+def Bar.hlv(high: F32, low: F32, volume: F32) -> Bar.HLV():
+  Bars.HLV{high, low, volume}
+
+def Bar.CV() -> Data:
+  Bars.CV<F32>
+
+def Bar.cv(close: F32, volume: F32) -> Bar.CV():
+  Bars.CV{close, volume}
+
+def Bar.HLCV() -> Data:
+  Bars.HLCV<F32>
+
+def Bar.hlcv(high: F32, low: F32, close: F32, volume: F32) -> Bar.HLCV():
+  Bars.HLCV{high, low, close, volume}
+
+def Bar.OHLC() -> Data:
+  Bars.OHLC<F32>
+
+def Bar.ohlc(open: F32, high: F32, low: F32, close: F32) -> Bar.OHLC():
+  Bars.OHLC{open, high, low, close}
+
+def Bar.valid(bar: Bar.OHLC()) -> Bool:
   Bars.valid(~F32, ~is_finite, ~F32.is_le, bar)
 
 def true_range(previous: F32, bar: Bars.HLC<F32>) -> F32:
