@@ -29,7 +29,7 @@ import ./core/extrema.bend as Ext
 import ./core/moments.bend as Stats
 import ./core/bar.bend as Bars
 import ./core/candle.bend as Candles
-import ./core/transform.bend as Transform
+import ./core/transform.bend as Transforms
 import ./core/change.bend as Change
 
 import ./core/parameters.bend as Params
@@ -179,6 +179,14 @@ def SUM.next(state: SUM.State(), price: F32) -> SUM.State() & Maybe<&2, F32>:
 def Extrema.Value() -> Data:
   Ext.Value<F32>
 
+def Extrema.low(value: Extrema.Value()) -> F32:
+  match value:
+    case Ext.Range{low, high}: low
+
+def Extrema.high(value: Extrema.Value()) -> F32:
+  match value:
+    case Ext.Range{low, high}: high
+
 def Extrema.read(state: Window.State()) -> Window.State() & Maybe<&2, Extrema.Value()>:
   Ext.read(~F32, ~F32.min, ~F32.max, state)
 
@@ -187,6 +195,14 @@ def Extrema.next(state: Window.State(), price: F32) -> Window.State() & Maybe<&2
 
 def Moments.Value() -> Data:
   Stats.Value<F32>
+
+def Moments.mean(value: Moments.Value()) -> F32:
+  match value:
+    case Stats.Moments{mean, variance}: mean
+
+def Moments.variance(value: Moments.Value()) -> F32:
+  match value:
+    case Stats.Moments{mean, variance}: variance
 
 def Moments.read(state: Window.State()) -> Window.State() & Maybe<&2, Moments.Value()>:
   Stats.read(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, state)
@@ -235,6 +251,22 @@ def Bar.hlcv(high: F32, low: F32, close: F32, volume: F32) -> Bar.HLCV():
 def Bar.OHLC() -> Data:
   Bars.OHLC<F32>
 
+def Bar.open(value: Bar.OHLC()) -> F32:
+  match value:
+    case Bars.OHLC{open, high, low, close}: open
+
+def Bar.high(value: Bar.OHLC()) -> F32:
+  match value:
+    case Bars.OHLC{open, high, low, close}: high
+
+def Bar.low(value: Bar.OHLC()) -> F32:
+  match value:
+    case Bars.OHLC{open, high, low, close}: low
+
+def Bar.close(value: Bar.OHLC()) -> F32:
+  match value:
+    case Bars.OHLC{open, high, low, close}: close
+
 def Bar.ohlc(open: F32, high: F32, low: F32, close: F32) -> Bar.OHLC():
   Bars.OHLC{open, high, low, close}
 
@@ -250,24 +282,52 @@ def Candle.Error() -> Data:
 def Candle.State() -> Type:
   Candles.State<F32>
 
-def Candle.defaults(name: Candles.Name) -> Candles.Setting<F32>:
+def Candle.RangeKind() -> Data:
+  Candles.RangeKind
+
+def Candle.RangeKind.RealBody() -> Candle.RangeKind(): Candles.RealBody{}
+def Candle.RangeKind.HighLow() -> Candle.RangeKind(): Candles.HighLow{}
+def Candle.RangeKind.Shadows() -> Candle.RangeKind(): Candles.Shadows{}
+
+def Candle.Name() -> Data:
+  Candles.Name
+
+def Candle.Name.BodyLong() -> Candle.Name(): Candles.BodyLong{}
+def Candle.Name.BodyVeryLong() -> Candle.Name(): Candles.BodyVeryLong{}
+def Candle.Name.BodyShort() -> Candle.Name(): Candles.BodyShort{}
+def Candle.Name.BodyDoji() -> Candle.Name(): Candles.BodyDoji{}
+def Candle.Name.ShadowLong() -> Candle.Name(): Candles.ShadowLong{}
+def Candle.Name.ShadowVeryLong() -> Candle.Name(): Candles.ShadowVeryLong{}
+def Candle.Name.ShadowShort() -> Candle.Name(): Candles.ShadowShort{}
+def Candle.Name.ShadowVeryShort() -> Candle.Name(): Candles.ShadowVeryShort{}
+def Candle.Name.Near() -> Candle.Name(): Candles.Near{}
+def Candle.Name.Far() -> Candle.Name(): Candles.Far{}
+def Candle.Name.Equal() -> Candle.Name(): Candles.Equal{}
+
+def Candle.Setting() -> Data:
+  Candles.Setting<F32>
+
+def Candle.setting(kind: Candle.RangeKind(), period: U32, factor: F32) -> Candle.Setting():
+  Candles.Setting{kind, period, factor}
+
+def Candle.defaults(name: Candle.Name()) -> Candle.Setting():
   Candles.defaults(~F32, ~U32.to_f32, ~F32.div, name)
 
-def Candle.init.result(setting: Candles.Setting<F32>, config: Result<&2, &2, Config.Error, Config.Config>) -> Result<&2, &1, Candle.Error(), Candle.State()>:
+def Candle.init.result(setting: Candle.Setting(), config: Result<&2, &2, Config.Error, Config.Config>) -> Result<&2, &1, Candle.Error(), Candle.State()>:
   match config:
     case Fail{e}:
       Fail{Candles.InvalidPeriod{}}
     case Done{Config.Config{period, depth}}:
       Done{Candles.init(~F32, ~U32.to_f32, setting, period, depth)}
 
-def Candle.init.checked(setting: Candles.Setting<F32>, period: U32, valid: Bool) -> Result<&2, &1, Candle.Error(), Candle.State()>:
+def Candle.init.checked(setting: Candle.Setting(), period: U32, valid: Bool) -> Result<&2, &1, Candle.Error(), Candle.State()>:
   match valid:
     case False{}:
       Fail{Candles.InvalidFactor{}}
     case True{}:
       Candle.init.result(setting, Config.make(U32.max(period, 1)))
 
-def Candle.init(setting: Candles.Setting<F32>) -> Result<&2, &1, Candle.Error(), Candle.State()>:
+def Candle.init(setting: Candle.Setting()) -> Result<&2, &1, Candle.Error(), Candle.State()>:
   match setting:
     case Candles.Setting{kind, +period, +factor}:
       Candle.init.checked(Candles.Setting{kind, period, factor}, period, Bool.and(is_finite(factor), F32.is_ge(factor, 0.0)))
@@ -320,35 +380,41 @@ def TAN(value: F32) -> F32:
 def TANH(value: F32) -> F32:
   F32.tanh(value)
 
-def ADD(inputs: Transform.Operands<F32>) -> F32:
-  Transform.binary(~F32, ~F32.add, inputs)
+def Transform.Operands() -> Data:
+  Transforms.Operands<F32>
 
-def SUB(inputs: Transform.Operands<F32>) -> F32:
-  Transform.binary(~F32, ~F32.sub, inputs)
+def Transform.operands(left: F32, right: F32) -> Transform.Operands():
+  Transforms.Operands{left, right}
 
-def MULT(inputs: Transform.Operands<F32>) -> F32:
-  Transform.binary(~F32, ~F32.mul, inputs)
+def ADD(inputs: Transform.Operands()) -> F32:
+  Transforms.binary(~F32, ~F32.add, inputs)
+
+def SUB(inputs: Transform.Operands()) -> F32:
+  Transforms.binary(~F32, ~F32.sub, inputs)
+
+def MULT(inputs: Transform.Operands()) -> F32:
+  Transforms.binary(~F32, ~F32.mul, inputs)
 
 def BOP(bar: Bars.OHLC<F32>) -> F32:
-  Transform.bop(~F32, ~U32.to_f32, ~F32.sub, ~F32.div, ~F32.is_le, bar)
+  Transforms.bop(~F32, ~U32.to_f32, ~F32.sub, ~F32.div, ~F32.is_le, bar)
 
 def IBS(bar: Bars.HLC<F32>) -> F32:
-  Transform.ibs(~F32, ~U32.to_f32, ~F32.sub, ~F32.div, ~F32.is_le, bar)
+  Transforms.ibs(~F32, ~U32.to_f32, ~F32.sub, ~F32.div, ~F32.is_le, bar)
 
 def MARKETFI(bar: Bars.HLV<F32>) -> F32:
-  Transform.marketfi(~F32, ~U32.to_f32, ~F32.sub, ~F32.div, ~F32.is_eq, bar)
+  Transforms.marketfi(~F32, ~U32.to_f32, ~F32.sub, ~F32.div, ~F32.is_eq, bar)
 
 def AVGPRICE(bar: Bars.OHLC<F32>) -> F32:
-  Transform.avgprice(~F32, ~U32.to_f32, ~F32.add, ~F32.div, bar)
+  Transforms.avgprice(~F32, ~U32.to_f32, ~F32.add, ~F32.div, bar)
 
 def MEDPRICE(bar: Bars.HL<F32>) -> F32:
-  Transform.medprice(~F32, ~U32.to_f32, ~F32.add, ~F32.div, bar)
+  Transforms.medprice(~F32, ~U32.to_f32, ~F32.add, ~F32.div, bar)
 
 def TYPPRICE(bar: Bars.HLC<F32>) -> F32:
-  Transform.typprice(~F32, ~U32.to_f32, ~F32.add, ~F32.div, bar)
+  Transforms.typprice(~F32, ~U32.to_f32, ~F32.add, ~F32.div, bar)
 
 def WCLPRICE(bar: Bars.HLC<F32>) -> F32:
-  Transform.wclprice(~F32, ~U32.to_f32, ~F32.add, ~F32.mul, ~F32.div, bar)
+  Transforms.wclprice(~F32, ~U32.to_f32, ~F32.add, ~F32.mul, ~F32.div, bar)
 
 def CUMSUM.State() -> Data:
   F32
@@ -357,7 +423,7 @@ def CUMSUM.init() -> CUMSUM.State():
   0.0
 
 def CUMSUM.next(state: CUMSUM.State(), value: F32) -> CUMSUM.State() & Maybe<&2, F32>:
-  Transform.cumulative(~F32, ~F32.add, state, value)
+  Transforms.cumulative(~F32, ~F32.add, state, value)
 
 def CUMSUM.batch(xs: List<&2, F32>) -> List<&2, Maybe<&2, F32>>:
   Series.batch(~F32, ~F32, ~CUMSUM.State(), ~CUMSUM.next, xs, CUMSUM.init())
@@ -687,29 +753,100 @@ def Pattern.State() -> Type:
 def Pattern.Error() -> Data:
   Params.Error
 
+def Pattern.Name() -> Data:
+  Patterns.Name
+
 def Pattern.Settings() -> Data:
   Patterns.Settings<F32>
 
 def Pattern.Signal() -> Data:
   Patterns.Signal
 
+def Pattern.negative(value: Pattern.Signal()) -> Bool:
+  match value:
+    case Patterns.Signal{negative, strength}: negative
+
+def Pattern.strength(value: Pattern.Signal()) -> U32:
+  match value:
+    case Patterns.Signal{negative, strength}: strength
+
 def Pattern.defaults() -> Pattern.Settings():
   Patterns.defaults(~F32, ~U32.to_f32, ~F32.div)
 
-def Pattern.init(name: Patterns.Name, settings: Pattern.Settings(), penetration: F32) -> Result<&2, &1, Pattern.Error(), Pattern.State()>:
+def Pattern.init(name: Pattern.Name(), settings: Pattern.Settings(), penetration: F32) -> Result<&2, &1, Pattern.Error(), Pattern.State()>:
   PatternState.init(~F32, ~U32.to_f32, ~is_finite, ~F32.is_ge, name, settings, penetration)
 
 def Pattern.next(state: Pattern.State(), bar: Bars.OHLC<F32>) -> Pattern.State() & Maybe<&2, Pattern.Signal()>:
   PatternState.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.min, ~F32.max, ~F32.is_eq, ~F32.is_lt, ~F32.is_le, ~F32.is_gt, ~F32.is_ge, state, bar)
 
-def Pattern.batch(xs: List<&2, Bars.OHLC<F32>>, name: Patterns.Name, settings: Pattern.Settings(), penetration: F32) -> Result<&2, &2, Pattern.Error(), List<&2, Maybe<&2, Pattern.Signal()>>>:
+def Pattern.batch(xs: List<&2, Bars.OHLC<F32>>, name: Pattern.Name(), settings: Pattern.Settings(), penetration: F32) -> Result<&2, &2, Pattern.Error(), List<&2, Maybe<&2, Pattern.Signal()>>>:
   Series.initialized(~Bars.OHLC<F32>, ~Pattern.Signal(), ~Pattern.State(), ~Pattern.Error(), ~Pattern.next, xs, Pattern.init(name, settings, penetration))
+
+def CDL2CROWS.name() -> Pattern.Name(): Patterns.CDL2CROWS{}
+def CDL3BLACKCROWS.name() -> Pattern.Name(): Patterns.CDL3BLACKCROWS{}
+def CDL3INSIDE.name() -> Pattern.Name(): Patterns.CDL3INSIDE{}
+def CDL3LINESTRIKE.name() -> Pattern.Name(): Patterns.CDL3LINESTRIKE{}
+def CDL3OUTSIDE.name() -> Pattern.Name(): Patterns.CDL3OUTSIDE{}
+def CDL3STARSINSOUTH.name() -> Pattern.Name(): Patterns.CDL3STARSINSOUTH{}
+def CDL3WHITESOLDIERS.name() -> Pattern.Name(): Patterns.CDL3WHITESOLDIERS{}
+def CDLABANDONEDBABY.name() -> Pattern.Name(): Patterns.CDLABANDONEDBABY{}
+def CDLADVANCEBLOCK.name() -> Pattern.Name(): Patterns.CDLADVANCEBLOCK{}
+def CDLBELTHOLD.name() -> Pattern.Name(): Patterns.CDLBELTHOLD{}
+def CDLBREAKAWAY.name() -> Pattern.Name(): Patterns.CDLBREAKAWAY{}
+def CDLCLOSINGMARUBOZU.name() -> Pattern.Name(): Patterns.CDLCLOSINGMARUBOZU{}
+def CDLCONCEALBABYSWALL.name() -> Pattern.Name(): Patterns.CDLCONCEALBABYSWALL{}
+def CDLCOUNTERATTACK.name() -> Pattern.Name(): Patterns.CDLCOUNTERATTACK{}
+def CDLDARKCLOUDCOVER.name() -> Pattern.Name(): Patterns.CDLDARKCLOUDCOVER{}
+def CDLDOJI.name() -> Pattern.Name(): Patterns.CDLDOJI{}
+def CDLDOJISTAR.name() -> Pattern.Name(): Patterns.CDLDOJISTAR{}
+def CDLDRAGONFLYDOJI.name() -> Pattern.Name(): Patterns.CDLDRAGONFLYDOJI{}
+def CDLENGULFING.name() -> Pattern.Name(): Patterns.CDLENGULFING{}
+def CDLEVENINGDOJISTAR.name() -> Pattern.Name(): Patterns.CDLEVENINGDOJISTAR{}
+def CDLEVENINGSTAR.name() -> Pattern.Name(): Patterns.CDLEVENINGSTAR{}
+def CDLGAPSIDESIDEWHITE.name() -> Pattern.Name(): Patterns.CDLGAPSIDESIDEWHITE{}
+def CDLGRAVESTONEDOJI.name() -> Pattern.Name(): Patterns.CDLGRAVESTONEDOJI{}
+def CDLHAMMER.name() -> Pattern.Name(): Patterns.CDLHAMMER{}
+def CDLHANGINGMAN.name() -> Pattern.Name(): Patterns.CDLHANGINGMAN{}
+def CDLHARAMI.name() -> Pattern.Name(): Patterns.CDLHARAMI{}
+def CDLHARAMICROSS.name() -> Pattern.Name(): Patterns.CDLHARAMICROSS{}
+def CDLHIGHWAVE.name() -> Pattern.Name(): Patterns.CDLHIGHWAVE{}
+def CDLHOMINGPIGEON.name() -> Pattern.Name(): Patterns.CDLHOMINGPIGEON{}
+def CDLIDENTICAL3CROWS.name() -> Pattern.Name(): Patterns.CDLIDENTICAL3CROWS{}
+def CDLINNECK.name() -> Pattern.Name(): Patterns.CDLINNECK{}
+def CDLINVERTEDHAMMER.name() -> Pattern.Name(): Patterns.CDLINVERTEDHAMMER{}
+def CDLKICKING.name() -> Pattern.Name(): Patterns.CDLKICKING{}
+def CDLKICKINGBYLENGTH.name() -> Pattern.Name(): Patterns.CDLKICKINGBYLENGTH{}
+def CDLLADDERBOTTOM.name() -> Pattern.Name(): Patterns.CDLLADDERBOTTOM{}
+def CDLLONGLEGGEDDOJI.name() -> Pattern.Name(): Patterns.CDLLONGLEGGEDDOJI{}
+def CDLLONGLINE.name() -> Pattern.Name(): Patterns.CDLLONGLINE{}
+def CDLMARUBOZU.name() -> Pattern.Name(): Patterns.CDLMARUBOZU{}
+def CDLMATCHINGLOW.name() -> Pattern.Name(): Patterns.CDLMATCHINGLOW{}
+def CDLMATHOLD.name() -> Pattern.Name(): Patterns.CDLMATHOLD{}
+def CDLMORNINGDOJISTAR.name() -> Pattern.Name(): Patterns.CDLMORNINGDOJISTAR{}
+def CDLMORNINGSTAR.name() -> Pattern.Name(): Patterns.CDLMORNINGSTAR{}
+def CDLONNECK.name() -> Pattern.Name(): Patterns.CDLONNECK{}
+def CDLPIERCING.name() -> Pattern.Name(): Patterns.CDLPIERCING{}
+def CDLRICKSHAWMAN.name() -> Pattern.Name(): Patterns.CDLRICKSHAWMAN{}
+def CDLRISEFALL3METHODS.name() -> Pattern.Name(): Patterns.CDLRISEFALL3METHODS{}
+def CDLSEPARATINGLINES.name() -> Pattern.Name(): Patterns.CDLSEPARATINGLINES{}
+def CDLSHOOTINGSTAR.name() -> Pattern.Name(): Patterns.CDLSHOOTINGSTAR{}
+def CDLSHORTLINE.name() -> Pattern.Name(): Patterns.CDLSHORTLINE{}
+def CDLSPINNINGTOP.name() -> Pattern.Name(): Patterns.CDLSPINNINGTOP{}
+def CDLSTALLEDPATTERN.name() -> Pattern.Name(): Patterns.CDLSTALLEDPATTERN{}
+def CDLSTICKSANDWICH.name() -> Pattern.Name(): Patterns.CDLSTICKSANDWICH{}
+def CDLTAKURI.name() -> Pattern.Name(): Patterns.CDLTAKURI{}
+def CDLTASUKIGAP.name() -> Pattern.Name(): Patterns.CDLTASUKIGAP{}
+def CDLTHRUSTING.name() -> Pattern.Name(): Patterns.CDLTHRUSTING{}
+def CDLTRISTAR.name() -> Pattern.Name(): Patterns.CDLTRISTAR{}
+def CDLUNIQUE3RIVER.name() -> Pattern.Name(): Patterns.CDLUNIQUE3RIVER{}
+def CDLUPSIDEGAP2CROWS.name() -> Pattern.Name(): Patterns.CDLUPSIDEGAP2CROWS{}
+def CDLXSIDEGAP3METHODS.name() -> Pattern.Name(): Patterns.CDLXSIDEGAP3METHODS{}
 
 def CDL2CROWS.State() -> Type:
   Pattern.State()
 
 def CDL2CROWS.init() -> Result<&2, &1, Pattern.Error(), CDL2CROWS.State()>:
-  Pattern.init(Patterns.CDL2CROWS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDL2CROWS.name(), Pattern.defaults(), 0.0)
 
 def CDL2CROWS.next(state: CDL2CROWS.State(), bar: Bars.OHLC<F32>) -> CDL2CROWS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -721,7 +858,7 @@ def CDL3BLACKCROWS.State() -> Type:
   Pattern.State()
 
 def CDL3BLACKCROWS.init() -> Result<&2, &1, Pattern.Error(), CDL3BLACKCROWS.State()>:
-  Pattern.init(Patterns.CDL3BLACKCROWS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDL3BLACKCROWS.name(), Pattern.defaults(), 0.0)
 
 def CDL3BLACKCROWS.next(state: CDL3BLACKCROWS.State(), bar: Bars.OHLC<F32>) -> CDL3BLACKCROWS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -733,7 +870,7 @@ def CDL3INSIDE.State() -> Type:
   Pattern.State()
 
 def CDL3INSIDE.init() -> Result<&2, &1, Pattern.Error(), CDL3INSIDE.State()>:
-  Pattern.init(Patterns.CDL3INSIDE{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDL3INSIDE.name(), Pattern.defaults(), 0.0)
 
 def CDL3INSIDE.next(state: CDL3INSIDE.State(), bar: Bars.OHLC<F32>) -> CDL3INSIDE.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -745,7 +882,7 @@ def CDL3LINESTRIKE.State() -> Type:
   Pattern.State()
 
 def CDL3LINESTRIKE.init() -> Result<&2, &1, Pattern.Error(), CDL3LINESTRIKE.State()>:
-  Pattern.init(Patterns.CDL3LINESTRIKE{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDL3LINESTRIKE.name(), Pattern.defaults(), 0.0)
 
 def CDL3LINESTRIKE.next(state: CDL3LINESTRIKE.State(), bar: Bars.OHLC<F32>) -> CDL3LINESTRIKE.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -757,7 +894,7 @@ def CDL3OUTSIDE.State() -> Type:
   Pattern.State()
 
 def CDL3OUTSIDE.init() -> Result<&2, &1, Pattern.Error(), CDL3OUTSIDE.State()>:
-  Pattern.init(Patterns.CDL3OUTSIDE{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDL3OUTSIDE.name(), Pattern.defaults(), 0.0)
 
 def CDL3OUTSIDE.next(state: CDL3OUTSIDE.State(), bar: Bars.OHLC<F32>) -> CDL3OUTSIDE.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -769,7 +906,7 @@ def CDL3STARSINSOUTH.State() -> Type:
   Pattern.State()
 
 def CDL3STARSINSOUTH.init() -> Result<&2, &1, Pattern.Error(), CDL3STARSINSOUTH.State()>:
-  Pattern.init(Patterns.CDL3STARSINSOUTH{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDL3STARSINSOUTH.name(), Pattern.defaults(), 0.0)
 
 def CDL3STARSINSOUTH.next(state: CDL3STARSINSOUTH.State(), bar: Bars.OHLC<F32>) -> CDL3STARSINSOUTH.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -781,7 +918,7 @@ def CDL3WHITESOLDIERS.State() -> Type:
   Pattern.State()
 
 def CDL3WHITESOLDIERS.init() -> Result<&2, &1, Pattern.Error(), CDL3WHITESOLDIERS.State()>:
-  Pattern.init(Patterns.CDL3WHITESOLDIERS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDL3WHITESOLDIERS.name(), Pattern.defaults(), 0.0)
 
 def CDL3WHITESOLDIERS.next(state: CDL3WHITESOLDIERS.State(), bar: Bars.OHLC<F32>) -> CDL3WHITESOLDIERS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -793,7 +930,7 @@ def CDLABANDONEDBABY.State() -> Type:
   Pattern.State()
 
 def CDLABANDONEDBABY.init(penetration: F32) -> Result<&2, &1, Pattern.Error(), CDLABANDONEDBABY.State()>:
-  Pattern.init(Patterns.CDLABANDONEDBABY{}, Pattern.defaults(), penetration)
+  Pattern.init(CDLABANDONEDBABY.name(), Pattern.defaults(), penetration)
 
 def CDLABANDONEDBABY.next(state: CDLABANDONEDBABY.State(), bar: Bars.OHLC<F32>) -> CDLABANDONEDBABY.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -805,7 +942,7 @@ def CDLADVANCEBLOCK.State() -> Type:
   Pattern.State()
 
 def CDLADVANCEBLOCK.init() -> Result<&2, &1, Pattern.Error(), CDLADVANCEBLOCK.State()>:
-  Pattern.init(Patterns.CDLADVANCEBLOCK{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLADVANCEBLOCK.name(), Pattern.defaults(), 0.0)
 
 def CDLADVANCEBLOCK.next(state: CDLADVANCEBLOCK.State(), bar: Bars.OHLC<F32>) -> CDLADVANCEBLOCK.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -817,7 +954,7 @@ def CDLBELTHOLD.State() -> Type:
   Pattern.State()
 
 def CDLBELTHOLD.init() -> Result<&2, &1, Pattern.Error(), CDLBELTHOLD.State()>:
-  Pattern.init(Patterns.CDLBELTHOLD{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLBELTHOLD.name(), Pattern.defaults(), 0.0)
 
 def CDLBELTHOLD.next(state: CDLBELTHOLD.State(), bar: Bars.OHLC<F32>) -> CDLBELTHOLD.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -829,7 +966,7 @@ def CDLBREAKAWAY.State() -> Type:
   Pattern.State()
 
 def CDLBREAKAWAY.init() -> Result<&2, &1, Pattern.Error(), CDLBREAKAWAY.State()>:
-  Pattern.init(Patterns.CDLBREAKAWAY{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLBREAKAWAY.name(), Pattern.defaults(), 0.0)
 
 def CDLBREAKAWAY.next(state: CDLBREAKAWAY.State(), bar: Bars.OHLC<F32>) -> CDLBREAKAWAY.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -841,7 +978,7 @@ def CDLCLOSINGMARUBOZU.State() -> Type:
   Pattern.State()
 
 def CDLCLOSINGMARUBOZU.init() -> Result<&2, &1, Pattern.Error(), CDLCLOSINGMARUBOZU.State()>:
-  Pattern.init(Patterns.CDLCLOSINGMARUBOZU{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLCLOSINGMARUBOZU.name(), Pattern.defaults(), 0.0)
 
 def CDLCLOSINGMARUBOZU.next(state: CDLCLOSINGMARUBOZU.State(), bar: Bars.OHLC<F32>) -> CDLCLOSINGMARUBOZU.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -853,7 +990,7 @@ def CDLCONCEALBABYSWALL.State() -> Type:
   Pattern.State()
 
 def CDLCONCEALBABYSWALL.init() -> Result<&2, &1, Pattern.Error(), CDLCONCEALBABYSWALL.State()>:
-  Pattern.init(Patterns.CDLCONCEALBABYSWALL{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLCONCEALBABYSWALL.name(), Pattern.defaults(), 0.0)
 
 def CDLCONCEALBABYSWALL.next(state: CDLCONCEALBABYSWALL.State(), bar: Bars.OHLC<F32>) -> CDLCONCEALBABYSWALL.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -865,7 +1002,7 @@ def CDLCOUNTERATTACK.State() -> Type:
   Pattern.State()
 
 def CDLCOUNTERATTACK.init() -> Result<&2, &1, Pattern.Error(), CDLCOUNTERATTACK.State()>:
-  Pattern.init(Patterns.CDLCOUNTERATTACK{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLCOUNTERATTACK.name(), Pattern.defaults(), 0.0)
 
 def CDLCOUNTERATTACK.next(state: CDLCOUNTERATTACK.State(), bar: Bars.OHLC<F32>) -> CDLCOUNTERATTACK.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -877,7 +1014,7 @@ def CDLDARKCLOUDCOVER.State() -> Type:
   Pattern.State()
 
 def CDLDARKCLOUDCOVER.init(penetration: F32) -> Result<&2, &1, Pattern.Error(), CDLDARKCLOUDCOVER.State()>:
-  Pattern.init(Patterns.CDLDARKCLOUDCOVER{}, Pattern.defaults(), penetration)
+  Pattern.init(CDLDARKCLOUDCOVER.name(), Pattern.defaults(), penetration)
 
 def CDLDARKCLOUDCOVER.next(state: CDLDARKCLOUDCOVER.State(), bar: Bars.OHLC<F32>) -> CDLDARKCLOUDCOVER.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -889,7 +1026,7 @@ def CDLDOJI.State() -> Type:
   Pattern.State()
 
 def CDLDOJI.init() -> Result<&2, &1, Pattern.Error(), CDLDOJI.State()>:
-  Pattern.init(Patterns.CDLDOJI{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLDOJI.name(), Pattern.defaults(), 0.0)
 
 def CDLDOJI.next(state: CDLDOJI.State(), bar: Bars.OHLC<F32>) -> CDLDOJI.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -901,7 +1038,7 @@ def CDLDOJISTAR.State() -> Type:
   Pattern.State()
 
 def CDLDOJISTAR.init() -> Result<&2, &1, Pattern.Error(), CDLDOJISTAR.State()>:
-  Pattern.init(Patterns.CDLDOJISTAR{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLDOJISTAR.name(), Pattern.defaults(), 0.0)
 
 def CDLDOJISTAR.next(state: CDLDOJISTAR.State(), bar: Bars.OHLC<F32>) -> CDLDOJISTAR.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -913,7 +1050,7 @@ def CDLDRAGONFLYDOJI.State() -> Type:
   Pattern.State()
 
 def CDLDRAGONFLYDOJI.init() -> Result<&2, &1, Pattern.Error(), CDLDRAGONFLYDOJI.State()>:
-  Pattern.init(Patterns.CDLDRAGONFLYDOJI{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLDRAGONFLYDOJI.name(), Pattern.defaults(), 0.0)
 
 def CDLDRAGONFLYDOJI.next(state: CDLDRAGONFLYDOJI.State(), bar: Bars.OHLC<F32>) -> CDLDRAGONFLYDOJI.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -925,7 +1062,7 @@ def CDLENGULFING.State() -> Type:
   Pattern.State()
 
 def CDLENGULFING.init() -> Result<&2, &1, Pattern.Error(), CDLENGULFING.State()>:
-  Pattern.init(Patterns.CDLENGULFING{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLENGULFING.name(), Pattern.defaults(), 0.0)
 
 def CDLENGULFING.next(state: CDLENGULFING.State(), bar: Bars.OHLC<F32>) -> CDLENGULFING.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -937,7 +1074,7 @@ def CDLEVENINGDOJISTAR.State() -> Type:
   Pattern.State()
 
 def CDLEVENINGDOJISTAR.init(penetration: F32) -> Result<&2, &1, Pattern.Error(), CDLEVENINGDOJISTAR.State()>:
-  Pattern.init(Patterns.CDLEVENINGDOJISTAR{}, Pattern.defaults(), penetration)
+  Pattern.init(CDLEVENINGDOJISTAR.name(), Pattern.defaults(), penetration)
 
 def CDLEVENINGDOJISTAR.next(state: CDLEVENINGDOJISTAR.State(), bar: Bars.OHLC<F32>) -> CDLEVENINGDOJISTAR.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -949,7 +1086,7 @@ def CDLEVENINGSTAR.State() -> Type:
   Pattern.State()
 
 def CDLEVENINGSTAR.init(penetration: F32) -> Result<&2, &1, Pattern.Error(), CDLEVENINGSTAR.State()>:
-  Pattern.init(Patterns.CDLEVENINGSTAR{}, Pattern.defaults(), penetration)
+  Pattern.init(CDLEVENINGSTAR.name(), Pattern.defaults(), penetration)
 
 def CDLEVENINGSTAR.next(state: CDLEVENINGSTAR.State(), bar: Bars.OHLC<F32>) -> CDLEVENINGSTAR.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -961,7 +1098,7 @@ def CDLGAPSIDESIDEWHITE.State() -> Type:
   Pattern.State()
 
 def CDLGAPSIDESIDEWHITE.init() -> Result<&2, &1, Pattern.Error(), CDLGAPSIDESIDEWHITE.State()>:
-  Pattern.init(Patterns.CDLGAPSIDESIDEWHITE{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLGAPSIDESIDEWHITE.name(), Pattern.defaults(), 0.0)
 
 def CDLGAPSIDESIDEWHITE.next(state: CDLGAPSIDESIDEWHITE.State(), bar: Bars.OHLC<F32>) -> CDLGAPSIDESIDEWHITE.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -973,7 +1110,7 @@ def CDLGRAVESTONEDOJI.State() -> Type:
   Pattern.State()
 
 def CDLGRAVESTONEDOJI.init() -> Result<&2, &1, Pattern.Error(), CDLGRAVESTONEDOJI.State()>:
-  Pattern.init(Patterns.CDLGRAVESTONEDOJI{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLGRAVESTONEDOJI.name(), Pattern.defaults(), 0.0)
 
 def CDLGRAVESTONEDOJI.next(state: CDLGRAVESTONEDOJI.State(), bar: Bars.OHLC<F32>) -> CDLGRAVESTONEDOJI.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -985,7 +1122,7 @@ def CDLHAMMER.State() -> Type:
   Pattern.State()
 
 def CDLHAMMER.init() -> Result<&2, &1, Pattern.Error(), CDLHAMMER.State()>:
-  Pattern.init(Patterns.CDLHAMMER{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLHAMMER.name(), Pattern.defaults(), 0.0)
 
 def CDLHAMMER.next(state: CDLHAMMER.State(), bar: Bars.OHLC<F32>) -> CDLHAMMER.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -997,7 +1134,7 @@ def CDLHANGINGMAN.State() -> Type:
   Pattern.State()
 
 def CDLHANGINGMAN.init() -> Result<&2, &1, Pattern.Error(), CDLHANGINGMAN.State()>:
-  Pattern.init(Patterns.CDLHANGINGMAN{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLHANGINGMAN.name(), Pattern.defaults(), 0.0)
 
 def CDLHANGINGMAN.next(state: CDLHANGINGMAN.State(), bar: Bars.OHLC<F32>) -> CDLHANGINGMAN.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1009,7 +1146,7 @@ def CDLHARAMI.State() -> Type:
   Pattern.State()
 
 def CDLHARAMI.init() -> Result<&2, &1, Pattern.Error(), CDLHARAMI.State()>:
-  Pattern.init(Patterns.CDLHARAMI{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLHARAMI.name(), Pattern.defaults(), 0.0)
 
 def CDLHARAMI.next(state: CDLHARAMI.State(), bar: Bars.OHLC<F32>) -> CDLHARAMI.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1021,7 +1158,7 @@ def CDLHARAMICROSS.State() -> Type:
   Pattern.State()
 
 def CDLHARAMICROSS.init() -> Result<&2, &1, Pattern.Error(), CDLHARAMICROSS.State()>:
-  Pattern.init(Patterns.CDLHARAMICROSS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLHARAMICROSS.name(), Pattern.defaults(), 0.0)
 
 def CDLHARAMICROSS.next(state: CDLHARAMICROSS.State(), bar: Bars.OHLC<F32>) -> CDLHARAMICROSS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1033,7 +1170,7 @@ def CDLHIGHWAVE.State() -> Type:
   Pattern.State()
 
 def CDLHIGHWAVE.init() -> Result<&2, &1, Pattern.Error(), CDLHIGHWAVE.State()>:
-  Pattern.init(Patterns.CDLHIGHWAVE{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLHIGHWAVE.name(), Pattern.defaults(), 0.0)
 
 def CDLHIGHWAVE.next(state: CDLHIGHWAVE.State(), bar: Bars.OHLC<F32>) -> CDLHIGHWAVE.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1045,7 +1182,7 @@ def CDLHOMINGPIGEON.State() -> Type:
   Pattern.State()
 
 def CDLHOMINGPIGEON.init() -> Result<&2, &1, Pattern.Error(), CDLHOMINGPIGEON.State()>:
-  Pattern.init(Patterns.CDLHOMINGPIGEON{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLHOMINGPIGEON.name(), Pattern.defaults(), 0.0)
 
 def CDLHOMINGPIGEON.next(state: CDLHOMINGPIGEON.State(), bar: Bars.OHLC<F32>) -> CDLHOMINGPIGEON.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1057,7 +1194,7 @@ def CDLIDENTICAL3CROWS.State() -> Type:
   Pattern.State()
 
 def CDLIDENTICAL3CROWS.init() -> Result<&2, &1, Pattern.Error(), CDLIDENTICAL3CROWS.State()>:
-  Pattern.init(Patterns.CDLIDENTICAL3CROWS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLIDENTICAL3CROWS.name(), Pattern.defaults(), 0.0)
 
 def CDLIDENTICAL3CROWS.next(state: CDLIDENTICAL3CROWS.State(), bar: Bars.OHLC<F32>) -> CDLIDENTICAL3CROWS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1069,7 +1206,7 @@ def CDLINNECK.State() -> Type:
   Pattern.State()
 
 def CDLINNECK.init() -> Result<&2, &1, Pattern.Error(), CDLINNECK.State()>:
-  Pattern.init(Patterns.CDLINNECK{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLINNECK.name(), Pattern.defaults(), 0.0)
 
 def CDLINNECK.next(state: CDLINNECK.State(), bar: Bars.OHLC<F32>) -> CDLINNECK.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1081,7 +1218,7 @@ def CDLINVERTEDHAMMER.State() -> Type:
   Pattern.State()
 
 def CDLINVERTEDHAMMER.init() -> Result<&2, &1, Pattern.Error(), CDLINVERTEDHAMMER.State()>:
-  Pattern.init(Patterns.CDLINVERTEDHAMMER{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLINVERTEDHAMMER.name(), Pattern.defaults(), 0.0)
 
 def CDLINVERTEDHAMMER.next(state: CDLINVERTEDHAMMER.State(), bar: Bars.OHLC<F32>) -> CDLINVERTEDHAMMER.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1093,7 +1230,7 @@ def CDLKICKING.State() -> Type:
   Pattern.State()
 
 def CDLKICKING.init() -> Result<&2, &1, Pattern.Error(), CDLKICKING.State()>:
-  Pattern.init(Patterns.CDLKICKING{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLKICKING.name(), Pattern.defaults(), 0.0)
 
 def CDLKICKING.next(state: CDLKICKING.State(), bar: Bars.OHLC<F32>) -> CDLKICKING.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1105,7 +1242,7 @@ def CDLKICKINGBYLENGTH.State() -> Type:
   Pattern.State()
 
 def CDLKICKINGBYLENGTH.init() -> Result<&2, &1, Pattern.Error(), CDLKICKINGBYLENGTH.State()>:
-  Pattern.init(Patterns.CDLKICKINGBYLENGTH{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLKICKINGBYLENGTH.name(), Pattern.defaults(), 0.0)
 
 def CDLKICKINGBYLENGTH.next(state: CDLKICKINGBYLENGTH.State(), bar: Bars.OHLC<F32>) -> CDLKICKINGBYLENGTH.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1117,7 +1254,7 @@ def CDLLADDERBOTTOM.State() -> Type:
   Pattern.State()
 
 def CDLLADDERBOTTOM.init() -> Result<&2, &1, Pattern.Error(), CDLLADDERBOTTOM.State()>:
-  Pattern.init(Patterns.CDLLADDERBOTTOM{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLLADDERBOTTOM.name(), Pattern.defaults(), 0.0)
 
 def CDLLADDERBOTTOM.next(state: CDLLADDERBOTTOM.State(), bar: Bars.OHLC<F32>) -> CDLLADDERBOTTOM.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1129,7 +1266,7 @@ def CDLLONGLEGGEDDOJI.State() -> Type:
   Pattern.State()
 
 def CDLLONGLEGGEDDOJI.init() -> Result<&2, &1, Pattern.Error(), CDLLONGLEGGEDDOJI.State()>:
-  Pattern.init(Patterns.CDLLONGLEGGEDDOJI{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLLONGLEGGEDDOJI.name(), Pattern.defaults(), 0.0)
 
 def CDLLONGLEGGEDDOJI.next(state: CDLLONGLEGGEDDOJI.State(), bar: Bars.OHLC<F32>) -> CDLLONGLEGGEDDOJI.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1141,7 +1278,7 @@ def CDLLONGLINE.State() -> Type:
   Pattern.State()
 
 def CDLLONGLINE.init() -> Result<&2, &1, Pattern.Error(), CDLLONGLINE.State()>:
-  Pattern.init(Patterns.CDLLONGLINE{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLLONGLINE.name(), Pattern.defaults(), 0.0)
 
 def CDLLONGLINE.next(state: CDLLONGLINE.State(), bar: Bars.OHLC<F32>) -> CDLLONGLINE.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1153,7 +1290,7 @@ def CDLMARUBOZU.State() -> Type:
   Pattern.State()
 
 def CDLMARUBOZU.init() -> Result<&2, &1, Pattern.Error(), CDLMARUBOZU.State()>:
-  Pattern.init(Patterns.CDLMARUBOZU{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLMARUBOZU.name(), Pattern.defaults(), 0.0)
 
 def CDLMARUBOZU.next(state: CDLMARUBOZU.State(), bar: Bars.OHLC<F32>) -> CDLMARUBOZU.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1165,7 +1302,7 @@ def CDLMATCHINGLOW.State() -> Type:
   Pattern.State()
 
 def CDLMATCHINGLOW.init() -> Result<&2, &1, Pattern.Error(), CDLMATCHINGLOW.State()>:
-  Pattern.init(Patterns.CDLMATCHINGLOW{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLMATCHINGLOW.name(), Pattern.defaults(), 0.0)
 
 def CDLMATCHINGLOW.next(state: CDLMATCHINGLOW.State(), bar: Bars.OHLC<F32>) -> CDLMATCHINGLOW.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1177,7 +1314,7 @@ def CDLMATHOLD.State() -> Type:
   Pattern.State()
 
 def CDLMATHOLD.init(penetration: F32) -> Result<&2, &1, Pattern.Error(), CDLMATHOLD.State()>:
-  Pattern.init(Patterns.CDLMATHOLD{}, Pattern.defaults(), penetration)
+  Pattern.init(CDLMATHOLD.name(), Pattern.defaults(), penetration)
 
 def CDLMATHOLD.next(state: CDLMATHOLD.State(), bar: Bars.OHLC<F32>) -> CDLMATHOLD.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1189,7 +1326,7 @@ def CDLMORNINGDOJISTAR.State() -> Type:
   Pattern.State()
 
 def CDLMORNINGDOJISTAR.init(penetration: F32) -> Result<&2, &1, Pattern.Error(), CDLMORNINGDOJISTAR.State()>:
-  Pattern.init(Patterns.CDLMORNINGDOJISTAR{}, Pattern.defaults(), penetration)
+  Pattern.init(CDLMORNINGDOJISTAR.name(), Pattern.defaults(), penetration)
 
 def CDLMORNINGDOJISTAR.next(state: CDLMORNINGDOJISTAR.State(), bar: Bars.OHLC<F32>) -> CDLMORNINGDOJISTAR.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1201,7 +1338,7 @@ def CDLMORNINGSTAR.State() -> Type:
   Pattern.State()
 
 def CDLMORNINGSTAR.init(penetration: F32) -> Result<&2, &1, Pattern.Error(), CDLMORNINGSTAR.State()>:
-  Pattern.init(Patterns.CDLMORNINGSTAR{}, Pattern.defaults(), penetration)
+  Pattern.init(CDLMORNINGSTAR.name(), Pattern.defaults(), penetration)
 
 def CDLMORNINGSTAR.next(state: CDLMORNINGSTAR.State(), bar: Bars.OHLC<F32>) -> CDLMORNINGSTAR.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1213,7 +1350,7 @@ def CDLONNECK.State() -> Type:
   Pattern.State()
 
 def CDLONNECK.init() -> Result<&2, &1, Pattern.Error(), CDLONNECK.State()>:
-  Pattern.init(Patterns.CDLONNECK{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLONNECK.name(), Pattern.defaults(), 0.0)
 
 def CDLONNECK.next(state: CDLONNECK.State(), bar: Bars.OHLC<F32>) -> CDLONNECK.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1225,7 +1362,7 @@ def CDLPIERCING.State() -> Type:
   Pattern.State()
 
 def CDLPIERCING.init() -> Result<&2, &1, Pattern.Error(), CDLPIERCING.State()>:
-  Pattern.init(Patterns.CDLPIERCING{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLPIERCING.name(), Pattern.defaults(), 0.0)
 
 def CDLPIERCING.next(state: CDLPIERCING.State(), bar: Bars.OHLC<F32>) -> CDLPIERCING.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1237,7 +1374,7 @@ def CDLRICKSHAWMAN.State() -> Type:
   Pattern.State()
 
 def CDLRICKSHAWMAN.init() -> Result<&2, &1, Pattern.Error(), CDLRICKSHAWMAN.State()>:
-  Pattern.init(Patterns.CDLRICKSHAWMAN{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLRICKSHAWMAN.name(), Pattern.defaults(), 0.0)
 
 def CDLRICKSHAWMAN.next(state: CDLRICKSHAWMAN.State(), bar: Bars.OHLC<F32>) -> CDLRICKSHAWMAN.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1249,7 +1386,7 @@ def CDLRISEFALL3METHODS.State() -> Type:
   Pattern.State()
 
 def CDLRISEFALL3METHODS.init() -> Result<&2, &1, Pattern.Error(), CDLRISEFALL3METHODS.State()>:
-  Pattern.init(Patterns.CDLRISEFALL3METHODS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLRISEFALL3METHODS.name(), Pattern.defaults(), 0.0)
 
 def CDLRISEFALL3METHODS.next(state: CDLRISEFALL3METHODS.State(), bar: Bars.OHLC<F32>) -> CDLRISEFALL3METHODS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1261,7 +1398,7 @@ def CDLSEPARATINGLINES.State() -> Type:
   Pattern.State()
 
 def CDLSEPARATINGLINES.init() -> Result<&2, &1, Pattern.Error(), CDLSEPARATINGLINES.State()>:
-  Pattern.init(Patterns.CDLSEPARATINGLINES{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLSEPARATINGLINES.name(), Pattern.defaults(), 0.0)
 
 def CDLSEPARATINGLINES.next(state: CDLSEPARATINGLINES.State(), bar: Bars.OHLC<F32>) -> CDLSEPARATINGLINES.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1273,7 +1410,7 @@ def CDLSHOOTINGSTAR.State() -> Type:
   Pattern.State()
 
 def CDLSHOOTINGSTAR.init() -> Result<&2, &1, Pattern.Error(), CDLSHOOTINGSTAR.State()>:
-  Pattern.init(Patterns.CDLSHOOTINGSTAR{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLSHOOTINGSTAR.name(), Pattern.defaults(), 0.0)
 
 def CDLSHOOTINGSTAR.next(state: CDLSHOOTINGSTAR.State(), bar: Bars.OHLC<F32>) -> CDLSHOOTINGSTAR.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1285,7 +1422,7 @@ def CDLSHORTLINE.State() -> Type:
   Pattern.State()
 
 def CDLSHORTLINE.init() -> Result<&2, &1, Pattern.Error(), CDLSHORTLINE.State()>:
-  Pattern.init(Patterns.CDLSHORTLINE{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLSHORTLINE.name(), Pattern.defaults(), 0.0)
 
 def CDLSHORTLINE.next(state: CDLSHORTLINE.State(), bar: Bars.OHLC<F32>) -> CDLSHORTLINE.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1297,7 +1434,7 @@ def CDLSPINNINGTOP.State() -> Type:
   Pattern.State()
 
 def CDLSPINNINGTOP.init() -> Result<&2, &1, Pattern.Error(), CDLSPINNINGTOP.State()>:
-  Pattern.init(Patterns.CDLSPINNINGTOP{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLSPINNINGTOP.name(), Pattern.defaults(), 0.0)
 
 def CDLSPINNINGTOP.next(state: CDLSPINNINGTOP.State(), bar: Bars.OHLC<F32>) -> CDLSPINNINGTOP.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1309,7 +1446,7 @@ def CDLSTALLEDPATTERN.State() -> Type:
   Pattern.State()
 
 def CDLSTALLEDPATTERN.init() -> Result<&2, &1, Pattern.Error(), CDLSTALLEDPATTERN.State()>:
-  Pattern.init(Patterns.CDLSTALLEDPATTERN{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLSTALLEDPATTERN.name(), Pattern.defaults(), 0.0)
 
 def CDLSTALLEDPATTERN.next(state: CDLSTALLEDPATTERN.State(), bar: Bars.OHLC<F32>) -> CDLSTALLEDPATTERN.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1321,7 +1458,7 @@ def CDLSTICKSANDWICH.State() -> Type:
   Pattern.State()
 
 def CDLSTICKSANDWICH.init() -> Result<&2, &1, Pattern.Error(), CDLSTICKSANDWICH.State()>:
-  Pattern.init(Patterns.CDLSTICKSANDWICH{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLSTICKSANDWICH.name(), Pattern.defaults(), 0.0)
 
 def CDLSTICKSANDWICH.next(state: CDLSTICKSANDWICH.State(), bar: Bars.OHLC<F32>) -> CDLSTICKSANDWICH.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1333,7 +1470,7 @@ def CDLTAKURI.State() -> Type:
   Pattern.State()
 
 def CDLTAKURI.init() -> Result<&2, &1, Pattern.Error(), CDLTAKURI.State()>:
-  Pattern.init(Patterns.CDLTAKURI{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLTAKURI.name(), Pattern.defaults(), 0.0)
 
 def CDLTAKURI.next(state: CDLTAKURI.State(), bar: Bars.OHLC<F32>) -> CDLTAKURI.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1345,7 +1482,7 @@ def CDLTASUKIGAP.State() -> Type:
   Pattern.State()
 
 def CDLTASUKIGAP.init() -> Result<&2, &1, Pattern.Error(), CDLTASUKIGAP.State()>:
-  Pattern.init(Patterns.CDLTASUKIGAP{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLTASUKIGAP.name(), Pattern.defaults(), 0.0)
 
 def CDLTASUKIGAP.next(state: CDLTASUKIGAP.State(), bar: Bars.OHLC<F32>) -> CDLTASUKIGAP.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1357,7 +1494,7 @@ def CDLTHRUSTING.State() -> Type:
   Pattern.State()
 
 def CDLTHRUSTING.init() -> Result<&2, &1, Pattern.Error(), CDLTHRUSTING.State()>:
-  Pattern.init(Patterns.CDLTHRUSTING{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLTHRUSTING.name(), Pattern.defaults(), 0.0)
 
 def CDLTHRUSTING.next(state: CDLTHRUSTING.State(), bar: Bars.OHLC<F32>) -> CDLTHRUSTING.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1369,7 +1506,7 @@ def CDLTRISTAR.State() -> Type:
   Pattern.State()
 
 def CDLTRISTAR.init() -> Result<&2, &1, Pattern.Error(), CDLTRISTAR.State()>:
-  Pattern.init(Patterns.CDLTRISTAR{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLTRISTAR.name(), Pattern.defaults(), 0.0)
 
 def CDLTRISTAR.next(state: CDLTRISTAR.State(), bar: Bars.OHLC<F32>) -> CDLTRISTAR.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1381,7 +1518,7 @@ def CDLUNIQUE3RIVER.State() -> Type:
   Pattern.State()
 
 def CDLUNIQUE3RIVER.init() -> Result<&2, &1, Pattern.Error(), CDLUNIQUE3RIVER.State()>:
-  Pattern.init(Patterns.CDLUNIQUE3RIVER{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLUNIQUE3RIVER.name(), Pattern.defaults(), 0.0)
 
 def CDLUNIQUE3RIVER.next(state: CDLUNIQUE3RIVER.State(), bar: Bars.OHLC<F32>) -> CDLUNIQUE3RIVER.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1393,7 +1530,7 @@ def CDLUPSIDEGAP2CROWS.State() -> Type:
   Pattern.State()
 
 def CDLUPSIDEGAP2CROWS.init() -> Result<&2, &1, Pattern.Error(), CDLUPSIDEGAP2CROWS.State()>:
-  Pattern.init(Patterns.CDLUPSIDEGAP2CROWS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLUPSIDEGAP2CROWS.name(), Pattern.defaults(), 0.0)
 
 def CDLUPSIDEGAP2CROWS.next(state: CDLUPSIDEGAP2CROWS.State(), bar: Bars.OHLC<F32>) -> CDLUPSIDEGAP2CROWS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1405,7 +1542,7 @@ def CDLXSIDEGAP3METHODS.State() -> Type:
   Pattern.State()
 
 def CDLXSIDEGAP3METHODS.init() -> Result<&2, &1, Pattern.Error(), CDLXSIDEGAP3METHODS.State()>:
-  Pattern.init(Patterns.CDLXSIDEGAP3METHODS{}, Pattern.defaults(), 0.0)
+  Pattern.init(CDLXSIDEGAP3METHODS.name(), Pattern.defaults(), 0.0)
 
 def CDLXSIDEGAP3METHODS.next(state: CDLXSIDEGAP3METHODS.State(), bar: Bars.OHLC<F32>) -> CDLXSIDEGAP3METHODS.State() & Maybe<&2, Pattern.Signal()>:
   Pattern.next(state, bar)
@@ -1414,16 +1551,13 @@ def CDLXSIDEGAP3METHODS.batch(xs: List<&2, Bars.OHLC<F32>>) -> Result<&2, &2, Pa
   Series.initialized(~Bars.OHLC<F32>, ~Pattern.Signal(), ~Pattern.State(), ~Pattern.Error(), ~Pattern.next, xs, CDLXSIDEGAP3METHODS.init())
 
 
-def Pattern.Name() -> Data:
-  Patterns.Name
-
 def Pattern.show(signal: Pattern.Signal()) -> String:
   Patterns.Signal.show(signal)
 
-def Pattern.setting(settings: Pattern.Settings(), name: Candles.Name, replacement: Candles.Setting<F32>) -> Pattern.Settings():
+def Pattern.setting(settings: Pattern.Settings(), name: Candle.Name(), replacement: Candle.Setting()) -> Pattern.Settings():
   Patterns.setting(~F32, settings, name, replacement)
 
-def Pattern.lookback(name: Patterns.Name, settings: Pattern.Settings()) -> U32:
+def Pattern.lookback(name: Pattern.Name(), settings: Pattern.Settings()) -> U32:
   Patterns.lookback(~F32, settings, name)
 
 def VIDYA.State() -> Type:
@@ -1454,6 +1588,14 @@ def MAMA.State() -> Data:
 
 def MAMA.Value() -> Data:
   Mama.Value<F32>
+
+def MAMA.mama(value: MAMA.Value()) -> F32:
+  match value:
+    case Mama.Value{mama, fama}: mama
+
+def MAMA.fama(value: MAMA.Value()) -> F32:
+  match value:
+    case Mama.Value{mama, fama}: fama
 
 def MAMA.init.checked(fast: F32, slow: F32, valid: Bool) -> Result<&2, &1, MAMA.Error(), MAMA.State()>:
   match valid:
@@ -1489,6 +1631,22 @@ def overlap.project(~S: Type, ~I: Data, ~O: Data, ~project: I -> O, result: S & 
     case (state, None{}): (state, None{})
     case (state, Some{value}): (state, Some{project(value)})
 
+def MA.Kind.SMA() -> U32: Ma.Kind.SMA()
+def MA.Kind.EMA() -> U32: Ma.Kind.EMA()
+def MA.Kind.WMA() -> U32: Ma.Kind.WMA()
+def MA.Kind.DEMA() -> U32: Ma.Kind.DEMA()
+def MA.Kind.TEMA() -> U32: Ma.Kind.TEMA()
+def MA.Kind.TRIMA() -> U32: Ma.Kind.TRIMA()
+def MA.Kind.KAMA() -> U32: Ma.Kind.KAMA()
+def MA.Kind.MAMA() -> U32: Ma.Kind.MAMA()
+def MA.Kind.T3() -> U32: Ma.Kind.T3()
+def MA.Kind.HMA() -> U32: Ma.Kind.HMA()
+def MA.Kind.Identity() -> U32: Ma.Kind.Identity()
+def MA.Kind.ZLEMA() -> U32: Ma.Kind.ZLEMA()
+def MA.Kind.RMA() -> U32: Ma.Kind.RMA()
+def MA.Kind.VIDYA() -> U32: Ma.Kind.VIDYA()
+def MA.Kind.ALMA() -> U32: Ma.Kind.ALMA()
+
 def MA.State() -> Type:
   Ma.State<F32>
 
@@ -1505,85 +1663,85 @@ def WMA.State() -> Type:
   MA.State()
 
 def WMA.init(period: U32) -> Result<&2, &1, Params.Error, WMA.State()>:
-  MA.init(period, 2)
+  MA.init(period, MA.Kind.WMA())
 
 def WMA.next(state: WMA.State(), price: F32) -> WMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
 
 def WMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
-  MA.batch(xs, period, 2)
+  MA.batch(xs, period, MA.Kind.WMA())
 
 def DEMA.State() -> Type:
   MA.State()
 
 def DEMA.init(period: U32) -> Result<&2, &1, Params.Error, DEMA.State()>:
-  MA.init(period, 3)
+  MA.init(period, MA.Kind.DEMA())
 
 def DEMA.next(state: DEMA.State(), price: F32) -> DEMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
 
 def DEMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
-  MA.batch(xs, period, 3)
+  MA.batch(xs, period, MA.Kind.DEMA())
 
 def TEMA.State() -> Type:
   MA.State()
 
 def TEMA.init(period: U32) -> Result<&2, &1, Params.Error, TEMA.State()>:
-  MA.init(period, 4)
+  MA.init(period, MA.Kind.TEMA())
 
 def TEMA.next(state: TEMA.State(), price: F32) -> TEMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
 
 def TEMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
-  MA.batch(xs, period, 4)
+  MA.batch(xs, period, MA.Kind.TEMA())
 
 def TRIMA.State() -> Type:
   MA.State()
 
 def TRIMA.init(period: U32) -> Result<&2, &1, Params.Error, TRIMA.State()>:
-  MA.init(period, 5)
+  MA.init(period, MA.Kind.TRIMA())
 
 def TRIMA.next(state: TRIMA.State(), price: F32) -> TRIMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
 
 def TRIMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
-  MA.batch(xs, period, 5)
+  MA.batch(xs, period, MA.Kind.TRIMA())
 
 def KAMA.State() -> Type:
   MA.State()
 
 def KAMA.init(period: U32) -> Result<&2, &1, Params.Error, KAMA.State()>:
-  MA.init(period, 6)
+  MA.init(period, MA.Kind.KAMA())
 
 def KAMA.next(state: KAMA.State(), price: F32) -> KAMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
 
 def KAMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
-  MA.batch(xs, period, 6)
+  MA.batch(xs, period, MA.Kind.KAMA())
 
 def HMA.State() -> Type:
   MA.State()
 
 def HMA.init(period: U32) -> Result<&2, &1, Params.Error, HMA.State()>:
-  MA.init(period, 9)
+  MA.init(period, MA.Kind.HMA())
 
 def HMA.next(state: HMA.State(), price: F32) -> HMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
 
 def HMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
-  MA.batch(xs, period, 9)
+  MA.batch(xs, period, MA.Kind.HMA())
 
 def ZLEMA.State() -> Type:
   MA.State()
 
 def ZLEMA.init(period: U32) -> Result<&2, &1, Params.Error, ZLEMA.State()>:
-  MA.init(period, 12)
+  MA.init(period, MA.Kind.ZLEMA())
 
 def ZLEMA.next(state: ZLEMA.State(), price: F32) -> ZLEMA.State() & Maybe<&2, F32>:
   MA.next(state, price)
 
 def ZLEMA.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
-  MA.batch(xs, period, 12)
+  MA.batch(xs, period, MA.Kind.ZLEMA())
 
 def T3.State() -> Type:
   MA.State()
@@ -1592,7 +1750,7 @@ def parameters.T3(+period: U32, +factor: F32) -> Bool:
   Bool.and(overlap.valid(period, 1), Bool.and(is_finite(factor), Bool.and(F32.is_ge(factor, 0.0), F32.is_le(factor, 1.0))))
 
 def T3.init(+period: U32, +factor: F32) -> Result<&2, &1, Params.Error, T3.State()>:
-  overlap.init(~T3.State(), parameters.T3(period, factor), u => Ma.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), 8, factor))
+  overlap.init(~T3.State(), parameters.T3(period, factor), u => Ma.make(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), MA.Kind.T3(), factor))
 
 def T3.next(state: T3.State(), price: F32) -> T3.State() & Maybe<&2, F32>:
   MA.next(state, price)
@@ -1780,6 +1938,14 @@ def stats.MINMAX(value: Statistics.Extrema<F32>) -> Statistics.MinMax<F32>:
 def MINMAX.Value() -> Data:
   Statistics.MinMax<F32>
 
+def MINMAX.min(value: MINMAX.Value()) -> F32:
+  match value:
+    case Statistics.MinMax{min, max}: min
+
+def MINMAX.max(value: MINMAX.Value()) -> F32:
+  match value:
+    case Statistics.MinMax{min, max}: max
+
 def MINMAX.State() -> Type:
   Statistics.Extremes<F32>
 
@@ -1798,6 +1964,14 @@ def stats.MINMAXINDEX(value: Statistics.Extrema<F32>) -> Statistics.MinMaxIndex:
 
 def MINMAXINDEX.Value() -> Data:
   Statistics.MinMaxIndex
+
+def MINMAXINDEX.min_index(value: MINMAXINDEX.Value()) -> U32:
+  match value:
+    case Statistics.MinMaxIndex{min_index, max_index}: min_index
+
+def MINMAXINDEX.max_index(value: MINMAXINDEX.Value()) -> U32:
+  match value:
+    case Statistics.MinMaxIndex{min_index, max_index}: max_index
 
 def MINMAXINDEX.State() -> Type:
   Statistics.Extremes<F32>
@@ -1958,11 +2132,22 @@ def BBANDS.init.checked(+period: U32, up: F32, down: F32, +kind: U32, valid: Boo
     case False{}: Fail{Params.InvalidParameter{}}
     case True{}: Overlap.bollinger.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, Ma.buffer_depth(period), up, down, kind)
 
-def parameters.BBANDS(+period: U32, +up: F32, +down: F32) -> Bool:
-  Bool.and(overlap.valid(period, 2), Bool.and(Bool.and(is_finite(up), F32.is_le(F32.abs(up), 3.0e37)), Bool.and(is_finite(down), F32.is_le(F32.abs(down), 3.0e37))))
+def parameters.BBANDS.multiplier(+value: F32) -> Bool:
+  Bool.and(is_finite(value), F32.is_le(F32.abs(value), 3.0e37))
 
-def BBANDS.init(+period: U32, +up: F32, +down: F32, kind: U32) -> Result<&2, &1, Params.Error, BBANDS.State()>:
-  BBANDS.init.checked(period, up, down, kind, parameters.BBANDS(period, up, down))
+def parameters.BBANDS.report(period: Bool, up: Bool, down: Bool, kind: Bool) -> Result<&2, &2, String, Unit>:
+  match period up down kind:
+    case False{} _ _ _: Fail{"period is out of range"}
+    case True{} False{} _ _: Fail{"upper multiplier must be finite and within range"}
+    case True{} True{} False{} _: Fail{"lower multiplier must be finite and within range"}
+    case True{} True{} True{} False{}: Fail{"moving-average kind is unsupported"}
+    case True{} True{} True{} True{}: Done{Unit{}}
+
+def BBANDS.validate(+period: U32, up: F32, down: F32, kind: U32) -> Result<&2, &2, String, Unit>:
+  parameters.BBANDS.report(overlap.valid(period, 2), parameters.BBANDS.multiplier(up), parameters.BBANDS.multiplier(down), Ma.supported(kind))
+
+def BBANDS.init(+period: U32, +up: F32, +down: F32, +kind: U32) -> Result<&2, &1, Params.Error, BBANDS.State()>:
+  BBANDS.init.checked(period, up, down, kind, Result.is_done(&2, &2, String, Unit, BBANDS.validate(period, up, down, kind)))
 
 def overlap.bands(value: Overlap.BollingerValue<F32>) -> BBANDS.Value():
   match value:
@@ -2037,7 +2222,7 @@ def VWMA.batch(xs: List<&2, Bars.CV<F32>>, period: U32) -> Result<&2, &2, Params
   Series.initialized(~Bars.CV<F32>, ~F32, ~VWMA.State(), ~Params.Error, ~VWMA.next, xs, VWMA.init(period))
 
 def HA.Value() -> Data:
-  Bars.OHLC<F32>
+  Bar.OHLC()
 
 def HA.State() -> Data:
   Overlap.Heikin<F32>
@@ -2071,6 +2256,14 @@ def KC.batch(xs: List<&2, Bars.HLC<F32>>, period: U32, atr_period: U32, deviatio
 
 def CKSP.Value() -> Data:
   Overlap.Stops<F32>
+
+def CKSP.high_stop(value: CKSP.Value()) -> F32:
+  match value:
+    case Overlap.Stops{high_stop, low_stop}: high_stop
+
+def CKSP.low_stop(value: CKSP.Value()) -> F32:
+  match value:
+    case Overlap.Stops{high_stop, low_stop}: low_stop
 
 def CKSP.State() -> Type:
   Overlap.ChandeKroll<F32>
@@ -2290,6 +2483,14 @@ def Momentum.willr.result(result: MomentumWindow.Box<F32> & Maybe<&2, MomentumWi
 def AROON.Value() -> Data:
   MomentumWindow.Aroon<F32>
 
+def AROON.down(value: AROON.Value()) -> F32:
+  match value:
+    case MomentumWindow.Aroon{down, up}: down
+
+def AROON.up(value: AROON.Value()) -> F32:
+  match value:
+    case MomentumWindow.Aroon{down, up}: up
+
 def Momentum.aroon.result(result: MomentumWindow.Box<F32> & Maybe<&2, MomentumWindow.Bounds<F32>>) -> MomentumWindow.Box<F32> & Maybe<&2, AROON.Value()>:
   match result:
     case (state, None{}): (state, None{})
@@ -2381,7 +2582,7 @@ def Momentum.ma(period: U32, kind: U32) -> Result<&2, &1, Momentum.Error(), Ma.S
   Ma.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.exp, ~F32.floor, period, kind)
 
 def Momentum.selector(+period: U32, +kind: U32) -> Bool:
-  Bool.and(U32.is_le(kind, 15), Bool.or(U32.is_eq(period, 1), Ma.supported(kind)))
+  Bool.and(U32.is_le(kind, MA.Kind.ALMA()), Bool.or(U32.is_eq(period, 1), Ma.supported(kind)))
 
 def MACD.Value() -> Data:
   MomentumSmooth.MACDValue<F32>
@@ -2401,14 +2602,45 @@ def MACD.histogram(value: MACD.Value()) -> F32:
 def STOCH.Value() -> Data:
   MomentumSmooth.StochValue<F32>
 
-def ERI.Value() -> Data:
+def STOCH.k(value: STOCH.Value()) -> F32:
+  match value:
+    case MomentumSmooth.StochValue{k, d, j}: k
+
+def STOCH.d(value: STOCH.Value()) -> F32:
+  match value:
+    case MomentumSmooth.StochValue{k, d, j}: d
+
+def STOCH.j(value: STOCH.Value()) -> F32:
+  match value:
+    case MomentumSmooth.StochValue{k, d, j}: j
+
+def Lines.Value() -> Data:
   MomentumSmooth.Lines<F32>
 
+def Lines.first(value: Lines.Value()) -> F32:
+  match value:
+    case MomentumSmooth.Lines{first, second}: first
+
+def Lines.second(value: Lines.Value()) -> F32:
+  match value:
+    case MomentumSmooth.Lines{first, second}: second
+
+def ERI.Value() -> Data:
+  Lines.Value()
+
 def KST.Value() -> Data:
-  MomentumSmooth.Lines<F32>
+  Lines.Value()
 
 def VORTEX.Value() -> Data:
   MomentumMarket.Vortex<F32>
+
+def VORTEX.plus(value: VORTEX.Value()) -> F32:
+  match value:
+    case MomentumMarket.Vortex{plus, minus}: plus
+
+def VORTEX.minus(value: VORTEX.Value()) -> F32:
+  match value:
+    case MomentumMarket.Vortex{plus, minus}: minus
 
 def APO.State() -> Type:
   MomentumSmooth.Dual<F32>
@@ -2787,8 +3019,16 @@ def PVO.batch(xs: List<&2, F32>, fast: U32, slow: U32, kind: U32) -> Result<&2, 
 def DisplayShift() -> Data:
   WindowSignals.DisplayShift
 
-def DIV(inputs: Transform.Operands<F32>) -> F32:
-  Transform.binary(~F32, ~F32.div, inputs)
+def DisplayShift.backward(value: DisplayShift()) -> Bool:
+  match value:
+    case WindowSignals.DisplayShift{backward, bars}: backward
+
+def DisplayShift.bars(value: DisplayShift()) -> U32:
+  match value:
+    case WindowSignals.DisplayShift{backward, bars}: bars
+
+def DIV(inputs: Transform.Operands()) -> F32:
+  Transforms.binary(~F32, ~F32.div, inputs)
 
 def DPO.State() -> Type:
   WindowSignals.Detrended<F32>
@@ -2817,6 +3057,22 @@ def ICHIMOKU.State() -> Type:
 def ICHIMOKU.Value() -> Data:
   WindowSignals.CloudValue<F32>
 
+def ICHIMOKU.tenkan(value: ICHIMOKU.Value()) -> F32:
+  match value:
+    case WindowSignals.CloudValue{tenkan, kijun, span_a, span_b}: tenkan
+
+def ICHIMOKU.kijun(value: ICHIMOKU.Value()) -> F32:
+  match value:
+    case WindowSignals.CloudValue{tenkan, kijun, span_a, span_b}: kijun
+
+def ICHIMOKU.span_a(value: ICHIMOKU.Value()) -> F32:
+  match value:
+    case WindowSignals.CloudValue{tenkan, kijun, span_a, span_b}: span_a
+
+def ICHIMOKU.span_b(value: ICHIMOKU.Value()) -> F32:
+  match value:
+    case WindowSignals.CloudValue{tenkan, kijun, span_a, span_b}: span_b
+
 def parameters.ICHIMOKU(+tenkan: U32, +kijun: U32, +span_b: U32) -> Bool:
   Bool.and(overlap.valid(tenkan, 2), Bool.and(overlap.valid(kijun, 2), overlap.valid(span_b, 2)))
 
@@ -2834,6 +3090,18 @@ def FRACTAL.State() -> Type:
 
 def FRACTAL.Value() -> Data:
   WindowSignals.PivotFlags
+
+def FRACTAL.high(value: FRACTAL.Value()) -> U32:
+  match value:
+    case WindowSignals.PivotFlags{high, low, index}: high
+
+def FRACTAL.low(value: FRACTAL.Value()) -> U32:
+  match value:
+    case WindowSignals.PivotFlags{high, low, index}: low
+
+def FRACTAL.index(value: FRACTAL.Value()) -> U32:
+  match value:
+    case WindowSignals.PivotFlags{high, low, index}: index
 
 def FRACTAL.init(+left: U32, +right: U32) -> Result<&2, &1, Params.Error, FRACTAL.State()>:
   overlap.init(~FRACTAL.State(), Params.periods([left, right]), u => WindowSignals.fractal.init(~F32, ~U32.to_f32, left, right))
@@ -2862,6 +3130,18 @@ def ZIGZAG.State() -> Data:
 def ZIGZAG.Value() -> Data:
   MarketState.ZigValue<F32>
 
+def ZIGZAG.pivot(value: ZIGZAG.Value()) -> F32:
+  match value:
+    case MarketState.ZigValue{pivot, direction, index}: pivot
+
+def ZIGZAG.is_up(value: ZIGZAG.Value()) -> Bool:
+  match value:
+    case MarketState.ZigValue{pivot, direction, index}: Bars.is_up(direction)
+
+def ZIGZAG.index(value: ZIGZAG.Value()) -> U32:
+  match value:
+    case MarketState.ZigValue{pivot, direction, index}: index
+
 def parameters.ZIGZAG(+sensitivity: F32, +minimum: U32) -> Bool:
   Bool.and(Params.period(minimum), Bool.and(is_finite(sensitivity), Bool.and(F32.is_ge(sensitivity, 0.0), F32.is_le(sensitivity, 100.0))))
 
@@ -2877,8 +3157,11 @@ def MAVP.State() -> Type:
 def MAVP.Sample() -> Data:
   Variable.Sample<F32>
 
+def MAVP.sample(price: F32, period: F32) -> MAVP.Sample():
+  Variable.Sample{price, period}
+
 def parameters.MAVP(+minimum: U32, +maximum: U32, +kind: U32) -> Bool:
-  Bool.and(Bool.and(U32.is_gt(minimum, 0), U32.is_le(maximum, 10000)), Bool.and(U32.is_le(minimum, maximum), Bool.or(Ma.supported(kind), Bool.and(U32.is_eq(maximum, 1), U32.is_le(kind, 15)))))
+  Bool.and(Bool.and(U32.is_gt(minimum, 0), U32.is_le(maximum, 10000)), Bool.and(U32.is_le(minimum, maximum), Bool.or(Ma.supported(kind), Bool.and(U32.is_eq(maximum, 1), U32.is_le(kind, MA.Kind.ALMA())))))
 
 def MAVP.init(+minimum: U32, +maximum: U32, +kind: U32) -> Result<&2, &1, Params.Error, MAVP.State()>:
   overlap.init(~MAVP.State(), parameters.MAVP(minimum, maximum, kind), u => Variable.init(~F32, minimum, maximum, kind))
@@ -2979,6 +3262,14 @@ def SUPERTREND.State() -> Type:
 def SUPERTREND.Value() -> Data:
   TrendState.TrendValue<F32>
 
+def SUPERTREND.line(value: SUPERTREND.Value()) -> F32:
+  match value:
+    case TrendState.TrendValue{line, direction}: line
+
+def SUPERTREND.is_up(value: SUPERTREND.Value()) -> Bool:
+  match value:
+    case TrendState.TrendValue{line, direction}: Bars.is_up(direction)
+
 def parameters.SUPERTREND(+period: U32, +multiplier: F32) -> Bool:
   Bool.and(Momentum.period(period, 2), Trend.nonnegative(multiplier))
 
@@ -3019,7 +3310,7 @@ def FISHER.State() -> Type:
   AdaptiveWindow.Fisher<F32>
 
 def FISHER.Value() -> Data:
-  MomentumSmooth.Lines<F32>
+  Lines.Value()
 
 def FISHER.init(+period: U32) -> Result<&2, &1, Params.Error, FISHER.State()>:
   Momentum.configure(~FISHER.State(), Momentum.period(period, 2), u => Done{AdaptiveWindow.fisher.init(~F32, ~U32.to_f32, period)})
@@ -3049,7 +3340,7 @@ def SMI.State() -> Type:
   AdvancedOscillator.Smi<F32>
 
 def SMI.Value() -> Data:
-  MomentumSmooth.Lines<F32>
+  Lines.Value()
 
 def parameters.SMI(+period: U32, +fast: U32, +slow: U32, +signal: U32) -> Bool:
   Bool.and(Bool.and(Bool.and(Momentum.period(period, 2), Momentum.period(fast, 2)), Momentum.period(slow, 2)), Momentum.period(signal, 2))
@@ -3082,7 +3373,7 @@ def WAVETREND.State() -> Type:
   AdvancedOscillator.Wave<F32>
 
 def WAVETREND.Value() -> Data:
-  MomentumSmooth.Lines<F32>
+  Lines.Value()
 
 def parameters.WAVETREND(+channel: U32, +average: U32, +signal: U32) -> Bool:
   Bool.and(Bool.and(Momentum.period(channel, 2), Momentum.period(average, 1)), Momentum.period(signal, 1))
@@ -3118,7 +3409,7 @@ def KSTEXT.State() -> Type:
   TrendComposite.Kst<F32>
 
 def KSTEXT.Value() -> Data:
-  MomentumSmooth.Lines<F32>
+  Lines.Value()
 
 def parameters.KSTEXT(+roc1: U32, +roc2: U32, +roc3: U32, +roc4: U32, +ma1: U32, +ma2: U32, +ma3: U32, +ma4: U32, +signal: U32, +kind: U32, +signal_kind: U32) -> Bool:
   Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(roc1, 1), Momentum.period(roc2, 1)), Momentum.period(roc3, 1)), Momentum.period(roc4, 1)), Momentum.period(ma1, 1)), Momentum.period(ma2, 1)), Momentum.period(ma3, 1)), Momentum.period(ma4, 1)), Momentum.period(signal, 1)), Momentum.selector(ma1, kind)), Momentum.selector(ma2, kind)), Momentum.selector(ma3, kind)), Momentum.selector(ma4, kind)), Momentum.selector(signal, signal_kind))
@@ -3138,6 +3429,18 @@ def SQZMOM.State() -> Type:
 def SQZMOM.Value() -> Data:
   Squeeze.Value<F32>
 
+def SQZMOM.momentum(value: SQZMOM.Value()) -> F32:
+  match value:
+    case Squeeze.SqueezeValue{momentum, negative, strength}: momentum
+
+def SQZMOM.negative(value: SQZMOM.Value()) -> Bool:
+  match value:
+    case Squeeze.SqueezeValue{momentum, negative, strength}: negative
+
+def SQZMOM.strength(value: SQZMOM.Value()) -> U32:
+  match value:
+    case Squeeze.SqueezeValue{momentum, negative, strength}: strength
+
 def parameters.SQZMOM(+bb: U32, +deviations: F32, +kc: U32, +wide: F32, +normal: F32, +narrow: F32) -> Bool:
   Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(bb, 2), Momentum.period(kc, 2)), Trend.nonnegative(deviations)), Trend.nonnegative(wide)), Trend.nonnegative(normal)), Trend.nonnegative(narrow)), F32.is_le(narrow, normal)), F32.is_le(normal, wide))
 
@@ -3153,8 +3456,19 @@ def SQZMOM.batch(xs: List<&2, Bars.HLC<F32>>, +bb: U32, +deviations: F32, +kc: U
 def PairValue() -> Data:
   StatWindow.PairValue<F32>
 
+def pair(x: F32, y: F32) -> PairValue():
+  StatWindow.PairValue{x, y}
+
 def KVO.Value() -> Data:
   VolumeFilter.Lines<F32>
+
+def KVO.kvo(value: KVO.Value()) -> F32:
+  match value:
+    case VolumeFilter.Lines{kvo, signal}: kvo
+
+def KVO.signal(value: KVO.Value()) -> F32:
+  match value:
+    case VolumeFilter.Lines{kvo, signal}: signal
 
 def ADOSC.State() -> Type:
   VolumeFilter.Adosc<F32>
@@ -3300,7 +3614,7 @@ def CDLHIKKAKE.batch(xs: List<&2, Bars.OHLC<F32>>) -> Result<&2, &2, Pattern.Err
 def CDLHIKKAKEMOD.State() -> Type:
   Hikkake.State<F32>
 
-def CDLHIKKAKEMOD.init.setting(+near: Candles.Setting<F32>) -> Result<&2, &1, Pattern.Error(), CDLHIKKAKEMOD.State()>:
+def CDLHIKKAKEMOD.init.setting(+near: Candle.Setting()) -> Result<&2, &1, Pattern.Error(), CDLHIKKAKEMOD.State()>:
   match near:
     case Candles.Setting{kind, +period, +factor}:
       overlap.init(~CDLHIKKAKEMOD.State(), Patterns.setting.valid(~F32, ~is_finite, ~F32.is_ge, ~U32.to_f32, near), u => Hikkake.init(~F32, ~U32.to_f32, True{}, near, Ma.buffer_depth(U32.max(period, 1))))
@@ -3331,6 +3645,14 @@ def HT_PHASOR.State() -> Type:
 
 def HT_PHASOR.Value() -> Data:
   Hilbert.Phasor<F32>
+
+def HT_PHASOR.in_phase(value: HT_PHASOR.Value()) -> F32:
+  match value:
+    case Hilbert.Phasor{in_phase, quadrature}: in_phase
+
+def HT_PHASOR.quadrature(value: HT_PHASOR.Value()) -> F32:
+  match value:
+    case Hilbert.Phasor{in_phase, quadrature}: quadrature
 
 def HT_PHASOR.init() -> Result<&2, &1, Params.Error, HT_PHASOR.State()>:
   Done{Hilbert.init(~F32, ~U32.to_f32, 1)}
@@ -3370,6 +3692,14 @@ def HT_SINE.State() -> Type:
 
 def HT_SINE.Value() -> Data:
   Hilbert.Sine<F32>
+
+def HT_SINE.sine(value: HT_SINE.Value()) -> F32:
+  match value:
+    case Hilbert.Sine{sine, lead_sine}: sine
+
+def HT_SINE.lead_sine(value: HT_SINE.Value()) -> F32:
+  match value:
+    case Hilbert.Sine{sine, lead_sine}: lead_sine
 
 def HT_SINE.init() -> Result<&2, &1, Params.Error, HT_SINE.State()>:
   Done{Hilbert.init(~F32, ~U32.to_f32, 4)}
@@ -3464,7 +3794,7 @@ def Lookback.Result() -> Data:
 def Pattern.lookback.checked(+name: Pattern.Name(), +settings: Pattern.Settings(), penetration: F32) -> Lookback.Result():
   Lookbacks.checked(PatternState.valid(~F32, ~U32.to_f32, ~is_finite, ~F32.is_ge, settings, penetration), Pattern.lookback(name, settings))
 
-def CDLHIKKAKEMOD.lookback.setting(+near: Candles.Setting<F32>) -> Lookback.Result():
+def CDLHIKKAKEMOD.lookback.setting(+near: Candle.Setting()) -> Lookback.Result():
   match near:
     case Candles.Setting{range, period, factor}:
       Lookbacks.checked(Patterns.setting.valid(~F32, ~is_finite, ~F32.is_ge, ~U32.to_f32, near), U32.add(U32.max(period, 1), 5))
@@ -3530,10 +3860,10 @@ def AVGPRICE.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 0)
 
 def BBANDS.lookback(+period: U32, +up: F32, +down: F32, +kind: U32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(parameters.BBANDS(period, up, down), Momentum.selector(period, kind)), U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))
+  Lookbacks.checked(Result.is_done(&2, &2, String, Unit, BBANDS.validate(period, up, down, kind)), U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))
 
-def BBW.lookback(+period: U32, +up: F32, +down: F32, +kind: U32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(parameters.BBANDS(period, up, down), Momentum.selector(period, kind)), U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))
+def BBW.lookback(period: U32, up: F32, down: F32, kind: U32) -> Lookback.Result():
+  BBANDS.lookback(period, up, down, kind)
 
 def BETA.lookback(+period: U32) -> Lookback.Result():
   Lookbacks.checked(overlap.valid(period, 1), period)
@@ -3545,88 +3875,88 @@ def CCI.lookback(+period: U32) -> Lookback.Result():
   Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
 
 def CDL2CROWS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL2CROWS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDL2CROWS.name(), Pattern.defaults()))
 
 def CDL3BLACKCROWS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3BLACKCROWS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDL3BLACKCROWS.name(), Pattern.defaults()))
 
 def CDL3INSIDE.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3INSIDE{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDL3INSIDE.name(), Pattern.defaults()))
 
 def CDL3LINESTRIKE.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3LINESTRIKE{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDL3LINESTRIKE.name(), Pattern.defaults()))
 
 def CDL3OUTSIDE.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3OUTSIDE{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDL3OUTSIDE.name(), Pattern.defaults()))
 
 def CDL3STARSINSOUTH.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3STARSINSOUTH{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDL3STARSINSOUTH.name(), Pattern.defaults()))
 
 def CDL3WHITESOLDIERS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDL3WHITESOLDIERS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDL3WHITESOLDIERS.name(), Pattern.defaults()))
 
 def CDLABANDONEDBABY.lookback(+penetration: F32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLABANDONEDBABY{}, Pattern.defaults()))
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(CDLABANDONEDBABY.name(), Pattern.defaults()))
 
 def CDLADVANCEBLOCK.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLADVANCEBLOCK{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLADVANCEBLOCK.name(), Pattern.defaults()))
 
 def CDLBELTHOLD.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLBELTHOLD{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLBELTHOLD.name(), Pattern.defaults()))
 
 def CDLBREAKAWAY.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLBREAKAWAY{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLBREAKAWAY.name(), Pattern.defaults()))
 
 def CDLCLOSINGMARUBOZU.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLCLOSINGMARUBOZU{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLCLOSINGMARUBOZU.name(), Pattern.defaults()))
 
 def CDLCONCEALBABYSWALL.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLCONCEALBABYSWALL{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLCONCEALBABYSWALL.name(), Pattern.defaults()))
 
 def CDLCOUNTERATTACK.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLCOUNTERATTACK{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLCOUNTERATTACK.name(), Pattern.defaults()))
 
 def CDLDARKCLOUDCOVER.lookback(+penetration: F32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLDARKCLOUDCOVER{}, Pattern.defaults()))
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(CDLDARKCLOUDCOVER.name(), Pattern.defaults()))
 
 def CDLDOJI.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLDOJI{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLDOJI.name(), Pattern.defaults()))
 
 def CDLDOJISTAR.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLDOJISTAR{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLDOJISTAR.name(), Pattern.defaults()))
 
 def CDLDRAGONFLYDOJI.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLDRAGONFLYDOJI{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLDRAGONFLYDOJI.name(), Pattern.defaults()))
 
 def CDLENGULFING.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLENGULFING{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLENGULFING.name(), Pattern.defaults()))
 
 def CDLEVENINGDOJISTAR.lookback(+penetration: F32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLEVENINGDOJISTAR{}, Pattern.defaults()))
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(CDLEVENINGDOJISTAR.name(), Pattern.defaults()))
 
 def CDLEVENINGSTAR.lookback(+penetration: F32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLEVENINGSTAR{}, Pattern.defaults()))
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(CDLEVENINGSTAR.name(), Pattern.defaults()))
 
 def CDLGAPSIDESIDEWHITE.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLGAPSIDESIDEWHITE{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLGAPSIDESIDEWHITE.name(), Pattern.defaults()))
 
 def CDLGRAVESTONEDOJI.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLGRAVESTONEDOJI{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLGRAVESTONEDOJI.name(), Pattern.defaults()))
 
 def CDLHAMMER.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHAMMER{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLHAMMER.name(), Pattern.defaults()))
 
 def CDLHANGINGMAN.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHANGINGMAN{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLHANGINGMAN.name(), Pattern.defaults()))
 
 def CDLHARAMI.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHARAMI{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLHARAMI.name(), Pattern.defaults()))
 
 def CDLHARAMICROSS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHARAMICROSS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLHARAMICROSS.name(), Pattern.defaults()))
 
 def CDLHIGHWAVE.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHIGHWAVE{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLHIGHWAVE.name(), Pattern.defaults()))
 
 def CDLHIKKAKE.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 5)
@@ -3635,97 +3965,97 @@ def CDLHIKKAKEMOD.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 10)
 
 def CDLHOMINGPIGEON.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLHOMINGPIGEON{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLHOMINGPIGEON.name(), Pattern.defaults()))
 
 def CDLIDENTICAL3CROWS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLIDENTICAL3CROWS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLIDENTICAL3CROWS.name(), Pattern.defaults()))
 
 def CDLINNECK.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLINNECK{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLINNECK.name(), Pattern.defaults()))
 
 def CDLINVERTEDHAMMER.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLINVERTEDHAMMER{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLINVERTEDHAMMER.name(), Pattern.defaults()))
 
 def CDLKICKING.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLKICKING{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLKICKING.name(), Pattern.defaults()))
 
 def CDLKICKINGBYLENGTH.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLKICKINGBYLENGTH{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLKICKINGBYLENGTH.name(), Pattern.defaults()))
 
 def CDLLADDERBOTTOM.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLLADDERBOTTOM{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLLADDERBOTTOM.name(), Pattern.defaults()))
 
 def CDLLONGLEGGEDDOJI.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLLONGLEGGEDDOJI{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLLONGLEGGEDDOJI.name(), Pattern.defaults()))
 
 def CDLLONGLINE.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLLONGLINE{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLLONGLINE.name(), Pattern.defaults()))
 
 def CDLMARUBOZU.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLMARUBOZU{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLMARUBOZU.name(), Pattern.defaults()))
 
 def CDLMATCHINGLOW.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLMATCHINGLOW{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLMATCHINGLOW.name(), Pattern.defaults()))
 
 def CDLMATHOLD.lookback(+penetration: F32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLMATHOLD{}, Pattern.defaults()))
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(CDLMATHOLD.name(), Pattern.defaults()))
 
 def CDLMORNINGDOJISTAR.lookback(+penetration: F32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLMORNINGDOJISTAR{}, Pattern.defaults()))
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(CDLMORNINGDOJISTAR.name(), Pattern.defaults()))
 
 def CDLMORNINGSTAR.lookback(+penetration: F32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(Patterns.CDLMORNINGSTAR{}, Pattern.defaults()))
+  Lookbacks.checked(Bool.and(is_finite(penetration), F32.is_ge(penetration, 0.0)), Pattern.lookback(CDLMORNINGSTAR.name(), Pattern.defaults()))
 
 def CDLONNECK.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLONNECK{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLONNECK.name(), Pattern.defaults()))
 
 def CDLPIERCING.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLPIERCING{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLPIERCING.name(), Pattern.defaults()))
 
 def CDLRICKSHAWMAN.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLRICKSHAWMAN{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLRICKSHAWMAN.name(), Pattern.defaults()))
 
 def CDLRISEFALL3METHODS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLRISEFALL3METHODS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLRISEFALL3METHODS.name(), Pattern.defaults()))
 
 def CDLSEPARATINGLINES.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSEPARATINGLINES{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLSEPARATINGLINES.name(), Pattern.defaults()))
 
 def CDLSHOOTINGSTAR.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSHOOTINGSTAR{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLSHOOTINGSTAR.name(), Pattern.defaults()))
 
 def CDLSHORTLINE.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSHORTLINE{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLSHORTLINE.name(), Pattern.defaults()))
 
 def CDLSPINNINGTOP.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSPINNINGTOP{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLSPINNINGTOP.name(), Pattern.defaults()))
 
 def CDLSTALLEDPATTERN.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSTALLEDPATTERN{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLSTALLEDPATTERN.name(), Pattern.defaults()))
 
 def CDLSTICKSANDWICH.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLSTICKSANDWICH{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLSTICKSANDWICH.name(), Pattern.defaults()))
 
 def CDLTAKURI.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTAKURI{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLTAKURI.name(), Pattern.defaults()))
 
 def CDLTASUKIGAP.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTASUKIGAP{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLTASUKIGAP.name(), Pattern.defaults()))
 
 def CDLTHRUSTING.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTHRUSTING{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLTHRUSTING.name(), Pattern.defaults()))
 
 def CDLTRISTAR.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLTRISTAR{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLTRISTAR.name(), Pattern.defaults()))
 
 def CDLUNIQUE3RIVER.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLUNIQUE3RIVER{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLUNIQUE3RIVER.name(), Pattern.defaults()))
 
 def CDLUPSIDEGAP2CROWS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLUPSIDEGAP2CROWS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLUPSIDEGAP2CROWS.name(), Pattern.defaults()))
 
 def CDLXSIDEGAP3METHODS.lookback() -> Lookback.Result():
-  Lookbacks.checked(True{}, Pattern.lookback(Patterns.CDLXSIDEGAP3METHODS{}, Pattern.defaults()))
+  Lookbacks.checked(True{}, Pattern.lookback(CDLXSIDEGAP3METHODS.name(), Pattern.defaults()))
 
 def CEIL.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 0)
@@ -3776,7 +4106,7 @@ def CVI.lookback(+period: U32, +lag: U32) -> Lookback.Result():
   Lookbacks.checked(parameters.CVI(period, lag), U32.add(U32.sub(period, 1), lag))
 
 def DEMA.lookback(+period: U32) -> Lookback.Result():
-  Lookbacks.checked(Params.period(period), Ma.lookback(period, 3))
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, MA.Kind.DEMA()))
 
 def DIV.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 0)
@@ -3830,7 +4160,7 @@ def HA.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 0)
 
 def HMA.lookback(+period: U32) -> Lookback.Result():
-  Lookbacks.checked(Params.period(period), Ma.lookback(period, 9))
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, MA.Kind.HMA()))
 
 def HT_DCPERIOD.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 32)
@@ -3860,7 +4190,7 @@ def IMI.lookback(+period: U32) -> Lookback.Result():
   Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
 
 def KAMA.lookback(+period: U32) -> Lookback.Result():
-  Lookbacks.checked(Params.period(period), Ma.lookback(period, 6))
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, MA.Kind.KAMA()))
 
 def KC.lookback(+period: U32, +atr_period: U32, +deviation: F32) -> Lookback.Result():
   Lookbacks.checked(parameters.KC(period, atr_period, deviation), U32.max(U32.sub(period, 1), atr_period))
@@ -3979,8 +4309,8 @@ def NVI.lookback() -> Lookback.Result():
 def OBV.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 0)
 
-def PERCENTB.lookback(+period: U32, +up: F32, +down: F32, +kind: U32) -> Lookback.Result():
-  Lookbacks.checked(Bool.and(parameters.BBANDS(period, up, down), Momentum.selector(period, kind)), U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))
+def PERCENTB.lookback(period: U32, up: F32, down: F32, kind: U32) -> Lookback.Result():
+  BBANDS.lookback(period, up, down, kind)
 
 def PERCENTILE.lookback(+period: U32, +percent: F32) -> Lookback.Result():
   Lookbacks.checked(parameters.PERCENTILE(period, percent), U32.sub(period, 1))
@@ -4109,7 +4439,7 @@ def SWAK_HP.lookback(+period: U32) -> Lookback.Result():
   Lookbacks.checked(filter.valid(period, 5, 100000), 0)
 
 def T3.lookback(+period: U32, +factor: F32) -> Lookback.Result():
-  Lookbacks.checked(parameters.T3(period, factor), Ma.lookback(period, 8))
+  Lookbacks.checked(parameters.T3(period, factor), Ma.lookback(period, MA.Kind.T3()))
 
 def TAN.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 0)
@@ -4118,13 +4448,13 @@ def TANH.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 0)
 
 def TEMA.lookback(+period: U32) -> Lookback.Result():
-  Lookbacks.checked(Params.period(period), Ma.lookback(period, 4))
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, MA.Kind.TEMA()))
 
 def TRANGE.lookback() -> Lookback.Result():
   Lookbacks.checked(True{}, 1)
 
 def TRIMA.lookback(+period: U32) -> Lookback.Result():
-  Lookbacks.checked(Params.period(period), Ma.lookback(period, 5))
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, MA.Kind.TRIMA()))
 
 def TRIX.lookback(+period: U32) -> Lookback.Result():
   Lookbacks.checked(Momentum.period(period, 1), U32.add(U32.mul(3, U32.sub(period, 1)), 1))
@@ -4172,13 +4502,13 @@ def WILLR.lookback(+period: U32) -> Lookback.Result():
   Lookbacks.checked(Momentum.period(period, 2), U32.sub(period, 1))
 
 def WMA.lookback(+period: U32) -> Lookback.Result():
-  Lookbacks.checked(Params.period(period), Ma.lookback(period, 2))
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, MA.Kind.WMA()))
 
 def ZIGZAG.lookback(+sensitivity: F32, +minimum: U32) -> Lookback.Result():
   Lookbacks.checked(parameters.ZIGZAG(sensitivity, minimum), minimum)
 
 def ZLEMA.lookback(+period: U32) -> Lookback.Result():
-  Lookbacks.checked(Params.period(period), Ma.lookback(period, 12))
+  Lookbacks.checked(Params.period(period), Ma.lookback(period, MA.Kind.ZLEMA()))
 
 def EMA.clone(state: EMA.State()) -> EMA.State() & EMA.State():
   Clone.data(~Ema.State<F32>, state)

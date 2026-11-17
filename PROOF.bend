@@ -11,6 +11,8 @@ import ./src/core/config.bend as Config
 import ./src/core/ema.bend as Ema
 import ./src/core/sma.bend as Sma
 import ./src/core/parameters.bend as Parameters
+import ./src/core/lookback.bend as Lookbacks
+import ./src/core/ma.bend as Ma
 import ./proofs/window_history.bend as History
 
 def ema_configuration_if(period: U32, valid: Bool) -> {TA.EMA.init.result(Bool.pick(Result<&2, &2, Config.Error, Config.Config>, valid, Done{Config.Config{period, Config.depth(period)}}, Fail{Config.InvalidPeriod{}})) == Bool.pick(Result<&2, &2, TA.Error(), TA.EMA.State()>, valid, Done{Ema.init(~F32, ~U32.to_f32, ~F32.div, period)}, Fail{Config.InvalidPeriod{}}) : Result<&2, &2, TA.Error(), TA.EMA.State()>}:
@@ -41,6 +43,21 @@ def Laws.bar_hlcv_fields(high, low, close, volume):
 def Laws.bar_ohlc_fields(open, high, low, close):
   {==}
 
+def Laws.pair_fields(x, y):
+  {==}
+
+def Laws.mavp_sample_fields(price, period):
+  {==}
+
+def Laws.transform_operands_fields(left, right):
+  {==}
+
+def Laws.candle_setting_fields(kind, period, factor):
+  {==}
+
+def Laws.ma_selector_codes():
+  {==}
+
 def Laws.macd_line(line, signal, histogram):
   {==}
 
@@ -57,6 +74,78 @@ def Laws.bbands_middle(upper, middle, lower):
   {==}
 
 def Laws.bbands_lower(upper, middle, lower):
+  {==}
+
+def Laws.bbands_validation_rejects(period, up, down, kind, rejected):
+  Equal.cong(Bool, Result<&2, &1, TA.Parameter.Error(), TA.BBANDS.State()> & TA.Lookback.Result(),
+    valid => (TA.BBANDS.init.checked(period, up, down, kind, valid), Lookbacks.checked(valid, U32.max(U32.sub(period, 1), Ma.lookback(period, kind)))),
+    Result.is_done(&2, &2, String, Unit, TA.BBANDS.validate(period, up, down, kind)), False{}, rejected)
+
+def Laws.extrema_fields(low, high):
+  {==}
+
+def Laws.moments_fields(mean, variance):
+  {==}
+
+def Laws.bar_fields(open, high, low, close):
+  {==}
+
+def Laws.pattern_fields(negative, strength):
+  {==}
+
+def Laws.mama_fields(mama, fama):
+  {==}
+
+def Laws.minmax_fields(min, max):
+  {==}
+
+def Laws.minmaxindex_fields(min_index, max_index):
+  {==}
+
+def Laws.cksp_fields(high_stop, low_stop):
+  {==}
+
+def Laws.aroon_fields(down, up):
+  {==}
+
+def Laws.stoch_fields(k, d, j):
+  {==}
+
+def Laws.lines_fields(first, second):
+  {==}
+
+def Laws.vortex_fields(plus, minus):
+  {==}
+
+def Laws.displayshift_fields(backward, bars):
+  {==}
+
+def Laws.ichimoku_fields(tenkan, kijun, span_a, span_b):
+  {==}
+
+def Laws.fractal_fields(high, low, index):
+  {==}
+
+def Laws.zigzag_fields(pivot, up, index):
+  match up:
+    case True{}: {==}
+    case False{}: {==}
+
+def Laws.supertrend_fields(line, up):
+  match up:
+    case True{}: {==}
+    case False{}: {==}
+
+def Laws.sqzmom_fields(momentum, negative, strength):
+  {==}
+
+def Laws.kvo_fields(kvo, signal):
+  {==}
+
+def Laws.ht_phasor_fields(in_phase, quadrature):
+  {==}
+
+def Laws.ht_sine_fields(sine, lead_sine):
   {==}
 
 def Laws.window_clone(A, state):
@@ -91,6 +180,9 @@ def Laws.beta_clone(state):
 
 def Laws.beta_preview(state, value, next, output, transition):
   Ownership.preview_copy(~TA.PairValue(), ~F32, ~TA.BETA.State(), ~TA.BETA.clone, ~TA.BETA.next, ~(Ownership.beta_clone(~F32)), state, value, next, output, transition)
+
+def Laws.pattern_history_round_trip(N, frames):
+  {==}
 
 def Laws.map_length(I, O, f, xs):
   SeriesProof.map_length(~I, ~O, ~f, xs)

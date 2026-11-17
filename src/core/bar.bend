@@ -25,6 +25,11 @@ type Direction is Data:
   Up{}
   Down{}
 
+def is_up(direction: Direction) -> Bool:
+  match direction:
+    case Up{}: True{}
+    case Down{}: False{}
+
 def range(~N: Data, ~sub: N -> N -> N, bar: HL<N>) -> N:
   match bar:
     case HL{high, low}:

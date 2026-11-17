@@ -270,6 +270,22 @@ def gaussian.make(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> 
 def hull.make(~N: Data, ~from: U32 -> N, +period: U32, +half: U32, +root: U32) -> State<N>:
   Hull{Average.init(~N, ~from, half, buffer_depth(half), 1), Average.init(~N, ~from, period, buffer_depth(period), 1), Average.init(~N, ~from, root, buffer_depth(root), 1)}
 
+def Kind.SMA() -> U32: 0
+def Kind.EMA() -> U32: 1
+def Kind.WMA() -> U32: 2
+def Kind.DEMA() -> U32: 3
+def Kind.TEMA() -> U32: 4
+def Kind.TRIMA() -> U32: 5
+def Kind.KAMA() -> U32: 6
+def Kind.MAMA() -> U32: 7
+def Kind.T3() -> U32: 8
+def Kind.HMA() -> U32: 9
+def Kind.Identity() -> U32: 10
+def Kind.ZLEMA() -> U32: 12
+def Kind.RMA() -> U32: 13
+def Kind.VIDYA() -> U32: 14
+def Kind.ALMA() -> U32: 15
+
 def make.kind(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, depth: Nat, +kind: U32, factor: N, selected: Nat) -> State<N>:
   match selected:
     case 0n: Simple{Average.init(~N, ~from, period, depth, 0)}
@@ -290,10 +306,10 @@ def make.kind(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~
     case _: Identity{}
 
 def make(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, depth: Nat, +kind: U32, factor: N) -> State<N>:
-  make.kind(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, depth, kind, factor, Bool.pick(Nat, U32.is_eq(period, 1), 10n, U32.to_nat(kind)))
+  make.kind(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, depth, kind, factor, U32.to_nat(Bool.pick(U32, U32.is_eq(period, 1), Kind.Identity(), kind)))
 
 def supported(+kind: U32) -> Bool:
-  Bool.and(U32.is_le(kind, 15), U32.is_ne(kind, 11))
+  Bool.and(U32.is_le(kind, Kind.ALMA()), U32.is_ne(kind, 11))
 
 def init.checked(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, kind: U32, valid: Bool) -> Result<&2, &1, Parameters.Error, State<N>>:
   match valid:
@@ -301,7 +317,7 @@ def init.checked(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N
     case True{}: Done{make(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, buffer_depth(period), kind, div(from(7), from(10)))}
 
 def valid(+period: U32, +kind: U32) -> Bool:
-  Bool.and(Bool.and(U32.is_gt(period, 0), U32.is_le(period, 100000)), Bool.or(supported(kind), Bool.and(U32.is_eq(period, 1), U32.is_le(kind, 15))))
+  Bool.and(Bool.and(U32.is_gt(period, 0), U32.is_le(period, 100000)), Bool.or(supported(kind), Bool.and(U32.is_eq(period, 1), U32.is_le(kind, Kind.ALMA()))))
 
 def init(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, +kind: U32) -> Result<&2, &1, Parameters.Error, State<N>>:
   init.checked(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, kind, valid(period, kind))
