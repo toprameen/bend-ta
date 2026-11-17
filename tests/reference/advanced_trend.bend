@@ -2,8 +2,6 @@ import Base
 import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as Bar
-import ../../src/core/trend_state.bend as Trend
-import ../../src/core/squeeze.bend as Squeeze
 import ../../src/core/momentum_smooth.bend as Smooth
 import ../../src/core/series.bend as Series
 
@@ -19,26 +17,22 @@ def same(xs: List<&2, F32>, ys: List<&2, F32>) -> Bool:
 def scalar(x: F32) -> List<&2, F32>:
   [x]
 
-def lines(value: Smooth.Lines<F32>) -> List<&2, F32>:
-  match value:
-    case Smooth.Lines{a, b}: [a, b]
+def lines(value: TA.Lines.Value()) -> List<&2, F32>:
+  +value = value
+  [TA.Lines.first(value), TA.Lines.second(value)]
 
 def macd(value: Smooth.MACDValue<F32>) -> List<&2, F32>:
   match value:
     case Smooth.MACDValue{a, b, c}: [a, b, c]
 
-def direction.value(direction: Bar.Direction) -> F32:
-  match direction:
-    case Bar.Up{}: 1.0
-    case Bar.Down{}: F32.sub(0.0, 1.0)
+def trend(value: TA.SUPERTREND.Value()) -> List<&2, F32>:
+  +value = value
+  [TA.SUPERTREND.line(value), Bool.pick(F32, TA.SUPERTREND.is_up(value), 1.0, F32.neg(1.0))]
 
-def trend(value: Trend.TrendValue<F32>) -> List<&2, F32>:
-  match value:
-    case Trend.TrendValue{line, direction}: [line, direction.value(direction)]
-
-def squeeze(value: Squeeze.Value<F32>) -> List<&2, F32>:
-  match value:
-    case Squeeze.SqueezeValue{line, negative, +level}: [line, Bool.pick(F32, negative, F32.sub(0.0, U32.to_f32(level)), U32.to_f32(level))]
+def squeeze(value: TA.SQZMOM.Value()) -> List<&2, F32>:
+  +value = value
+  +level = U32.to_f32(TA.SQZMOM.strength(value))
+  [TA.SQZMOM.momentum(value), Bool.pick(F32, TA.SQZMOM.negative(value), F32.neg(level), level)]
 
 def shape(~O: Data, ~view: O -> List<&2, F32>, xs: List<&2, Maybe<&2, O>>, +at: U32, +warm: U32, +first: List<&2, F32>, +last: List<&2, F32>) -> Bool:
   match xs:

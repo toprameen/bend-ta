@@ -6,15 +6,18 @@ import ../../src/core/parameters.bend as P
 import ../../src/core/overlap.bend as O
 import ../../src/core/series.bend as Series
 
-def bands(actual: O.Bands<F32>, expected: O.Bands<F32>) -> Bool:
-  match actual expected:
-    case O.Bands{u, m, l} O.Bands{expected_u, expected_m, expected_l}:
-      Bool.and(F32.is_eq(u, expected_u), Bool.and(F32.is_eq(m, expected_m), F32.is_eq(l, expected_l)))
+def bands(actual: TA.BBANDS.Value(), expected: O.Bands<F32>) -> Bool:
+  match expected:
+    case O.Bands{upper, middle, lower}:
+      +actual = actual
+      Bool.and(F32.is_eq(TA.BBANDS.upper(actual), upper),
+        Bool.and(F32.is_eq(TA.BBANDS.middle(actual), middle), F32.is_eq(TA.BBANDS.lower(actual), lower)))
 
-def stops(actual: O.Stops<F32>, expected: O.Stops<F32>) -> Bool:
-  match actual expected:
-    case O.Stops{h, l} O.Stops{expected_h, expected_l}:
-      Bool.and(F32.is_eq(h, expected_h), F32.is_eq(l, expected_l))
+def stops(actual: TA.CKSP.Value(), expected: O.Stops<F32>) -> Bool:
+  match expected:
+    case O.Stops{high, low}:
+      +actual = actual
+      Bool.and(F32.is_eq(TA.CKSP.high_stop(actual), high), F32.is_eq(TA.CKSP.low_stop(actual), low))
 
 def prices(actual: Bar.OHLC<F32>, expected: Bar.OHLC<F32>) -> Bool:
   match actual expected:

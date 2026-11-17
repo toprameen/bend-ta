@@ -1,7 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
-import ../../src/core/mama.bend as Mama
 import ../../src/core/series.bend as Series
 
 type Target is Data:
@@ -31,7 +30,7 @@ def close(+expected: F32, actual: F32, tolerance: F32) -> Bool:
 def target(expected_mama: F32, expected_fama: F32, +tolerance: F32, value: Maybe<&2, TA.MAMA.Value()>) -> Bool:
   match value:
     case None{}: False{}
-    case Some{Mama.Value{mama, fama}}: Bool.and(close(expected_mama, mama, tolerance), close(expected_fama, fama, tolerance))
+    case Some{+value}: Bool.and(close(expected_mama, TA.MAMA.mama(value), tolerance), close(expected_fama, TA.MAMA.fama(value), tolerance))
 
 def targets(+xs: List<&2, Maybe<&2, TA.MAMA.Value()>>, expected: List<&2, Target>, +tolerance: F32) -> Bool:
   match expected:

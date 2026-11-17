@@ -3,8 +3,6 @@ import ../../scripts/assert.bend as Assert
 import ../../src/f32.bend as TA
 import ../../src/core/bar.bend as Bar
 import ../../src/core/momentum_smooth.bend as Smooth
-import ../../src/core/momentum_window.bend as Window
-import ../../src/core/momentum_market.bend as Market
 import ../../src/core/series.bend as Series
 
 def close(+a: F32, +b: F32) -> Bool:
@@ -24,20 +22,20 @@ def macd(x: TA.MACD.Value()) -> List<&2, F32>:
     case Smooth.MACDValue{a, b, c}: [a, b, c]
 
 def stoch(x: TA.STOCH.Value()) -> List<&2, F32>:
-  match x:
-    case Smooth.StochValue{a, b, c}: [a, b, c]
+  +x = x
+  [TA.STOCH.k(x), TA.STOCH.d(x), TA.STOCH.j(x)]
 
-def lines(x: Smooth.Lines<F32>) -> List<&2, F32>:
-  match x:
-    case Smooth.Lines{a, b}: [a, b]
+def lines(x: TA.Lines.Value()) -> List<&2, F32>:
+  +x = x
+  [TA.Lines.first(x), TA.Lines.second(x)]
 
 def aroon(x: TA.AROON.Value()) -> List<&2, F32>:
-  match x:
-    case Window.Aroon{a, b}: [a, b]
+  +x = x
+  [TA.AROON.down(x), TA.AROON.up(x)]
 
 def vortex(x: TA.VORTEX.Value()) -> List<&2, F32>:
-  match x:
-    case Market.Vortex{a, b}: [a, b]
+  +x = x
+  [TA.VORTEX.plus(x), TA.VORTEX.minus(x)]
 
 def shape(~O: Data, ~view: O -> List<&2, F32>, xs: List<&2, Maybe<&2, O>>, +at: U32, +length: U32, +warm: U32, +first: List<&2, F32>, +last: List<&2, F32>) -> Bool:
   match xs:

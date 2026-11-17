@@ -25,7 +25,8 @@ def lines(xs: List<&2, Maybe<&2, TA.KVO.Value()>>, ys: List<&2, Maybe<&2, TA.KVO
   match xs ys:
     case Nil{} Nil{}: True{}
     case None{} <> xs None{} <> ys: lines(xs, ys)
-    case Some{V.Lines{x, s}} <> xs Some{V.Lines{y, t}} <> ys: Bool.and(Bool.and(near(x, y), near(s, t)), lines(xs, ys))
+    case Some{+value} <> xs Some{V.Lines{y, t}} <> ys:
+      Bool.and(Bool.and(near(TA.KVO.kvo(value), y), near(TA.KVO.signal(value), t)), lines(xs, ys))
     case _ _: False{}
 
 def kvo(r: Result<&2, &2, P.Error, List<&2, Maybe<&2, TA.KVO.Value()>>>) -> Bool:

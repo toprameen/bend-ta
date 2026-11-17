@@ -68,13 +68,17 @@ def chunked(~O: Data, ~S: Type, ~step: S -> F32 -> S & Maybe<&2, O>, result: Res
     case Fail{e}: Fail{e}
     case Done{state}: Done{continued(~O, ~S, ~step, Series.scan(~F32, ~O, ~S, ~step, samples(20n, 0), state))}
 
-def phasor(a: H.Phasor<F32>, b: H.Phasor<F32>) -> Bool:
-  match a b:
-    case H.Phasor{i, q} H.Phasor{x, y}: Bool.and(near(i, x), near(q, y))
+def phasor(expected: H.Phasor<F32>, actual: TA.HT_PHASOR.Value()) -> Bool:
+  match expected:
+    case H.Phasor{i, q}:
+      +actual = actual
+      Bool.and(near(i, TA.HT_PHASOR.in_phase(actual)), near(q, TA.HT_PHASOR.quadrature(actual)))
 
-def sine(a: H.Sine<F32>, b: H.Sine<F32>) -> Bool:
-  match a b:
-    case H.Sine{s, l} H.Sine{x, y}: Bool.and(near(s, x), near(l, y))
+def sine(expected: H.Sine<F32>, actual: TA.HT_SINE.Value()) -> Bool:
+  match expected:
+    case H.Sine{s, l}:
+      +actual = actual
+      Bool.and(near(s, TA.HT_SINE.sine(actual)), near(l, TA.HT_SINE.lead_sine(actual)))
 
 def expected.HT_DCPERIOD() -> List<&2, Target<F32>>:
   [Target{32n, 11.92295071985235}, Target{33n, 12.077108440828512}, Target{80n, 12.156406539708739}, Target{100n, 12.271019266697724}, Target{179n, 12.046254600269366}]

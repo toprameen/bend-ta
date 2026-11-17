@@ -5,7 +5,6 @@ import ../../src/core/bar.bend as Bar
 import ../../src/core/parameters.bend as P
 import ../../src/core/series.bend as Series
 import ../../src/core/window_signals.bend as W
-import ../../src/core/market_state.bend as M
 import ../../src/core/variable.bend as V
 import ../../src/core/transform.bend as Transform
 
@@ -32,19 +31,37 @@ def invalid(~S: Type, r: Result<&2, &1, P.Error, S>) -> Bool:
     case Fail{e}: True{}
     case Done{s}: False{}
 
-def cloud(r: Result<&2, &2, P.Error, List<&2, Maybe<&2, W.CloudValue<F32>>>>) -> Bool:
+def cloud_fields(+value: TA.ICHIMOKU.Value(), tenkan: F32, kijun: F32, span_a: F32, span_b: F32) -> Bool:
+  Bool.and(Bool.and(near(TA.ICHIMOKU.tenkan(value), tenkan), near(TA.ICHIMOKU.kijun(value), kijun)),
+    Bool.and(near(TA.ICHIMOKU.span_a(value), span_a), near(TA.ICHIMOKU.span_b(value), span_b)))
+
+def cloud(r: Result<&2, &2, P.Error, List<&2, Maybe<&2, TA.ICHIMOKU.Value()>>>) -> Bool:
   match r:
-    case Done{[None{}, None{}, None{}, Some{W.CloudValue{a, b, c, d}}, Some{W.CloudValue{e, f, g, h}}]}: List.all(~&2, ~Bool, ~(x => x), [near(a, 5.0), near(b, 4.5), near(c, 4.75), near(d, 4.5), near(e, 5.5), near(f, 5.0), near(g, 5.25), near(h, 4.5)])
+    case Done{[None{}, None{}, None{}, Some{first}, Some{second}]}:
+      Bool.and(cloud_fields(first, 5.0, 4.5, 4.75, 4.5), cloud_fields(second, 5.5, 5.0, 5.25, 4.5))
     case _: False{}
 
-def fractal(r: Result<&2, &2, P.Error, List<&2, Maybe<&2, W.PivotFlags>>>) -> Bool:
-  match r:
-    case Done{[None{}, None{}, Some{W.PivotFlags{100, 100, 1}}, Some{W.PivotFlags{0, 0, 2}}, Some{W.PivotFlags{100, 0, 3}}, Some{W.PivotFlags{0, 0, 4}}]}: True{}
-    case _: False{}
+def pivot(actual: TA.FRACTAL.Value(), expected: W.PivotFlags) -> Bool:
+  match expected:
+    case W.PivotFlags{high, low, index}:
+      +actual = actual
+      Bool.and(Bool.and(U32.is_eq(TA.FRACTAL.high(actual), high), U32.is_eq(TA.FRACTAL.low(actual), low)),
+        U32.is_eq(TA.FRACTAL.index(actual), index))
 
-def zigzag(r: Result<&2, &2, P.Error, List<&2, Maybe<&2, M.ZigValue<F32>>>>) -> Bool:
+def fractal(r: Result<&2, &2, P.Error, List<&2, Maybe<&2, TA.FRACTAL.Value()>>>) -> Bool:
+  Assert.batch(~P.Error, ~TA.FRACTAL.Value(), ~pivot, r,
+    [None{}, None{}, Some{W.PivotFlags{100, 100, 1}}, Some{W.PivotFlags{0, 0, 2}},
+     Some{W.PivotFlags{100, 0, 3}}, Some{W.PivotFlags{0, 0, 4}}])
+
+def swing(+value: TA.ZIGZAG.Value(), price: F32, up: Bool, index: U32) -> Bool:
+  Bool.and(Bool.and(near(TA.ZIGZAG.pivot(value), price), Bool.not(Bool.xor(TA.ZIGZAG.is_up(value), up))),
+    U32.is_eq(TA.ZIGZAG.index(value), index))
+
+def zigzag(r: Result<&2, &2, P.Error, List<&2, Maybe<&2, TA.ZIGZAG.Value()>>>) -> Bool:
   match r:
-    case Done{[None{}, Some{M.ZigValue{a, Bar.Up{}, 1}}, Some{M.ZigValue{b, Bar.Down{}, 2}}, Some{M.ZigValue{c, Bar.Up{}, 3}}, Some{M.ZigValue{d, Bar.Down{}, 4}}]}: List.all(~&2, ~Bool, ~(x => x), [near(a, 11.0), near(b, 8.0), near(c, 12.0), near(d, 7.0)])
+    case Done{[None{}, Some{a}, Some{b}, Some{c}, Some{d}]}:
+      Bool.and(Bool.and(swing(a, 11.0, True{}, 1), swing(b, 8.0, False{}, 2)),
+        Bool.and(swing(c, 12.0, True{}, 3), swing(d, 7.0, False{}, 4)))
     case _: False{}
 
 def continued(r: TA.MAVP.State() & List<&2, Maybe<&2, F32>>) -> Bool:

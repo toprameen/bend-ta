@@ -17,15 +17,17 @@ def close(value: Result<&2, &2, P.Error, List<&2, Maybe<&2, F32>>>, expected: Li
     case Fail{e}: False{}
     case Done{xs}: close.values(xs, expected)
 
-def indexes(actual: S.MinMaxIndex, expected: S.MinMaxIndex) -> Bool:
-  match actual expected:
-    case S.MinMaxIndex{low, high} S.MinMaxIndex{expected_low, expected_high}:
-      Bool.and(U32.is_eq(low, expected_low), U32.is_eq(high, expected_high))
+def indexes(actual: TA.MINMAXINDEX.Value(), expected: S.MinMaxIndex) -> Bool:
+  match expected:
+    case S.MinMaxIndex{low, high}:
+      +actual = actual
+      Bool.and(U32.is_eq(TA.MINMAXINDEX.min_index(actual), low), U32.is_eq(TA.MINMAXINDEX.max_index(actual), high))
 
-def bounds(actual: S.MinMax<F32>, expected: S.MinMax<F32>) -> Bool:
-  match actual expected:
-    case S.MinMax{low, high} S.MinMax{expected_low, expected_high}:
-      Bool.and(F32.is_eq(low, expected_low), F32.is_eq(high, expected_high))
+def bounds(actual: TA.MINMAX.Value(), expected: S.MinMax<F32>) -> Bool:
+  match expected:
+    case S.MinMax{low, high}:
+      +actual = actual
+      Bool.and(F32.is_eq(TA.MINMAX.min(actual), low), F32.is_eq(TA.MINMAX.max(actual), high))
 
 def continued.scan(result: TA.LINEARREG.State() & List<&2, Maybe<&2, F32>>) -> Result<&2, &2, P.Error, List<&2, Maybe<&2, F32>>>:
   match result:

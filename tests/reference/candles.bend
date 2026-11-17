@@ -6,16 +6,18 @@ import ../../src/core/patterns.bend as Pattern
 import ../../src/core/candle.bend as Candle
 import ../../src/core/series.bend as Series
 
+def has_strength(expected: Char, negative: Bool, strength: U32) -> Bool:
+  match strength:
+    case 0: Char.is_eq(expected, 'z')
+    case 80: Char.is_eq(expected, Bool.pick(Char, negative, 'b', 'a'))
+    case 100: Char.is_eq(expected, Bool.pick(Char, negative, 'm', 'p'))
+    case 200: Char.is_eq(expected, Bool.pick(Char, negative, 'M', 'P'))
+    case _: False{}
+
 def signal_matches(expected: Char, actual: Maybe<&2, TA.Pattern.Signal()>) -> Bool:
   match actual:
     case None{}: Char.is_eq(expected, 'n')
-    case Some{Pattern.Signal{negative, strength}}:
-      match strength:
-        case 0: Char.is_eq(expected, 'z')
-        case 80: Char.is_eq(expected, Bool.pick(Char, negative, 'b', 'a'))
-        case 100: Char.is_eq(expected, Bool.pick(Char, negative, 'm', 'p'))
-        case 200: Char.is_eq(expected, Bool.pick(Char, negative, 'M', 'P'))
-        case _: False{}
+    case Some{+value}: has_strength(expected, TA.Pattern.negative(value), TA.Pattern.strength(value))
 
 def matches(expected: String, actual: List<&2, Maybe<&2, TA.Pattern.Signal()>>) -> Bool:
   match expected actual:

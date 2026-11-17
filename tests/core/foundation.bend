@@ -14,14 +14,16 @@ def config(result: Result<&2, &2, Config.Error, Config.Config>, period: U32, dep
       Bool.and(U32.is_eq(actual, period), Nat.is_eq(actual_depth, depth))
 
 def same_range(actual: TA.Extrema.Value(), expected: TA.Extrema.Value()) -> Bool:
-  match actual expected:
-    case Extrema.Range{low, high} Extrema.Range{want_low, want_high}:
-      Bool.and(F32.is_eq(low, want_low), F32.is_eq(high, want_high))
+  match expected:
+    case Extrema.Range{low, high}:
+      +actual = actual
+      Bool.and(F32.is_eq(TA.Extrema.low(actual), low), F32.is_eq(TA.Extrema.high(actual), high))
 
 def same_moments(actual: TA.Moments.Value(), expected: TA.Moments.Value()) -> Bool:
-  match actual expected:
-    case Moments.Moments{mean, variance} Moments.Moments{want_mean, want_variance}:
-      Bool.and(F32.is_eq(mean, want_mean), F32.is_eq(variance, want_variance))
+  match expected:
+    case Moments.Moments{mean, variance}:
+      +actual = actual
+      Bool.and(F32.is_eq(TA.Moments.mean(actual), mean), F32.is_eq(TA.Moments.variance(actual), variance))
 
 def prepend(u: Unit, acc: List<&2, F32>, value: F32) -> List<&2, F32>:
   value <> acc
