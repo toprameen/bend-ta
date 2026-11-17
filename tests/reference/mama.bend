@@ -84,25 +84,25 @@ def chunked(result: Result<&2, &1, TA.MAMA.Error(), TA.MAMA.State()>) -> Result<
     case Fail{e}: Fail{e}
     case Done{state}: Done{continued(samples(~negative, 160n, 20), Series.scan(~F32, ~TA.MAMA.Value(), ~TA.MAMA.State(), ~TA.MAMA.next, samples(~negative, 20n, 0), state))}
 
-def expected.constant() -> List<&2, Target>:
+def expected.talib_c_0_8_4_f64.constant() -> List<&2, Target>:
   [Target{32n, 4.999983646869698, 4.960701874098815}, Target{33n, 4.999991823434849, 4.970524361432823}, Target{47n, 4.999999999500942, 4.999474732009067}, Target{80n, 5.0, 4.999999960426649}, Target{100n, 5.0, 4.999999999874504}, Target{142n, 5.0, 4.999999999999998}, Target{179n, 5.0, 4.999999999999998}]
 
-def expected.negative() -> List<&2, Target>:
+def expected.talib_c_0_8_4_f64.negative() -> List<&2, Target>:
   [Target{32n, F32.neg(12.25137259488542), F32.neg(12.860451628410868)}, Target{33n, F32.neg(12.00068629744271), F32.neg(12.645510295668828)}, Target{47n, F32.neg(9.301323388071067), F32.neg(10.136510037735471)}, Target{80n, F32.neg(0.25000000804356093), F32.neg(1.0006333028349927)}, Target{100n, 4.749999999999993, 3.9999979916497392}, Target{142n, 15.25, 14.499999999988638}, Target{179n, 24.5, 23.749999999999993}]
 
-def expected.cycle() -> List<&2, Target>:
+def expected.talib_c_0_8_4_f64.cycle() -> List<&2, Target>:
   [Target{32n, 8.073985173980136, 9.412886411846252}, Target{33n, 9.536992586990067, 9.443912955632205}, Target{47n, 9.789446658942595, 9.421565711898735}, Target{80n, 7.992630630881862, 9.348558484518687}, Target{100n, 11.956256579442078, 10.152017878366138}, Target{142n, 9.671499438056724, 9.392290100488411}, Target{179n, 9.787924467888743, 9.402180564563087}]
 
-def expected.shifted() -> List<&2, Target>:
+def expected.talib_c_0_8_4_f64.shifted() -> List<&2, Target>:
   [Target{32n, 10006.459769049921, 9616.11497582162}, Target{33n, 10008.72988452496, 9714.268702997455}, Target{47n, 10009.759243821012, 9936.81790401962}, Target{80n, 10007.992625859577, 10007.591304231071}, Target{100n, 10011.956256543084, 10009.932602322187}, Target{142n, 10009.671499438056, 10009.390809932444}, Target{179n, 10009.787924467888, 10009.402155666729}]
 
 def main() -> IO(Unit):
   do IO<Unit>:
-    Unit <- Assert.check("MAMA.batch case 1", check(expected.constant(), 0.000005, TA.MAMA.batch(samples(~constant, 180n, 0), 0.5, 0.05)))
-    Unit <- Assert.check("MAMA.batch case 2", check(expected.negative(), 0.00002, TA.MAMA.batch(samples(~negative, 180n, 0), 0.5, 0.05)))
-    Unit <- Assert.check("MAMA.batch case 3", check(expected.cycle(), 0.00002, TA.MAMA.batch(samples(~cycle, 180n, 0), 0.5, 0.05)))
-    Unit <- Assert.check("MAMA.batch case 4", check(expected.shifted(), 0.01, TA.MAMA.batch(samples(~shifted, 180n, 0), 0.5, 0.05)))
-    Unit <- Assert.check("MAMA.init", check(expected.negative(), 0.00002, chunked(TA.MAMA.init(0.5, 0.05))))
+    Unit <- Assert.check("MAMA.batch case 1", check(expected.talib_c_0_8_4_f64.constant(), 0.000005, TA.MAMA.batch(samples(~constant, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.batch case 2", check(expected.talib_c_0_8_4_f64.negative(), 0.00002, TA.MAMA.batch(samples(~negative, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.batch case 3", check(expected.talib_c_0_8_4_f64.cycle(), 0.00002, TA.MAMA.batch(samples(~cycle, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.batch case 4", check(expected.talib_c_0_8_4_f64.shifted(), 0.01, TA.MAMA.batch(samples(~shifted, 180n, 0), 0.5, 0.05)))
+    Unit <- Assert.check("MAMA.init", check(expected.talib_c_0_8_4_f64.negative(), 0.00002, chunked(TA.MAMA.init(0.5, 0.05))))
     Unit <- Assert.check("MAMA.batch case 5", Result.is_done(&2, &2, TA.MAMA.Error(), List<&2, Maybe<&2, TA.MAMA.Value()>>, TA.MAMA.batch([], 0.5, 0.05)))
     Unit <- Assert.check("MAMA.batch case 6", Result.is_fail(&2, &2, TA.MAMA.Error(), List<&2, Maybe<&2, TA.MAMA.Value()>>, TA.MAMA.batch([], 0.0, 0.05)))
     Assert.check("MAMA.batch case 7", Result.is_fail(&2, &2, TA.MAMA.Error(), List<&2, Maybe<&2, TA.MAMA.Value()>>, TA.MAMA.batch([], 0.5, F32.div(0.0, 0.0))))

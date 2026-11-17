@@ -129,7 +129,7 @@ def reference.group5() -> Bool:
   ]
   all(checks)
 
-def talib_0_8_4.macd() -> List<&2, Maybe<&2, TA.MACD.Value()>>:
+def expected.talib_c_0_8_4_f64.macd() -> List<&2, Maybe<&2, TA.MACD.Value()>>:
   [None{}, None{},
    None{}, None{},
    None{}, Some{Smooth.MACDValue{0.71111111, 0.01481481, 0.6962963}},
@@ -153,7 +153,7 @@ def reference.group6() -> Bool:
   +checks : List<&2, Bool> = [
     check(~TA.STOCH.Value(), ~stoch, TA.KDJ.batch(data.HLC(), 3, 2, 0, 2, 0), 36, 4, [48.214285714285715, 50.29761904761905, 44.04761904761904], [56.25, 56.25, 56.25]),
     check(~TA.KST.Value(), ~lines, TA.KST.batch(data.F32(), 1, 2, 3, 4, 2, 3, 2, 3, 2), 36, 7, [184.5914270914271, 136.58750971250973], [64.82409002698859, 67.2479410015642]),
-    Assert.batch(~TA.Momentum.Error(), ~TA.MACD.Value(), ~(a => b => same(macd(a), macd(b))), TA.MACD.batch(data.F32(), 2, 4, 3), talib_0_8_4.macd()),
+    Assert.batch(~TA.Momentum.Error(), ~TA.MACD.Value(), ~(a => b => same(macd(a), macd(b))), TA.MACD.batch(data.F32(), 2, 4, 3), expected.talib_c_0_8_4_f64.macd()),
     check(~TA.MACD.Value(), ~macd, TA.MACDFIX.batch(data.F32(), 2), 36, 26, [3.243269230769233, 3.313942307692309, F32.neg(0.07067307692307612)], [3.412083551563814, 3.3748148182178643, 0.03726873334594982])
   ]
   all(checks)
@@ -194,7 +194,7 @@ def reference.group10() -> Bool:
   ]
   all(checks)
 
-def talib_0_8_4.rsi() -> List<&2, Maybe<&2, F32>>:
+def expected.talib_c_0_8_4_f64.rsi() -> List<&2, Maybe<&2, F32>>:
   [None{}, None{}, None{}, Some{66.66666667}, Some{33.33333333},
    Some{65.59139785}, Some{45.6928839}, Some{66.2004662}, Some{46.46216769}, Some{66.46169613},
    Some{46.79565237}, Some{66.57600227}, Some{46.94225112}, Some{66.62645644}, Some{47.00709074},
@@ -209,7 +209,7 @@ def reference.group11() -> Bool:
     check(~TA.VORTEX.Value(), ~vortex, TA.VORTEX.batch(data.HLC(), 3), 36, 3, [1.0769230769230769, 0.7692307692307693], [1.0, 0.4117647058823529]),
     check(~F32, ~scalar, TA.WAD.batch(data.HLC()), 36, 0, [0.0], [19.0]),
     check(~F32, ~scalar, TA.WILLR.batch(data.HLC(), 3), 36, 2, [F32.neg(66.66666666666666)], [F32.neg(25.0)]),
-    Assert.batch(~TA.Momentum.Error(), ~F32, ~(a => b => close(a, b)), TA.RSI.batch(data.F32(), 3), talib_0_8_4.rsi())
+    Assert.batch(~TA.Momentum.Error(), ~F32, ~(a => b => close(a, b)), TA.RSI.batch(data.F32(), 3), expected.talib_c_0_8_4_f64.rsi())
   ]
   all(checks)
 
