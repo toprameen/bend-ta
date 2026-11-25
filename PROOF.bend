@@ -1,6 +1,6 @@
 import Base
 import ./LAWS.bend as Laws
-import ./src/f32.bend as TA
+import ./f32.bend as TA
 import ./src/core/series.bend as Series
 import ./proofs/ownership.bend as Ownership
 import ./proofs/series.bend as SeriesProof

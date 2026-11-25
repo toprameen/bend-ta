@@ -4,11 +4,11 @@ F32 technical analysis in Bend for streaming and batch calculations.
 
 ## Use
 
-Import the [F32 API](src/f32.bend) using a path relative to your Bend file.
+Import the [F32 API](f32.bend) using a path relative to your Bend file.
 
 ```bend
 import Base
-import ./src/f32.bend as TA
+import ./f32.bend as TA
 
 def averages() -> Result<&2, &2, TA.Error(), List<&2, Maybe<&2, F32>>>:
   TA.SMA.batch([3.0, 6.0, 9.0, 12.0], 3)

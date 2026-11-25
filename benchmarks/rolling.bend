@@ -1,5 +1,5 @@
 import Base
-import ../src/f32.bend as TA
+import ../f32.bend as TA
 import ../src/core/bar.bend as Bar
 import ../src/core/statistics.bend as Stats
 import ../src/core/overlap.bend as Overlap

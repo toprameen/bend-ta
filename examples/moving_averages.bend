@@ -1,5 +1,5 @@
 import Base
-import ../src/f32.bend as TA
+import ../f32.bend as TA
 
 def show_value(value: Maybe<&2, F32>) -> String:
   Maybe.show(~&2, ~F32, ~(x => F32.show(x)), value)

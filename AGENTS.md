@@ -1,6 +1,6 @@
 # bend-ta
 
-This repository is a Bend 2 technical analysis library. `src/f32.bend` is the
+This repository is a Bend 2 technical analysis library. `f32.bend` is the
 public F32 facade; `src/core/` holds shared templates and state. Future numeric
 facades must instantiate that core instead of copying indicator algorithms.
 

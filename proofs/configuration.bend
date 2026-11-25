@@ -4,7 +4,7 @@ import ../src/core/ema.bend as Ema
 import ../src/core/sma.bend as Sma
 import ../src/core/parameters.bend as Parameters
 import ../src/core/lookback.bend as Lookback
-import ../src/f32.bend as TA
+import ../f32.bend as TA
 
 def domain(+period: U32) -> Bool:
   Bool.and(U32.is_gt(period, 0), U32.is_le(period, 1073741824))

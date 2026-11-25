@@ -1,5 +1,5 @@
 import Base
-import ../src/f32.bend as TA
+import ../f32.bend as TA
 import ../src/core/variable.bend as Variable
 import ../src/core/ma.bend as Ma
 import ../src/core/parameters.bend as P
