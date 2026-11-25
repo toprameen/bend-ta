@@ -335,8 +335,36 @@ def aroonosc.precise(result: Result<&2, &2, TA.Momentum.Error(), List<&2, Maybe<
     case Fail{e}: False{}
     case Done{xs}: aroonosc.tail(xs)
 
+def alternating(~O: Data, ~read: O -> F32, +up: F32, +down: F32, +tolerance: F32, result: Result<&2, &2, TA.Momentum.Error(), List<&2, Maybe<&2, O>>>) -> Bool:
+  match result:
+    case Done{_ <> _ <> _ <> Some{a} <> Some{b} <> Some{c} <> Some{d} <> Nil{}}:
+      all([F32.is_le(F32.abs(F32.sub(read(a), up)), tolerance), F32.is_le(F32.abs(F32.sub(read(b), down)), tolerance),
+               F32.is_le(F32.abs(F32.sub(read(c), up)), tolerance), F32.is_le(F32.abs(F32.sub(read(d), down)), tolerance)])
+    case _: False{}
+
+def falling_line(value: Maybe<&2, TA.MACD.Value()>) -> Bool:
+  match value:
+    case None{}: False{}
+    case Some{line}: F32.is_lt(TA.MACD.line(line), 0.0)
+
+def alma_drop(result: Result<&2, &2, TA.Momentum.Error(), List<&2, Maybe<&2, TA.MACD.Value()>>>) -> Bool:
+  match result:
+    case Fail{error}: False{}
+    case Done{values}: List.any(~&2, ~Maybe<&2, TA.MACD.Value()>, ~falling_line, values)
+
 def main() -> IO(Unit):
+  +prices : List<&2, F32> = [40000000.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+  drop = List.append(&2, F32, List.replicate(F32, 4274n, 1000000.0), [500000.0])
+  +spread = F32.div(1.0, 6.0)
   do IO<Unit>:
+    Unit <- Assert.check("ALMA spread on flat prices", Assert.batch(~TA.Momentum.Error(), ~F32, ~F32.is_eq,
+      TA.APO.batch([100.0, 100.0, 100.0, 100.0], 2, 3, TA.MA.Kind.ALMA()), [None{}, None{}, Some{0.0}, Some{0.0}]))
+    Unit <- Assert.check("ALMA MACDEXT turns negative after a drop", alma_drop(
+      TA.MACDEXT.batch(drop, 4250, TA.MA.Kind.ALMA(), 4275, TA.MA.Kind.ALMA(), 1, TA.MA.Kind.SMA())))
+    Unit <- Assert.check("APO after outlier", alternating(~F32, ~(x => x), spread, F32.neg(spread), 0.000002, TA.APO.batch(prices, 2, 3, 0)))
+    Unit <- Assert.check("MACDEXT after outlier", alternating(~TA.MACDEXT.Value(), ~TA.MACD.line, spread, F32.neg(spread), 0.000002, TA.MACDEXT.batch(prices, 2, 0, 3, 0, 1, 0)))
+    Unit <- Assert.check("PPO after outlier", alternating(~F32, ~(x => x), 12.5, F32.neg(10.0), 0.0001, TA.PPO.batch(prices, 2, 3, 0)))
+    Unit <- Assert.check("PVO after outlier", alternating(~F32, ~(x => x), 12.5, F32.neg(10.0), 0.0001, TA.PVO.batch(prices, 2, 3, 0)))
     Unit <- Assert.check("reference", reference())
     Unit <- Assert.check("AROONOSC.batch", Bool.and(edges(), aroonosc.precise(TA.AROONOSC.batch(aroonosc.history(U32.to_nat(9999)), 10000))))
     Assert.check("chunks", chunks())

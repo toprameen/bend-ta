@@ -69,7 +69,7 @@ def main() -> IO(Unit):
     Unit <- Assert.check("HMA.batch", close(TA.HMA.batch([1.0, 2.0, 3.0, 4.0, 5.0], 4), [None{}, None{}, None{}, None{}, Some{5.0}]))
     Unit <- Assert.check("ZLEMA.batch", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.ZLEMA.batch([1.0, 2.0, 3.0, 4.0, 5.0], 3), [None{}, None{}, None{}, Some{4.0}, Some{5.0}]))
     Unit <- Assert.check("KAMA.batch", close(TA.KAMA.batch([1.0, 2.0, 3.0, 4.0], 2), [None{}, None{}, Some{2.4444444}, Some{3.1358025}]))
-    Unit <- Assert.check("ALMA.batch case 1", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.ALMA.batch([1.0, 2.0, 3.0, 4.0], 4, 1.0e30, 0.5), [None{}, None{}, None{}, Some{2.0}]))
+    Unit <- Assert.check("ALMA concentrated at the kernel center", Assert.batch(~P.Error, ~F32, ~F32.is_eq, TA.ALMA.batch([40000000.0, 2.0, 1.0, 40000004.0], 4, 1.0e30, 0.5), [None{}, None{}, None{}, Some{2.0}]))
     Unit <- Assert.check("ALMA.batch case 2", identity(TA.ALMA.batch([F32.neg(0.0), 1.0], 1, 6.0, 0.85)))
     Unit <- Assert.check("MA.batch case 1", identity(TA.MA.batch([F32.neg(0.0), 1.0], 1, 11)))
     Unit <- Assert.check("MA.batch case 2", Result.is_fail(&2, &2, P.Error, List<&2, Maybe<&2, F32>>, TA.MA.batch([], 2, 11)))

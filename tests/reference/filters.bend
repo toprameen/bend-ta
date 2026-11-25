@@ -87,8 +87,35 @@ def expected.talib_c_0_8_4_f64.SWAK_BP() -> List<&2, Target<F32>>:
 def expected.talib_c_0_8_4_f64.SWAK_HP() -> List<&2, Target<F32>>:
   [Target{0n, 0.0}, Target{1n, 1.7265425280053608}, Target{2n, 2.980949101011142}, Target{30n, F32.neg(4.127533655699895)}, Target{179n, 1.3696082705775396}]
 
+def response(~S: Type, ~next: S -> F32 -> S & Maybe<&2, F32>, count: Nat, +price: F32, previous: F32, monotone: Bool, result: S & Maybe<&2, F32>) -> Bool:
+  match count:
+    case 1n+rest:
+      match result:
+        case (state, Some{+value}): response(~S, ~next, rest, price, value, Bool.and(monotone, F32.is_le(previous, value)), next(state, price))
+        case (_, None{}): False{}
+    case 0n:
+      match result:
+        case (_, Some{+value}): Bool.and(monotone, Bool.and(F32.is_le(previous, value), Bool.and(F32.is_le(value, price), F32.is_le(F32.sub(price, value), 0.01))))
+        case (_, None{}): False{}
+
+def seeded(~S: Type, ~next: S -> F32 -> S & Maybe<&2, F32>, count: Nat, +price: F32, result: S & Maybe<&2, F32>) -> Bool:
+  match result:
+    case (state, Some{+value}): response(~S, ~next, count, price, value, F32.is_eq(value, 100.0), next(state, price))
+    case (_, None{}): False{}
+
+def low_pass(~S: Type, ~next: S -> F32 -> S & Maybe<&2, F32>, result: Result<&2, &1, Params.Error, S>, count: Nat, price: F32) -> Bool:
+  match result:
+    case Fail{e}: False{}
+    case Done{state}: seeded(~S, ~next, count, price, next(state, 100.0))
+
 def main() -> IO(Unit):
   do IO<Unit>:
+    Unit <- Assert.check("SWAK_GAUSS period 1000 constant", low_pass(~TA.SWAK_GAUSS.State(), ~TA.SWAK_GAUSS.next, TA.SWAK_GAUSS.init(1000), 4999n, 100.0))
+    Unit <- Assert.check("SWAK_GAUSS period 5000 step", low_pass(~TA.SWAK_GAUSS.State(), ~TA.SWAK_GAUSS.next, TA.SWAK_GAUSS.init(5000), 29999n, 101.0))
+    Unit <- Assert.check("SWAK_GAUSS period 10000 step", low_pass(~TA.SWAK_GAUSS.State(), ~TA.SWAK_GAUSS.next, TA.SWAK_GAUSS.init(10000), 29999n, 101.0))
+    Unit <- Assert.check("SWAK_BUTTER period 1000 constant", low_pass(~TA.SWAK_BUTTER.State(), ~TA.SWAK_BUTTER.next, TA.SWAK_BUTTER.init(1000), 4999n, 100.0))
+    Unit <- Assert.check("SWAK_BUTTER period 5000 step", low_pass(~TA.SWAK_BUTTER.State(), ~TA.SWAK_BUTTER.next, TA.SWAK_BUTTER.init(5000), 29999n, 101.0))
+    Unit <- Assert.check("SWAK_BUTTER period 10000 step", low_pass(~TA.SWAK_BUTTER.State(), ~TA.SWAK_BUTTER.next, TA.SWAK_BUTTER.init(10000), 29999n, 101.0))
     Unit <- Assert.check("SWAK_BUTTER.batch case 1", check(~F32, ~near, 0n, expected.talib_c_0_8_4_f64.SWAK_BUTTER(), TA.SWAK_BUTTER.batch(samples(180n, 0), 20)))
     Unit <- Assert.check("SWAK_BUTTER.next", check(~F32, ~near, 0n, expected.talib_c_0_8_4_f64.SWAK_BUTTER(), chunked(~F32, ~TA.SWAK_BUTTER.State(), ~TA.SWAK_BUTTER.next, TA.SWAK_BUTTER.init(20))))
     Unit <- Assert.check("SWAK_BUTTER.batch case 2", check(~F32, ~near, 0n, [Target{0n, 5.0}], TA.SWAK_BUTTER.batch([5.0], 20)))

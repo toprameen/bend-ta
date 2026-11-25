@@ -42,6 +42,14 @@ def cycle(n: Nat) -> List<&2, F32>:
     case 0n: Nil{}
     case 1n+rest: 1000000.0 <> 1000000.625 <> 1000000.3125 <> 1000000.125 <> cycle(rest)
 
+def repeat.price(count: Nat, +price: F32, acc: List<&2, F32>) -> List<&2, F32>:
+  match count:
+    case 0n: acc
+    case 1n+rest: repeat.price(rest, price, price <> acc)
+
+def rolling.total(+prices: List<&2, F32>, +period: U32, sum: F32, mean: F32) -> Bool:
+  Bool.and(restored(TA.SUM.batch(prices, period), sum), restored(TA.SMA.batch(prices, period), mean))
+
 def candles(xs: List<&2, Bar.OHLC<F32>>, result: Result<&2, &1, TA.Candle.Error(), TA.Candle.State()>) -> Result<&2, &2, Candle.Error, List<&2, Maybe<&2, F32>>>:
   match result:
     case Fail{error}: Fail{error}
@@ -121,6 +129,9 @@ def main() -> IO(Unit):
     Unit <- Assert.check("valid and invalid observations", List.all(~&2, ~Bool, ~(passed => passed), [
       TA.Bar.valid(sample), Bool.not(TA.Bar.valid(Bar.OHLC{1.0, 0.0, 2.0, 3.0})), Bool.not(TA.is_finite(F32.div(1.0, 0.0)))
     ]))
+    Unit <- Assert.check("rolling total after outliers expire", rolling.total([40000000.0, 40000004.0, 1.0, 1.0, 1.0], 3, 3.0, 1.0))
+    Unit <- Assert.check("new observation after cancelling evictions", rolling.total([1.0e16, 1.0e8, 0.0, 0.0, 3.0], 3, 3.0, 1.0))
+    Unit <- Assert.check("rolling total at the first long-window rebuild", rolling.total(repeat.price(100000n, 1001.0, []), 100000, 100100000.0, 1001.0))
     Unit <- Assert.check("SUM.batch case 1", Bool.and(restored(TA.SUM.batch([16777216.0, 1.0, 1.0, 1.0], 2), 2.0), restored(TA.SMA.batch([16777216.0, 1.0, 1.0, 1.0], 2), 1.0)))
     Unit <- Assert.check("SUM.batch case 2", restored(TA.SUM.batch([3.0e38, 3.0e38, 1.0, 1.0], 2), 2.0))
     Unit <- Assert.check("SUM.init", rebuild.stream(TA.SUM.init(2)))
