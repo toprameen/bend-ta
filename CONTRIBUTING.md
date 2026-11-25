@@ -112,12 +112,3 @@ tooling, and proof contracts.
 
 Policy changes require a maintainer decision. Keep instructions usable from a
 normal clone.
-
-## Releases
-
-Tag tested commits on `main` as `vMAJOR.MINOR.PATCH` and record changes in the
-[GitHub release notes](https://github.com/toprameen/bend-ta/releases). During
-`0.x`, use a patch bump for compatible fixes and a minor bump for features or
-breaking changes. Note changes to public APIs, computed outputs, warm-up
-behavior, and compiler requirements. Publish corresponding BendHub versions
-from the same commits, using the registry's four-part version format.
