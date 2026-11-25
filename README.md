@@ -4,11 +4,11 @@ F32 technical analysis in Bend for streaming and batch calculations.
 
 ## Use
 
-Import the [F32 API](f32.bend) using a path relative to your Bend file.
+Import the [F32 API](f32.bend) from [BendHub](https://hub.bend-lang.com/n/bend-ta).
 
 ```bend
 import Base
-import ./f32.bend as TA
+import bend-ta@0.1.0.0/f32.bend as TA
 
 def averages() -> Result<&2, &2, TA.Error(), List<&2, Maybe<&2, F32>>>:
   TA.SMA.batch([3.0, 6.0, 9.0, 12.0], 3)
@@ -18,7 +18,7 @@ The result is `Done{[None{}, None{}, Some{6.0}, Some{9.0}]}`. `None` marks
 warm-up. An invalid period returns `Fail`.
 
 The [moving averages example](examples/moving_averages.bend) shows batch and
-single-observation streaming with `init` and `next`. Run it with
+single-observation streaming with `init` and `next`. From a checkout, run
 `bend examples/moving_averages.bend`.
 
 `TA.Stream.scan` processes a chunk from an existing state and returns the
