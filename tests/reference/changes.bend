@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 import ../../src/core/series.bend as Series
 
 def small.values(xs: List<&2, Maybe<&2, F32>>) -> Bool:

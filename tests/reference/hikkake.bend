@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 import ../../src/core/bar.bend as B
 import ./candles.bend as Candles
 import ../../src/core/candle.bend as Candle

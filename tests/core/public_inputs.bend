@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 
 def final_value(result: Result<&2, &2, TA.Parameter.Error(), List<&2, Maybe<&2, F32>>>, expected: F32) -> Bool:
   match result:

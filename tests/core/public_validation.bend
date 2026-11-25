@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 
 def message(result: Result<&2, &2, String, Unit>, expected: String) -> Bool:
   match result:

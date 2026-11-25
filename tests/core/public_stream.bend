@@ -1,5 +1,5 @@
 import Base
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 
 def check_second_chunk(chunk: TA.SMA.State() & List<&2, Maybe<&2, F32>>) -> Bool:
   match chunk:

@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 
 def stream.resume(
   -S: Type, result: S & Maybe<&2, F32>, rest: S -> List<&2, Maybe<&2, F32>>

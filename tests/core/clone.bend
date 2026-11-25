@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 import ../../src/core/clone.bend as Clone
 import ../../src/core/series.bend as Series
 import ../../src/core/config.bend as Config

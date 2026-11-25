@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 import ../../src/core/moments.bend as Moments
 import ../../src/core/statistics_window.bend as Pair
 import ../../src/core/window.bend as Window

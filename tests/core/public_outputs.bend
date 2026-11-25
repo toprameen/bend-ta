@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 
 def near(actual: F32, expected: F32) -> Bool:
   F32.is_le(F32.abs(F32.sub(actual, expected)), 0.0001)

@@ -1,6 +1,6 @@
 import Base
 import ../../scripts/assert.bend as Assert
-import ../../src/f32.bend as TA
+import ../../f32.bend as TA
 
 def positive_signal(+signal: TA.Pattern.Signal(), strength: U32) -> Bool:
   Bool.and(Bool.not(TA.Pattern.negative(signal)), U32.is_eq(TA.Pattern.strength(signal), strength))
