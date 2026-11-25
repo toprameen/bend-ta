@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Patch for compatible fixes, minor for features or 0.x breaking changes"
+        required: true
+        type: choice
+        options: [patch, minor]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bend-ta-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Publish release
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825ba76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bend
+        with:
+          version: "2.0.40"
+          sha256: c9ff8d67bd903fb6ad9a26b43d8a62c01021de82a44d55ce4a3dcd4732113d6b
+      - name: Publish BendHub package and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BUMP: ${{ inputs.bump }}
+          BEND_NO_TELEMETRY: "1"
+        run: bend scripts/release.bend -- "$RELEASE_BUMP"

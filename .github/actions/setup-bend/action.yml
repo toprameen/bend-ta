@@ -1,0 +1,23 @@
+name: Set up Bend
+description: Install the pinned Bend compiler and verify its checksum
+inputs:
+  version:
+    description: Bend version
+    required: true
+  sha256:
+    description: SHA-256 of the Linux x64 archive
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install verified Bend
+      shell: bash
+      env:
+        BEND_VERSION: ${{ inputs.version }}
+        BEND_SHA256: ${{ inputs.sha256 }}
+      run: |
+        curl --fail --location --retry 3 --output "$RUNNER_TEMP/bend.tar.gz" \
+          "https://github.com/bendlang/bend/releases/download/v$BEND_VERSION/bend-$BEND_VERSION-linux-x64.tar.gz"
+        printf '%s  %s\n' "$BEND_SHA256" "$RUNNER_TEMP/bend.tar.gz" | sha256sum --check
+        tar -xzf "$RUNNER_TEMP/bend.tar.gz" -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/bend/bin" >> "$GITHUB_PATH"

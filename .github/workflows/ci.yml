@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -28,14 +29,10 @@ jobs:
         with:
           node-version: "22"
           package-manager-cache: false
-      - name: Install verified Bend 2.0.39
-        shell: bash
-        run: |
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/bend.tar.gz" \
-            https://github.com/bendlang/bend/releases/download/v2.0.39/bend-2.0.39-linux-x64.tar.gz
-          printf '%s  %s\n' 6cf462fd8f70b094a4950ebb709a9c4ffd8f1d1189d9cedf1fd63cd5d041c7ab "$RUNNER_TEMP/bend.tar.gz" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/bend.tar.gz" -C "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/bend/bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions/setup-bend
+        with:
+          version: "2.0.39"
+          sha256: 6cf462fd8f70b094a4950ebb709a9c4ffd8f1d1189d9cedf1fd63cd5d041c7ab
       - name: Bend-only policy and source checks
         run: bend scripts/check_repo.bend
       - name: Install verified Lean 4.34.0
