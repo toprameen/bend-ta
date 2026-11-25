@@ -1,5 +1,13 @@
 # Contributing
 
+## Issues and proposals
+
+Open a [GitHub issue](https://github.com/toprameen/bend-ta/issues) before
+starting substantial API or indicator work. For a bug, include a minimal Bend
+example with inputs and parameters, your Bend and bend-ta versions, the native
+or JavaScript backend, and the expected and actual outputs. Report security
+issues using the [security policy](SECURITY.md).
+
 ## Bend-only source policy
 
 Write all maintained program logic in Bend, including the library, examples,
@@ -81,6 +89,10 @@ and hand-maintained catalogs.
 
 ## Changes and review
 
+Open a pull request against `main` from a feature branch or your fork. Explain
+what changed, how you checked it, and any effect on the public API or numerical
+results. Keep logic and tests in separate commits, with logic first.
+
 Keep algorithms in `src/core/` and bind concrete operations in the facade.
 Use the same state transitions for batch and streaming. Add applicable laws and
 independent reference fixtures before extending the public interface.
@@ -90,9 +102,22 @@ a pull request. For changes to contracts, the runner, or the gate, use a
 temporary copy outside the checkout to verify that a relevant defect is rejected.
 Preserve existing assertions and justify arithmetic assumptions.
 
-Maintainers should require the `Bend-only and tests` check through branch
-protection and review changes to the workflow, policy, agent instructions,
+Every change to `main` goes through a pull request and must pass the
+`Bend-only and tests` check. A maintainer approves outside contributions.
+When there is only one maintainer, they review the diff on their own pull
+requests before merging. Once there is a second maintainer, require one
+approval from someone other than the author. Maintainers use **Rebase and
+merge** and review changes to the workflow, policy, agent instructions,
 tooling, and proof contracts.
 
 Policy changes require a maintainer decision. Keep instructions usable from a
 normal clone.
+
+## Releases
+
+Tag tested commits on `main` as `vMAJOR.MINOR.PATCH` and record changes in the
+[GitHub release notes](https://github.com/toprameen/bend-ta/releases). During
+`0.x`, use a patch bump for compatible fixes and a minor bump for features or
+breaking changes. Note changes to public APIs, computed outputs, warm-up
+behavior, and compiler requirements. Publish corresponding BendHub versions
+from the same commits, using the registry's four-part version format.
