@@ -10,7 +10,7 @@ type Delayed<-N: Data> is Type:
 
 
 type Macd<-N: Data> is Type:
-  Macd{fast: Delayed<N>, slow: Delayed<N>, signal: Ma.State<N>, origin: Maybe<&2, N>}
+  Macd{fast: Delayed<N>, slow: Delayed<N>, signal: Ma.State<N>}
 
 
 type Leg<-N: Data> is Type:
@@ -32,51 +32,45 @@ def delayed.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N
     case Delayed{skip, average}: (Delayed{U32.sub(skip, 1), average}, None{})
 
 
-def macd.created(~N: Data, +fast_skip: U32, +slow_skip: U32, origin: Maybe<&2, N>, fast: Result<&2, &1, Params.Error, Ma.State<N>>, slow: Result<&2, &1, Params.Error, Ma.State<N>>, signal: Result<&2, &1, Params.Error, Ma.State<N>>) -> Result<&2, &1, Params.Error, Macd<N>>:
+def macd.created(~N: Data, +fast_skip: U32, +slow_skip: U32, fast: Result<&2, &1, Params.Error, Ma.State<N>>, slow: Result<&2, &1, Params.Error, Ma.State<N>>, signal: Result<&2, &1, Params.Error, Ma.State<N>>) -> Result<&2, &1, Params.Error, Macd<N>>:
   match fast slow signal:
-    case Done{fast} Done{slow} Done{signal}: Done{Macd{Delayed{fast_skip, fast}, Delayed{slow_skip, slow}, signal, origin}}
+    case Done{fast} Done{slow} Done{signal}: Done{Macd{Delayed{fast_skip, fast}, Delayed{slow_skip, slow}, signal}}
     case _ _ _: Fail{Params.InvalidParameter{}}
 
 
-def macd.sorted(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Params.Error, Ma.State<N>>, +fast: U32, +ftype: U32, +slow: U32, +stype: U32, signal: U32, sigtype: U32) -> Result<&2, &1, Params.Error, Macd<N>>:
+def macd.sorted(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Params.Error, Ma.State<N>>, +fast: U32, +ftype: U32, +slow: U32, +stype: U32, signal: U32, sigtype: U32) -> Result<&2, &1, Params.Error, Macd<N>>:
   +f = Ma.lookback(fast, ftype)
   +s = Ma.lookback(slow, stype)
   +longest = U32.max(f, s)
-  macd.created(~N, U32.sub(longest, f), U32.sub(longest, s), Bool.pick(Maybe<&2, N>, Bool.or(U32.is_eq(ftype, 7), U32.is_eq(stype, 7)), Some{from(0)}, None{}), make(fast, ftype), make(slow, stype), make(signal, sigtype))
+  macd.created(~N, U32.sub(longest, f), U32.sub(longest, s), make(fast, ftype), make(slow, stype), make(signal, sigtype))
 
 
-def macd.init(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Params.Error, Ma.State<N>>, +fast: U32, +ftype: U32, +slow: U32, +stype: U32, signal: U32, sigtype: U32) -> Result<&2, &1, Params.Error, Macd<N>>:
-  macd.sorted(~N, ~from, ~make, U32.min(fast, slow), Bool.pick(U32, U32.is_le(fast, slow), ftype, stype), U32.max(fast, slow), Bool.pick(U32, U32.is_le(fast, slow), stype, ftype), signal, sigtype)
+def macd.init(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Params.Error, Ma.State<N>>, +fast: U32, +ftype: U32, +slow: U32, +stype: U32, signal: U32, sigtype: U32) -> Result<&2, &1, Params.Error, Macd<N>>:
+  macd.sorted(~N, ~make, U32.min(fast, slow), Bool.pick(U32, U32.is_le(fast, slow), ftype, stype), U32.max(fast, slow), Bool.pick(U32, U32.is_le(fast, slow), stype, ftype), signal, sigtype)
 
 
-def macd.signal(~N: Data, ~sub: N -> N -> N, fast: Delayed<N>, slow: Delayed<N>, origin: Maybe<&2, N>, +line: N, result: Ma.State<N> & Maybe<&2, N>) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
+def macd.signal(~N: Data, ~sub: N -> N -> N, fast: Delayed<N>, slow: Delayed<N>, +line: N, result: Ma.State<N> & Maybe<&2, N>) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
   match result:
-    case (signal, None{}): (Macd{fast, slow, signal, origin}, None{})
-    case (signal, Some{+value}): (Macd{fast, slow, signal, origin}, Some{Smooth.MACDValue{line, value, sub(line, value)}})
+    case (signal, None{}): (Macd{fast, slow, signal}, None{})
+    case (signal, Some{+value}): (Macd{fast, slow, signal}, Some{Smooth.MACDValue{line, value, sub(line, value)}})
 
 
-def macd.slow(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, fast: Delayed<N>, signal: Ma.State<N>, origin: Maybe<&2, N>, result: Delayed<N> & Maybe<&2, N>, a: Maybe<&2, N>) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
+def macd.slow(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, fast: Delayed<N>, signal: Ma.State<N>, result: Delayed<N> & Maybe<&2, N>, a: Maybe<&2, N>) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
   match result a:
     case (slow, Some{b}) Some{x}:
       +line = sub(x, b)
-      macd.signal(~N, ~sub, fast, slow, origin, line, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, signal, line))
-    case (slow, _) _: (Macd{fast, slow, signal, origin}, None{})
+      macd.signal(~N, ~sub, fast, slow, line, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, signal, line))
+    case (slow, _) _: (Macd{fast, slow, signal}, None{})
 
 
-def macd.fast(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, slow: Delayed<N>, signal: Ma.State<N>, origin: Maybe<&2, N>, price: N, result: Delayed<N> & Maybe<&2, N>) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
+def macd.fast(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, slow: Delayed<N>, signal: Ma.State<N>, price: N, result: Delayed<N> & Maybe<&2, N>) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
   match result:
-    case (fast, a): macd.slow(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, fast, signal, origin, delayed.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, slow, price), a)
-
-
-def macd.step(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, fast: Delayed<N>, slow: Delayed<N>, signal: Ma.State<N>, +origin: N, +price: N) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
-  +x = sub(price, origin)
-  macd.fast(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, slow, signal, Some{origin}, x, delayed.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, fast, x))
+    case (fast, a): macd.slow(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, fast, signal, delayed.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, slow, price), a)
 
 
 def macd.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, state: Macd<N>, +price: N) -> Macd<N> & Maybe<&2, Smooth.MACDValue<N>>:
   match state:
-    case Macd{fast, slow, signal, None{}}: macd.step(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, fast, slow, signal, price, price)
-    case Macd{fast, slow, signal, Some{origin}}: macd.step(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, fast, slow, signal, origin, price)
+    case Macd{fast, slow, signal}: macd.fast(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, slow, signal, price, delayed.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, fast, price))
 
 
 def kst.average(~N: Data, longest: U32, +roc: U32, lookback: U32, +weight: N, average: Result<&2, &1, Params.Error, Ma.State<N>>, result: Result<&2, &1, Params.Error, Kst<N>>) -> Result<&2, &1, Params.Error, Kst<N>>:

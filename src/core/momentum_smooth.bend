@@ -8,52 +8,47 @@ import ./momentum.bend as Mom
 type Lines<-N: Data> is Data:
   Lines{first: N, second: N}
 
-type SpreadValue<-N: Data> is Data:
-  SpreadValue{first: N, second: N, origin: N}
-
 type Dual<-N: Data> is Type:
-  Dual{first: Ma.State<N>, second: Ma.State<N>, delay: U32, origin: Maybe<&2, N>}
+  Dual{first: Ma.State<N>, second: Ma.State<N>, delay: U32}
 
-def dual.init(~N: Data, +delay: U32, origin: Maybe<&2, N>, first: Result<&2, &1, Parameters.Error, Ma.State<N>>, second: Result<&2, &1, Parameters.Error, Ma.State<N>>) -> Result<&2, &1, Parameters.Error, Dual<N>>:
+def dual.init(~N: Data, +delay: U32, first: Result<&2, &1, Parameters.Error, Ma.State<N>>, second: Result<&2, &1, Parameters.Error, Ma.State<N>>) -> Result<&2, &1, Parameters.Error, Dual<N>>:
   match first second:
     case Fail{error} _: Fail{error}
     case Done{first} Fail{error}: Fail{error}
-    case Done{first} Done{second}: Done{Dual{first, second, delay, origin}}
+    case Done{first} Done{second}: Done{Dual{first, second, delay}}
 
-def dual.finish(~N: Data, +origin: N, first: Ma.State<N>, +delay: U32, result: Ma.State<N> & Maybe<&2, N>, value: Maybe<&2, N>) -> Dual<N> & Maybe<&2, SpreadValue<N>>:
+def dual.finish(~N: Data, first: Ma.State<N>, +delay: U32, result: Ma.State<N> & Maybe<&2, N>, value: Maybe<&2, N>) -> Dual<N> & Maybe<&2, Lines<N>>:
   match result value:
-    case (second, Some{b}) Some{a}: (Dual{first, second, delay, Some{origin}}, Some{SpreadValue{a, b, origin}})
-    case (second, _) _: (Dual{first, second, delay, Some{origin}}, None{})
+    case (second, Some{b}) Some{a}: (Dual{first, second, delay}, Some{Lines{a, b}})
+    case (second, _) _: (Dual{first, second, delay}, None{})
 
-def dual.first(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, second: Ma.State<N>, +origin: N, +delay: U32, +price: N, result: Ma.State<N> & Maybe<&2, N>) -> Dual<N> & Maybe<&2, SpreadValue<N>>:
+def dual.first(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, second: Ma.State<N>, +delay: U32, +price: N, result: Ma.State<N> & Maybe<&2, N>) -> Dual<N> & Maybe<&2, Lines<N>>:
   match result:
-    case (first, value): dual.finish(~N, origin, first, delay, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, second, price), value)
+    case (first, value): dual.finish(~N, first, delay, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, second, price), value)
 
-def dual.wait(~N: Data, +origin: N, first: Ma.State<N>, +delay: U32, result: Ma.State<N> & Maybe<&2, N>) -> Dual<N> & Maybe<&2, SpreadValue<N>>:
+def dual.wait(~N: Data, first: Ma.State<N>, +delay: U32, result: Ma.State<N> & Maybe<&2, N>) -> Dual<N> & Maybe<&2, Lines<N>>:
   match result:
-    case (second, value): (Dual{first, second, delay, Some{origin}}, None{})
+    case (second, value): (Dual{first, second, delay}, None{})
 
-def dual.advance(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, first: Ma.State<N>, second: Ma.State<N>, +origin: N, +delay: U32, +price: N, +waiting: Bool) -> Dual<N> & Maybe<&2, SpreadValue<N>>:
+def dual.advance(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, first: Ma.State<N>, second: Ma.State<N>, +delay: U32, +price: N, +waiting: Bool) -> Dual<N> & Maybe<&2, Lines<N>>:
   match waiting:
-    case True{}: dual.wait(~N, origin, first, U32.sub(delay, 1), Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, second, price))
-    case False{}: dual.first(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, second, origin, 0, price, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, first, price))
+    case True{}: dual.wait(~N, first, U32.sub(delay, 1), Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, second, price))
+    case False{}: dual.first(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, second, 0, price, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, first, price))
 
-def dual.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, state: Dual<N>, +price: N) -> Dual<N> & Maybe<&2, SpreadValue<N>>:
+def dual.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, state: Dual<N>, +price: N) -> Dual<N> & Maybe<&2, Lines<N>>:
   match state:
-    case Dual{first, second, +delay, None{}}: dual.advance(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, first, second, price, delay, from(0), U32.is_gt(delay, 0))
-    case Dual{first, second, +delay, Some{+origin}}: dual.advance(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, first, second, origin, delay, sub(price, origin), U32.is_gt(delay, 0))
+    case Dual{first, second, +delay}: dual.advance(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, first, second, delay, price, U32.is_gt(delay, 0))
 
-def difference(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~near_zero: N -> Bool, value: SpreadValue<N>, +percentage: Bool) -> N:
+def difference(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~near_zero: N -> Bool, value: Lines<N>, +percentage: Bool) -> N:
   match value:
-    case SpreadValue{first, +second, origin}:
+    case Lines{first, +second}:
       +diff = sub(first, second)
-      +den = add(origin, second)
-      Bool.pick(N, percentage, Bool.pick(N, near_zero(den), from(0), mul(div(diff, den), from(100))), diff)
+      Bool.pick(N, percentage, Bool.pick(N, near_zero(second), from(0), mul(div(diff, second), from(100))), diff)
 
-def dual.difference(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~near_zero: N -> Bool, result: Dual<N> & Maybe<&2, SpreadValue<N>>, +percentage: Bool) -> Dual<N> & Maybe<&2, N>:
+def dual.difference(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~near_zero: N -> Bool, result: Dual<N> & Maybe<&2, Lines<N>>, +percentage: Bool) -> Dual<N> & Maybe<&2, N>:
   match result:
     case (state, None{}): (state, None{})
-    case (state, Some{value}): (state, Some{difference(~N, ~from, ~add, ~sub, ~mul, ~div, ~near_zero, value, percentage)})
+    case (state, Some{value}): (state, Some{difference(~N, ~from, ~sub, ~mul, ~div, ~near_zero, value, percentage)})
 
 type MACD<-N: Data> is Type:
   MACD{oscillator: Dual<N>, signal: Ma.State<N>}
@@ -72,10 +67,10 @@ def macd.finish(~N: Data, ~sub: N -> N -> N, oscillator: Dual<N>, +line: N, resu
     case (signal, None{}): (MACD{oscillator, signal}, None{})
     case (signal, Some{+value}): (MACD{oscillator, signal}, Some{MACDValue{line, value, sub(line, value)}})
 
-def macd.signal(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, signal: Ma.State<N>, result: Dual<N> & Maybe<&2, SpreadValue<N>>) -> MACD<N> & Maybe<&2, MACDValue<N>>:
+def macd.signal(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, signal: Ma.State<N>, result: Dual<N> & Maybe<&2, Lines<N>>) -> MACD<N> & Maybe<&2, MACDValue<N>>:
   match result:
     case (oscillator, None{}): (MACD{oscillator, signal}, None{})
-    case (oscillator, Some{SpreadValue{first, second, origin}}):
+    case (oscillator, Some{Lines{first, second}}):
       +line = sub(first, second)
       macd.finish(~N, ~sub, oscillator, line, Ma.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, signal, line))
 
@@ -148,7 +143,7 @@ def pipeline.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> 
 
 def ao.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~atan: N -> N, ~near_zero: N -> Bool, state: Dual<N>, bar: Bar.HL<N>) -> Dual<N> & Maybe<&2, N>:
   match bar:
-    case Bar.HL{high, low}: dual.difference(~N, ~from, ~add, ~sub, ~mul, ~div, ~near_zero, dual.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, state, div(add(high, low), from(2))), False{})
+    case Bar.HL{high, low}: dual.difference(~N, ~from, ~sub, ~mul, ~div, ~near_zero, dual.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, ~atan, state, div(add(high, low), from(2))), False{})
 
 def ac.value(~N: Data, result: MACD<N> & Maybe<&2, MACDValue<N>>) -> MACD<N> & Maybe<&2, N>:
   match result:

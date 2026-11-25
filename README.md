@@ -30,7 +30,10 @@ observation.
 For ATR, build bars with `TA.Bar.hlc(high, low, close)`.
 Supply finite observations in arrival order with aligned bar fields. Handle
 missing data, timestamps, sessions, and price adjustments before calculation.
-F32 arithmetic can overflow or round away small changes.
+Near 1,000,000, adjacent F32 values are 0.0625 apart. Small price changes and
+differences between rounded averages can disappear. Long-period smoothers can
+settle slightly short of their target. Running totals lose precision as they
+grow, and F32 arithmetic can overflow.
 
 ## Develop
 

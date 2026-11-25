@@ -263,34 +263,27 @@ def live.count(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, 
   match result:
     case (window, count): live.ready(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, minimum, maximum, kind, price, selected, window, U32.is_ge(count, Bool.pick(U32, U32.is_eq(kind, 6), U32.add(maximum, 1), maximum)))
 
-def gaussian.output(~N: Data, result: Window.State<N> & Ma.Dot<N>) -> Window.State<N> & Maybe<&2, N>:
-  match result:
-    case (window, Ma.Dot{weights, sum}): (window, Some{sum})
-
-def gaussian(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~mul: N -> N -> N, window: Window.State<N>, weights: List<&2, N>) -> Window.State<N> & Maybe<&2, N>:
-  gaussian.output(~N, Window.fold(~N, ~Unit, ~Ma.Dot<N>, ~(u => a => x => Ma.gaussian.dot(~N, ~add, ~mul, u, a, x)), window, Unit{}, Ma.Dot{weights, from(0)}))
-
 def restore(~N: Data, period: U32, size: U32, pos: U32, result: Window.State<N> & Maybe<&2, N>) -> Window.State<N> & Maybe<&2, N>:
   match result:
     case (Window.Window{buffer, old_period, old_size, old_pos}, value): (Window.Window{buffer, period, size, pos}, value)
 
-def alma(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~mul: N -> N -> N, ~weights: U32 -> List<&2, N>, +period: U32, window: Window.State<N>, identity: Bool) -> Window.State<N> & Maybe<&2, N>:
+def alma(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~weights: U32 -> List<&2, N>, price: N, +period: U32, window: Window.State<N>, identity: Bool) -> Window.State<N> & Maybe<&2, N>:
   match window identity:
     case window True{}: Window.lag(~N, window, 0)
-    case Window.Window{buffer, +span, +size, +pos} False{}: restore(~N, span, size, pos, gaussian(~N, ~from, ~add, ~mul, Window.Window{buffer, span, period, pos}, weights(period)))
+    case Window.Window{buffer, +span, +size, +pos} False{}: restore(~N, span, size, pos, Ma.gaussian.mean(~N, ~from, ~add, ~sub, ~mul, ~abs, ~le, weights(period), Window.Window{buffer, span, period, pos}, price))
 
 def live.alma.value(~N: Data, minimum: U32, maximum: U32, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
     case (window, value): (Shared{window, Nil{}, minimum, maximum, 15}, value)
 
-def live.alma(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~mul: N -> N -> N, ~weights: U32 -> List<&2, N>, minimum: U32, maximum: U32, +selected: U32, result: Window.State<N> & Bool) -> State<N> & Maybe<&2, N>:
+def live.alma(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~weights: U32 -> List<&2, N>, price: N, minimum: U32, maximum: U32, +selected: U32, result: Window.State<N> & Bool) -> State<N> & Maybe<&2, N>:
   match result:
     case (window, False{}): (Shared{window, Nil{}, minimum, maximum, 15}, None{})
-    case (window, True{}): live.alma.value(~N, minimum, maximum, alma(~N, ~from, ~add, ~mul, ~weights, selected, window, U32.is_eq(selected, 1)))
+    case (window, True{}): live.alma.value(~N, minimum, maximum, alma(~N, ~from, ~add, ~sub, ~mul, ~abs, ~le, ~weights, price, selected, window, U32.is_eq(selected, 1)))
 
 def live.empty(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~weights: U32 -> List<&2, N>, minimum: U32, maximum: U32, kind: U32, price: N, selected: U32, window: Window.State<N>) -> State<N> & Maybe<&2, N>:
   match kind:
-    case 15: live.alma(~N, ~from, ~add, ~mul, ~weights, minimum, maximum, selected, Window.full(~N, window))
+    case 15: live.alma(~N, ~from, ~add, ~sub, ~mul, ~abs, ~le, ~weights, price, minimum, maximum, selected, Window.full(~N, window))
     case kind: live.count(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, minimum, maximum, kind, price, selected, Window.length(~N, window))
 
 def live(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, ~weights: U32 -> List<&2, N>, cells: List<&1, Cell<N>>, minimum: U32, maximum: U32, +kind: U32, price: N, selected: U32, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:

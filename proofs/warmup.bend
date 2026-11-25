@@ -214,45 +214,45 @@ def min_left(+a: U32, +b: U32, h: MNat.le(U32.to_nat(a), U32.to_nat(b))) -> {U32
 
 def sma_pending(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N,
-  +period: U32, +size: U32, +pos: U32, +total: N, +price: N, -buffer: Array<N>, -old: N,
+  +period: U32, +size: U32, +pos: U32, +total: Rolling.Total<N>, +price: N, -buffer: Array<N>, -old: N,
   +old_test: {U32.is_eq(size, period) == False{} : Bool}, +new_test: {U32.is_eq(U32.add(size, 1), period) == False{} : Bool}, +minimum: {U32.min(U32.add(size, 1), period) == U32.add(size, 1) : U32}
-) -> {Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, Window.push.result(~N, period, size, pos, (buffer, old)))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, U32.add(size, 1), U32.mod(U32.add(pos, 1), period)}, add(total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}:
+) -> {Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, Window.push.result(~N, period, size, pos, (buffer, old)))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, U32.add(size, 1), U32.mod(U32.add(pos, 1), period)}, Rolling.accumulate(~N, ~add, ~sub, total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}:
   -next_size = U32.add(size, 1)
   -next_pos = U32.mod(U32.add(pos, 1), period)
-  %Equal.sym(U32, U32.min(next_size, period), next_size, minimum) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, (Window.Window{buffer, period, _, next_pos}, Bool.pick(Maybe<&2, N>, U32.is_eq(size, period), Some{old}, None{})))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, add(total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
-  %Equal.sym(Bool, U32.is_eq(size, period), False{}, old_test) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, (Window.Window{buffer, period, next_size, next_pos}, Bool.pick(Maybe<&2, N>, _, Some{old}, None{})))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, add(total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
-  %Equal.sym(Bool, U32.is_eq(next_size, period), False{}, new_test) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.rebuild(~N, ~add, sub(price, price), add(total, price), (Window.Window{buffer, period, next_size, next_pos}, Bool.and(_, U32.is_zero(next_pos))))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, add(total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
-  %Equal.sym(Bool, U32.is_eq(next_size, period), False{}, new_test) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.emit(~N, add(total, price), (Window.Window{buffer, period, next_size, next_pos}, _))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, add(total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
+  %Equal.sym(U32, U32.min(next_size, period), next_size, minimum) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, (Window.Window{buffer, period, _, next_pos}, Bool.pick(Maybe<&2, N>, U32.is_eq(size, period), Some{old}, None{})))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, Rolling.accumulate(~N, ~add, ~sub, total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
+  %Equal.sym(Bool, U32.is_eq(size, period), False{}, old_test) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, (Window.Window{buffer, period, next_size, next_pos}, Bool.pick(Maybe<&2, N>, _, Some{old}, None{})))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, Rolling.accumulate(~N, ~add, ~sub, total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
+  %Equal.sym(Bool, U32.is_eq(next_size, period), False{}, new_test) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.advance(~N, ~add, ~sub, sub(price, price), total, price, None{}, (Window.Window{buffer, period, next_size, next_pos}, Bool.and(_, U32.is_zero(next_pos))))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, Rolling.accumulate(~N, ~add, ~sub, total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
+  %Equal.sym(Bool, U32.is_eq(next_size, period), False{}, new_test) : {Sma.emit(~N, ~from_u32, ~div, period, Rolling.emit(~N, Rolling.accumulate(~N, ~add, ~sub, total, price), (Window.Window{buffer, period, next_size, next_pos}, _))) == (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, next_size, next_pos}, Rolling.accumulate(~N, ~add, ~sub, total, price)}}, None{}) : Sma.State<N> & Maybe<&2, N>}
   {==}
 
 def sma_rebuilt_ready(
   ~N: Data, ~from_u32: U32 -> N, ~div: N -> N -> N,
-  period: U32, result: Window.State<N> & N
+  period: U32, result: Window.State<N> & Rolling.Total<N>
 ) -> {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.rebuild.emit(~N, result)))) == True{} : Bool}:
   match result:
     case (window, total): {==}
 
 def sma_boundary_rebuild(
-  ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~div: N -> N -> N,
-  cycled: Bool, +period: U32, +pos: U32, zero: N, +total: N, buffer: Array<N>
-) -> {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.rebuild(~N, ~add, zero, total, (Window.Window{buffer, period, period, pos}, cycled))))) == True{} : Bool}:
+  ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N,
+  cycled: Bool, +period: U32, +pos: U32, +zero: N, +total: Rolling.Total<N>, +price: N, buffer: Array<N>
+) -> {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.advance(~N, ~add, ~sub, zero, total, price, None{}, (Window.Window{buffer, period, period, pos}, cycled))))) == True{} : Bool}:
   match cycled:
     case False{}:
-      %Equal.sym(Bool, U32.is_eq(period, period), True{}, eq_check(period, period, {==})) : {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.emit(~N, total, (Window.Window{buffer, period, period, pos}, _))))) == True{} : Bool}
+      %Equal.sym(Bool, U32.is_eq(period, period), True{}, eq_check(period, period, {==})) : {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.emit(~N, Rolling.accumulate(~N, ~add, ~sub, total, price), (Window.Window{buffer, period, period, pos}, _))))) == True{} : Bool}
       {==}
     case True{}:
-      sma_rebuilt_ready(~N, ~from_u32, ~div, period, Window.fold(~N, ~Unit, ~N, ~(c => s => x => Rolling.rebuild.step(~N, ~add, c, s, x)), Window.Window{buffer, period, period, pos}, Unit{}, zero))
+      sma_rebuilt_ready(~N, ~from_u32, ~div, period, Window.fold(~N, ~Unit, ~Rolling.Total<N>, ~(c => s => x => Rolling.accumulate(~N, ~add, ~sub, s, x)), Window.Window{buffer, period, period, pos}, Unit{}, Rolling.Total{zero, zero}))
 
 def sma_ready(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N,
-  +period: U32, +size: U32, +pos: U32, +total: N, +price: N, buffer: Array<N>, -old: N,
+  +period: U32, +size: U32, +pos: U32, +total: Rolling.Total<N>, +price: N, buffer: Array<N>, -old: N,
   old_test: {U32.is_eq(size, period) == False{} : Bool}, minimum: {U32.min(U32.add(size, 1), period) == period : U32}
 ) -> {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, Window.push.result(~N, period, size, pos, (buffer, old)))))) == True{} : Bool}:
   +next_pos = U32.mod(U32.add(pos, 1), period)
   %Equal.sym(U32, U32.min(U32.add(size, 1), period), period, minimum) : {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, (Window.Window{buffer, period, _, next_pos}, Bool.pick(Maybe<&2, N>, U32.is_eq(size, period), Some{old}, None{})))))) == True{} : Bool}
   %Equal.sym(Bool, U32.is_eq(size, period), False{}, old_test) : {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, (Window.Window{buffer, period, period, next_pos}, Bool.pick(Maybe<&2, N>, _, Some{old}, None{})))))) == True{} : Bool}
-  %Equal.sym(Bool, U32.is_eq(period, period), True{}, eq_check(period, period, {==})) : {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.rebuild(~N, ~add, sub(price, price), add(total, price), (Window.Window{buffer, period, period, next_pos}, Bool.and(_, U32.is_zero(next_pos))))))) == True{} : Bool}
-  sma_boundary_rebuild(~N, ~from_u32, ~add, ~div, U32.is_zero(next_pos), period, next_pos, sub(price, price), add(total, price), buffer)
+  %Equal.sym(Bool, U32.is_eq(period, period), True{}, eq_check(period, period, {==})) : {is_some(N, Pair.snd(Sma.State<N>, Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.advance(~N, ~add, ~sub, sub(price, price), total, price, None{}, (Window.Window{buffer, period, period, next_pos}, Bool.and(_, U32.is_zero(next_pos))))))) == True{} : Bool}
+  sma_boundary_rebuild(~N, ~from_u32, ~add, ~sub, ~div, U32.is_zero(next_pos), period, next_pos, sub(price, price), total, price, buffer)
 
 def shape_from_after(
   ~N: Data, ~S: Type, ~step: S -> N -> S & Maybe<&2, N>,
@@ -266,7 +266,7 @@ def shape_from_after(
 def sma_warming_step(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N,
   ~D: Data, ~sample: D -> Nat -> N,
-  remaining: Nat, +data: D, +offset: Nat, +period: U32, +size: U32, +pos: U32, +total: N, +price: N, result: Array<N> & N,
+  remaining: Nat, +data: D, +offset: Nat, +period: U32, +size: U32, +pos: U32, +total: Rolling.Total<N>, +price: N, result: Array<N> & N,
   +schedule: {Nat.add(U32.to_nat(size), 1n+remaining) == U32.to_nat(period) : Nat}
 ) -> warm_shape_after(N, Sma.State<N>, s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x), remaining, at => sample(data, at), offset, Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, Window.push.result(~N, period, size, pos, result)))):
   match remaining:
@@ -283,10 +283,10 @@ def sma_warming_step(
           +next_schedule = scheduled_next(size, period, 1n+rest, schedule)
           +before_next = scheduled_before(U32.add(size, 1), period, rest, next_schedule)
           equation = sma_pending(~N, ~from_u32, ~add, ~sub, ~div, period, size, pos, total, price, buffer, old, lt_check(size, period, scheduled_before(size, period, 1n+rest, schedule)), lt_check(U32.add(size, 1), period, before_next), min_left(U32.add(size, 1), period, MNat.le_of_lt(U32.to_nat(U32.add(size, 1)), U32.to_nat(period), before_next)))
-          %Equal.sym(Sma.State<N> & Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, Window.push.result(~N, period, size, pos, (buffer, old)))), (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, U32.add(size, 1), U32.mod(U32.add(pos, 1), period)}, add(total, price)}}, None{}), equation) : warm_shape_after(N, Sma.State<N>, s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x), 1n+rest, at => sample(data, at), offset, _)
+          %Equal.sym(Sma.State<N> & Maybe<&2, N>, Sma.emit(~N, ~from_u32, ~div, period, Rolling.pushed(~N, ~add, ~sub, total, price, Window.push.result(~N, period, size, pos, (buffer, old)))), (Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, U32.add(size, 1), U32.mod(U32.add(pos, 1), period)}, Rolling.accumulate(~N, ~add, ~sub, total, price)}}, None{}), equation) : warm_shape_after(N, Sma.State<N>, s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x), 1n+rest, at => sample(data, at), offset, _)
           +next_pos = U32.mod(U32.add(pos, 1), period)
           +next_price = sample(data, 1n+offset)
-          ({==}, shape_from_after(~N, ~Sma.State<N>, ~(s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x)), rest, at => sample(data, at), 1n+offset, Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, U32.add(size, 1), next_pos}, add(total, price)}}, sma_warming_step(~N, ~from_u32, ~add, ~sub, ~div, ~D, ~sample, rest, data, 1n+offset, period, U32.add(size, 1), next_pos, add(total, price), next_price, Array.swap(N, buffer, next_pos, next_price), next_schedule)))
+          ({==}, shape_from_after(~N, ~Sma.State<N>, ~(s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x)), rest, at => sample(data, at), 1n+offset, Sma.Sma{period, Rolling.Sum{Window.Window{buffer, period, U32.add(size, 1), next_pos}, Rolling.accumulate(~N, ~add, ~sub, total, price)}}, sma_warming_step(~N, ~from_u32, ~add, ~sub, ~div, ~D, ~sample, rest, data, 1n+offset, period, U32.add(size, 1), next_pos, Rolling.accumulate(~N, ~add, ~sub, total, price), next_price, Array.swap(N, buffer, next_pos, next_price), next_schedule)))
 
 def sma_initial_warmup(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~div: N -> N -> N,
@@ -294,7 +294,7 @@ def sma_initial_warmup(
   +period: U32, +data: D, depth: Nat, valid: {Configuration.domain(period) == True{} : Bool}
 ) -> warm_shape(N, Sma.State<N>, s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x), U32.to_nat(U32.sub(period, 1)), at => sample(data, at), 0n, Sma.init(~N, ~from_u32, period, depth)):
   +price = sample(data, 0n)
-  shape_from_after(~N, ~Sma.State<N>, ~(s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x)), U32.to_nat(U32.sub(period, 1)), at => sample(data, at), 0n, Sma.init(~N, ~from_u32, period, depth), sma_warming_step(~N, ~from_u32, ~add, ~sub, ~div, ~D, ~sample, U32.to_nat(U32.sub(period, 1)), data, 0n, period, 0, 0, from_u32(0), price, Array.swap(N, Array.new(N, depth, from_u32(0)), 0, price), lookback_schedule(period, valid)))
+  shape_from_after(~N, ~Sma.State<N>, ~(s => x => Sma.next(~N, ~from_u32, ~add, ~sub, ~div, s, x)), U32.to_nat(U32.sub(period, 1)), at => sample(data, at), 0n, Sma.init(~N, ~from_u32, period, depth), sma_warming_step(~N, ~from_u32, ~add, ~sub, ~div, ~D, ~sample, U32.to_nat(U32.sub(period, 1)), data, 0n, period, 0, 0, Rolling.Total{from_u32(0), from_u32(0)}, price, Array.swap(N, Array.new(N, depth, from_u32(0)), 0, price), lookback_schedule(period, valid)))
 
 def ema_initial_warmup_shape(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N,

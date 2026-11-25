@@ -133,28 +133,43 @@ def adaptive.cached(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -
     case (Window.Window{buffer, capacity, size, +pos}, old): adaptive.chosen(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, cache, old, input, Window.Window{buffer, capacity, size, pos}, U32.is_zero(pos))
 
 type Dot<-N: Data> is Data:
-  Dot{weights: List<&2, N>, sum: N}
+  Dot{weights: List<&2, N>, center: N, weight_sum: Average.Sum<N>, deviation: Average.Sum<N>}
 
-def gaussian.dot(~N: Data, ~add: N -> N -> N, ~mul: N -> N -> N, u: Unit, acc: Dot<N>, x: N) -> Dot<N>:
+def gaussian.term(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, weights: List<&2, N>, +weight: N, +weight_sum: Average.Sum<N>, deviation: Average.Sum<N>, +center: N, +price: N, keep_center: Bool) -> Dot<N>:
+  match keep_center:
+    case True{}:
+      delta = mul(weight, sub(price, center))
+      Dot{weights, center, Average.sum.add(~N, ~add, ~sub, weight_sum, weight), Average.sum.add(~N, ~add, ~sub, deviation, delta)}
+    case False{}:
+      delta = mul(Average.sum.value(~N, weight_sum), sub(center, price))
+      Dot{weights, price, Average.sum.add(~N, ~add, ~sub, weight_sum, weight), Average.sum.add(~N, ~add, ~sub, deviation, delta)}
+
+def gaussian.dot(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, acc: Dot<N>, +x: N) -> Dot<N>:
   match acc:
-    case Dot{Nil{}, sum}: Dot{Nil{}, sum}
-    case Dot{w <> ws, sum}: Dot{ws, add(sum, mul(w, x))}
+    case Dot{Nil{}, center, weight_sum, deviation}: Dot{Nil{}, center, weight_sum, deviation}
+    case Dot{w <> ws, +center, weight_sum, deviation}: gaussian.term(~N, ~add, ~sub, ~mul, ws, w, weight_sum, deviation, center, x, le(abs(center), abs(x)))
 
-def gaussian.finish(~N: Data, weights: List<&2, N>, result: Window.State<N> & Dot<N>) -> State<N> & Maybe<&2, N>:
+def gaussian.finish(~N: Data, ~add: N -> N -> N, result: Window.State<N> & Dot<N>) -> Window.State<N> & Maybe<&2, N>:
   match result:
-    case (window, Dot{ws, sum}): (Gaussian{window, weights}, Some{sum})
+    case (window, Dot{ws, center, weight_sum, deviation}): (window, Some{add(center, Average.sum.value(~N, deviation))})
 
-def gaussian.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~mul: N -> N -> N, +weights: List<&2, N>, result: Window.State<N> & Bool) -> State<N> & Maybe<&2, N>:
+def gaussian.mean(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, weights: List<&2, N>, window: Window.State<N>, price: N) -> Window.State<N> & Maybe<&2, N>:
+  +zero = from(0)
+  +empty : Average.Sum<N> = Average.Sum{zero, zero}
+  gaussian.finish(~N, ~add, Window.fold(~N, ~Unit, ~Dot<N>, ~(u => a => x => gaussian.dot(~N, ~add, ~sub, ~mul, ~abs, ~le, a, x)), window, Unit{}, Dot{weights, price, empty, empty}))
+
+def gaussian.output(~N: Data, weights: List<&2, N>, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+  match result:
+    case (window, value): (Gaussian{window, weights}, value)
+
+def gaussian.ready(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, +weights: List<&2, N>, price: N, result: Window.State<N> & Bool) -> State<N> & Maybe<&2, N>:
   match result:
     case (window, False{}): (Gaussian{window, weights}, None{})
-    case (window, True{}): gaussian.finish(~N, weights, Window.fold(~N, ~Unit, ~Dot<N>, ~(u => a => x => gaussian.dot(~N, ~add, ~mul, u, a, x)), window, Unit{}, Dot{weights, from(0)}))
+    case (window, True{}): gaussian.output(~N, weights, gaussian.mean(~N, ~from, ~add, ~sub, ~mul, ~abs, ~le, weights, window, price))
 
-def gaussian.push.result(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~mul: N -> N -> N, weights: List<&2, N>, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
+def gaussian.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~abs: N -> N, ~le: N -> N -> Bool, weights: List<&2, N>, price: N, result: Window.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
-    case (window, old): gaussian.ready(~N, ~from, ~add, ~mul, weights, Window.full(~N, window))
-
-def gaussian.pushed(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~mul: N -> N -> N, window: Window.State<N>, weights: List<&2, N>, x: N) -> State<N> & Maybe<&2, N>:
-  gaussian.push.result(~N, ~from, ~add, ~mul, weights, Window.push(~N, window, x))
+    case (window, old): gaussian.ready(~N, ~from, ~add, ~sub, ~mul, ~abs, ~le, weights, price, Window.full(~N, window))
 
 def zerolag.finish(~N: Data, window: Window.State<N>, result: Ema.State<N> & Maybe<&2, N>) -> State<N> & Maybe<&2, N>:
   match result:
@@ -210,7 +225,7 @@ def next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: 
     case Variable{state}: next.variable(~N, Vidya.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price))
     case Identity{}: (Identity{}, Some{price})
     case Adaptive{window, period, value, cache}: adaptive.cached(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, period, value, cache, price, Window.push(~N, window, price))
-    case Gaussian{window, weights}: gaussian.pushed(~N, ~from, ~add, ~mul, window, weights, price)
+    case Gaussian{window, weights}: gaussian.pushed(~N, ~from, ~add, ~sub, ~mul, ~abs, ~le, weights, price, Window.push(~N, window, price))
     case ZeroLag{window, state}: zerolag.pushed(~N, ~from, ~add, ~sub, ~mul, ~div, state, price, Window.push(~N, window, price))
     case Hull{fast, slow, outer}: hull.fast(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, slow, outer, price, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, fast, price))
     case Simple{state}: next.simple(~N, Average.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~abs, ~le, state, price))
@@ -239,10 +254,10 @@ def gaussian.weights.collect(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~mul:
 def gaussian.weights(~N: Data, ~from: U32 -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, fuel: Nat, at: U32, center: N, scale: N) -> List<&2, N>:
   gaussian.weights.collect(~N, ~from, ~sub, ~mul, ~div, ~exp, fuel, at, center, scale, Nil{})
 
-def gaussian.sum(~N: Data, ~add: N -> N -> N, xs: List<&2, N>, acc: N) -> N:
+def gaussian.sum(~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, xs: List<&2, N>, acc: Average.Sum<N>) -> N:
   match xs:
-    case Nil{}: acc
-    case x <> rest: gaussian.sum(~N, ~add, rest, add(acc, x))
+    case Nil{}: Average.sum.value(~N, acc)
+    case x <> rest: gaussian.sum(~N, ~add, ~sub, rest, Average.sum.add(~N, ~add, ~sub, acc, x))
 
 def gaussian.normalize.collect(~N: Data, ~div: N -> N -> N, xs: List<&2, N>, +total: N, acc: List<&2, N>) -> List<&2, N>:
   match xs:
@@ -254,7 +269,7 @@ def gaussian.normalize(~N: Data, ~div: N -> N -> N, xs: List<&2, N>, total: N) -
 
 def gaussian.coefficients(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, sigma: N, offset: N) -> List<&2, N>:
   +weights = gaussian.weights(~N, ~from, ~sub, ~mul, ~div, ~exp, U32.to_nat(period), 0, floor(mul(offset, from(U32.sub(period, 1)))), div(from(period), sigma))
-  gaussian.normalize(~N, ~div, weights, gaussian.sum(~N, ~add, weights, from(0)))
+  gaussian.normalize(~N, ~div, weights, gaussian.sum(~N, ~add, ~sub, weights, Average.Sum{from(0), from(0)}))
 
 def gaussian.window.make(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~exp: N -> N, ~floor: N -> N, +period: U32, depth: Nat, sigma: N, offset: N) -> State<N>:
   Gaussian{Window.init(~N, period, depth, from(0)), gaussian.coefficients(~N, ~from, ~add, ~sub, ~mul, ~div, ~exp, ~floor, period, sigma, offset)}

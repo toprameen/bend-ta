@@ -1,4 +1,5 @@
 import Base
+import ./core/smoothing.bend as Smoothing
 import ./core/rolling_average.bend as Average
 import ./core/variable_shared.bend as VariableShared
 import ./core/clone.bend as Clone
@@ -168,7 +169,7 @@ def SUM.init.result(result: Result<&2, &1, Error(), Window.State()>) -> Result<&
     case Fail{e}:
       Fail{e}
     case Done{window}:
-      Done{Rolling.Sum{window, 0.0}}
+      Done{Rolling.Sum{window, Rolling.Total{0.0, 0.0}}}
 
 def SUM.init(period: U32) -> Result<&2, &1, Error(), SUM.State()>:
   SUM.init.result(Window.init(period))
@@ -2649,10 +2650,10 @@ def parameters.APO(+fast: U32, +slow: U32, +kind: U32) -> Bool:
   Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Ma.supported(kind))
 
 def APO.init(+fast: U32, +slow: U32, +kind: U32) -> Result<&2, &1, Momentum.Error(), APO.State()>:
-  Momentum.configure(~APO.State(), parameters.APO(fast, slow, kind), u => MomentumInit.apo(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, kind))
+  Momentum.configure(~APO.State(), parameters.APO(fast, slow, kind), u => MomentumInit.apo(~F32, ~Momentum.ma, fast, slow, kind))
 
 def APO.next(state: APO.State(), value: F32) -> APO.State() & Maybe<&2, F32>:
-  MomentumSmooth.dual.difference(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~Momentum.ppo_zero, MomentumSmooth.dual.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value), False{})
+  MomentumSmooth.dual.difference(~F32, ~U32.to_f32, ~F32.sub, ~F32.mul, ~F32.div, ~Momentum.ppo_zero, MomentumSmooth.dual.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value), False{})
 
 def APO.batch(xs: List<&2, F32>, +fast: U32, +slow: U32, +kind: U32) -> Result<&2, &2, Momentum.Error(), List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~APO.State(), ~Momentum.Error(), ~APO.next, xs, APO.init(fast, slow, kind))
@@ -2664,10 +2665,10 @@ def parameters.PPO(+fast: U32, +slow: U32, +kind: U32) -> Bool:
   Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Ma.supported(kind))
 
 def PPO.init(+fast: U32, +slow: U32, +kind: U32) -> Result<&2, &1, Momentum.Error(), PPO.State()>:
-  Momentum.configure(~PPO.State(), parameters.PPO(fast, slow, kind), u => MomentumInit.apo(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, kind))
+  Momentum.configure(~PPO.State(), parameters.PPO(fast, slow, kind), u => MomentumInit.apo(~F32, ~Momentum.ma, fast, slow, kind))
 
 def PPO.next(state: PPO.State(), value: F32) -> PPO.State() & Maybe<&2, F32>:
-  MomentumSmooth.dual.difference(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~Momentum.ppo_zero, MomentumSmooth.dual.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value), True{})
+  MomentumSmooth.dual.difference(~F32, ~U32.to_f32, ~F32.sub, ~F32.mul, ~F32.div, ~Momentum.ppo_zero, MomentumSmooth.dual.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value), True{})
 
 def PPO.batch(xs: List<&2, F32>, +fast: U32, +slow: U32, +kind: U32) -> Result<&2, &2, Momentum.Error(), List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~PPO.State(), ~Momentum.Error(), ~PPO.next, xs, PPO.init(fast, slow, kind))
@@ -2679,7 +2680,7 @@ def parameters.AO(+fast: U32, +slow: U32) -> Bool:
   Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2))
 
 def AO.init(+fast: U32, +slow: U32) -> Result<&2, &1, Momentum.Error(), AO.State()>:
-  Momentum.configure(~AO.State(), parameters.AO(fast, slow), u => MomentumInit.ao(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow))
+  Momentum.configure(~AO.State(), parameters.AO(fast, slow), u => MomentumInit.ao(~F32, ~Momentum.ma, fast, slow))
 
 def AO.next(state: AO.State(), value: Bars.HL<F32>) -> AO.State() & Maybe<&2, F32>:
   MomentumSmooth.ao.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, ~Momentum.ppo_zero, state, value)
@@ -2694,7 +2695,7 @@ def parameters.AC(+fast: U32, +slow: U32, +signal: U32) -> Bool:
   Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 2))
 
 def AC.init(+fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Momentum.Error(), AC.State()>:
-  Momentum.configure(~AC.State(), parameters.AC(fast, slow, signal), u => MomentumInit.ac(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, signal))
+  Momentum.configure(~AC.State(), parameters.AC(fast, slow, signal), u => MomentumInit.ac(~F32, ~Momentum.ma, fast, slow, signal))
 
 def AC.next(state: AC.State(), value: Bars.HL<F32>) -> AC.State() & Maybe<&2, F32>:
   MomentumSmooth.ac.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value)
@@ -2709,7 +2710,7 @@ def parameters.MACD(+fast: U32, +slow: U32, +signal: U32) -> Bool:
   Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1))
 
 def MACD.init(+fast: U32, +slow: U32, +signal: U32) -> Result<&2, &1, Momentum.Error(), MACD.State()>:
-  Momentum.configure(~MACD.State(), parameters.MACD(fast, slow, signal), u => MomentumInit.macd(~F32, ~U32.to_f32, ~Momentum.ma, fast, slow, signal))
+  Momentum.configure(~MACD.State(), parameters.MACD(fast, slow, signal), u => MomentumInit.macd(~F32, ~Momentum.ma, fast, slow, signal))
 
 def MACD.next(state: MACD.State(), value: F32) -> MACD.State() & Maybe<&2, MACD.Value()>:
   MomentumSmooth.macd.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value)
@@ -3397,7 +3398,7 @@ def parameters.MACDEXT(+fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32,
   Bool.and(Bool.and(Bool.and(Bool.and(Bool.and(Momentum.period(fast, 2), Momentum.period(slow, 2)), Momentum.period(signal, 1)), Momentum.selector(fast, fast_kind)), Momentum.selector(slow, slow_kind)), Momentum.selector(signal, signal_kind))
 
 def MACDEXT.init(+fast: U32, +fast_kind: U32, +slow: U32, +slow_kind: U32, +signal: U32, +signal_kind: U32) -> Result<&2, &1, Params.Error, MACDEXT.State()>:
-  Momentum.configure(~MACDEXT.State(), parameters.MACDEXT(fast, fast_kind, slow, slow_kind, signal, signal_kind), u => TrendComposite.macd.init(~F32, ~U32.to_f32, ~Momentum.ma, fast, fast_kind, slow, slow_kind, signal, signal_kind))
+  Momentum.configure(~MACDEXT.State(), parameters.MACDEXT(fast, fast_kind, slow, slow_kind, signal, signal_kind), u => TrendComposite.macd.init(~F32, ~Momentum.ma, fast, fast_kind, slow, slow_kind, signal, signal_kind))
 
 def MACDEXT.next(state: MACDEXT.State(), value: F32) -> MACDEXT.State() & Maybe<&2, MACDEXT.Value()>:
   TrendComposite.macd.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.abs, ~F32.is_le, ~F32.atan, state, value)
@@ -3726,25 +3727,25 @@ def filter.valid(+period: U32, minimum: U32, maximum: U32) -> Bool:
   Bool.and(U32.is_ge(period, minimum), U32.is_le(period, maximum))
 
 def SWAK_BUTTER.State() -> Data:
-  Filters.State<F32>
+  Filters.LowPass<F32>
 
 def SWAK_BUTTER.init(+period: U32) -> Result<&2, &1, Params.Error, SWAK_BUTTER.State()>:
-  overlap.init(~SWAK_BUTTER.State(), filter.valid(period, 2, 10000), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 0, period, 0.0))
+  overlap.init(~SWAK_BUTTER.State(), filter.valid(period, 2, 10000), u => Filters.Seed{Filters.alpha(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.sqrt, ~F32.atan, period)})
 
 def SWAK_BUTTER.next(state: SWAK_BUTTER.State(), value: F32) -> SWAK_BUTTER.State() & Maybe<&2, F32>:
-  Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
+  Filters.low_pass.next(~F32, ~F32.add, ~F32.sub, ~F32.mul, ~(previous => price => Smoothing.ema_step(~F32, ~F32.add, ~F32.sub, ~F32.mul, 0.5, previous, price)), state, value)
 
 def SWAK_BUTTER.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~SWAK_BUTTER.State(), ~Params.Error, ~SWAK_BUTTER.next, xs, SWAK_BUTTER.init(period))
 
 def SWAK_GAUSS.State() -> Data:
-  Filters.State<F32>
+  Filters.LowPass<F32>
 
 def SWAK_GAUSS.init(+period: U32) -> Result<&2, &1, Params.Error, SWAK_GAUSS.State()>:
-  overlap.init(~SWAK_GAUSS.State(), filter.valid(period, 2, 10000), u => Filters.init(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.cos, ~F32.sqrt, ~F32.atan, 1, period, 0.0))
+  overlap.init(~SWAK_GAUSS.State(), filter.valid(period, 2, 10000), u => Filters.Seed{Filters.alpha(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, ~F32.div, ~F32.sin, ~F32.sqrt, ~F32.atan, period)})
 
 def SWAK_GAUSS.next(state: SWAK_GAUSS.State(), value: F32) -> SWAK_GAUSS.State() & Maybe<&2, F32>:
-  Filters.next(~F32, ~U32.to_f32, ~F32.add, ~F32.sub, ~F32.mul, state, value)
+  Filters.low_pass.next(~F32, ~F32.add, ~F32.sub, ~F32.mul, ~(previous => price => price), state, value)
 
 def SWAK_GAUSS.batch(xs: List<&2, F32>, period: U32) -> Result<&2, &2, Params.Error, List<&2, Maybe<&2, F32>>>:
   Series.initialized(~F32, ~F32, ~SWAK_GAUSS.State(), ~Params.Error, ~SWAK_GAUSS.next, xs, SWAK_GAUSS.init(period))
@@ -5138,10 +5139,10 @@ def HT_TRENDMODE.clone(state: HT_TRENDMODE.State()) -> HT_TRENDMODE.State() & HT
   Clone.hilbert(~F32, state)
 
 def SWAK_BUTTER.clone(state: SWAK_BUTTER.State()) -> SWAK_BUTTER.State() & SWAK_BUTTER.State():
-  Clone.data(~Filters.State<F32>, state)
+  Clone.data(~SWAK_BUTTER.State(), state)
 
 def SWAK_GAUSS.clone(state: SWAK_GAUSS.State()) -> SWAK_GAUSS.State() & SWAK_GAUSS.State():
-  Clone.data(~Filters.State<F32>, state)
+  Clone.data(~SWAK_GAUSS.State(), state)
 
 def SWAK_2PHP.clone(state: SWAK_2PHP.State()) -> SWAK_2PHP.State() & SWAK_2PHP.State():
   Clone.data(~Filters.State<F32>, state)

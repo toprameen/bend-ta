@@ -1,4 +1,5 @@
 import Base
+import ./smoothing.bend as Smooth
 
 type Coefficients<-N: Data> is Data:
   Coefficients{input: N, first: N, second: N}
@@ -6,19 +7,30 @@ type Coefficients<-N: Data> is Data:
 type State<-N: Data> is Data:
   State{kind: U32, coefficients: Coefficients<N>, started: Bool, x1: N, x2: N, y1: N, y2: N}
 
-def two_pole(
-  ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N,
-  ~sin: N -> N, ~sqrt: N -> N, +kind: U32, period: U32, pi: N
-) -> Coefficients<N>:
-  +one = from_u32(1)
-  +two = from_u32(2)
-  +s = sin(div(pi, from_u32(period)))
-  +b = mul(div(from_u32(2415), from_u32(1000)), mul(mul(two, s), s))
-  +alpha = sub(sqrt(add(mul(b, b), mul(two, b))), b)
-  +om = sub(one, alpha)
-  +base = Bool.pick(N, U32.is_eq(kind, 2), sub(one, div(alpha, two)), alpha)
-  +square = mul(base, base)
-  Coefficients{Bool.pick(N, U32.is_zero(kind), div(square, from_u32(4)), square), mul(two, om), sub(from_u32(0), mul(om, om))}
+type LowPass<-N: Data> is Data:
+  Seed{alpha: N}
+  Cascade{alpha: N, previous: N, first: N, second: N}
+
+def alpha(
+  ~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N,
+  ~sin: N -> N, ~sqrt: N -> N, ~atan: N -> N, period: U32
+) -> N:
+  +two = from(2)
+  pi = mul(from(4), atan(from(1)))
+  +s = sin(div(pi, from(period)))
+  +b = mul(div(from(2415), from(1000)), mul(mul(two, s), s))
+  sub(sqrt(add(mul(b, b), mul(two, b))), b)
+
+def low_pass.next(
+  ~N: Data, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~input: N -> N -> N,
+  state: LowPass<N>, +price: N
+) -> LowPass<N> & Maybe<&2, N>:
+  match state:
+    case Seed{alpha}: (Cascade{alpha, price, price, price}, Some{price})
+    case Cascade{+alpha, previous, +first, second}:
+      +a = Smooth.ema_step(~N, ~add, ~sub, ~mul, alpha, first, input(previous, price))
+      +b = Smooth.ema_step(~N, ~add, ~sub, ~mul, alpha, second, input(first, a))
+      (Cascade{alpha, price, a, b}, Some{b})
 
 def coefficients(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N,
@@ -42,7 +54,10 @@ def coefficients(
       +alpha = div(mul(mul(two, s), sub(cos(h), s)), sub(one, mul(mul(two, s), s)))
       Coefficients{sub(one, div(alpha, two)), sub(one, alpha), from_u32(0)}
     case _:
-      two_pole(~N, ~from_u32, ~add, ~sub, ~mul, ~div, ~sin, ~sqrt, kind, period, mul(from_u32(4), atan(from_u32(1))))
+      +a = alpha(~N, ~from_u32, ~add, ~sub, ~mul, ~div, ~sin, ~sqrt, ~atan, period)
+      +om = sub(from_u32(1), a)
+      +base = sub(from_u32(1), div(a, from_u32(2)))
+      Coefficients{mul(base, base), mul(from_u32(2), om), sub(from_u32(0), mul(om, om))}
 
 def init(
   ~N: Data, ~from_u32: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N,
@@ -56,8 +71,6 @@ def numerator(
   kind: U32, x: N, x1: N, x2: N
 ) -> N:
   match kind:
-    case 0: add(add(x, mul(from_u32(2), x1)), x2)
-    case 1: x
     case 2: add(sub(x, mul(from_u32(2), x1)), x2)
     case 3: sub(x, x2)
     case _: sub(x, x1)
@@ -77,7 +90,7 @@ def next(
 ) -> State<N> & Maybe<&2, N>:
   match state:
     case State{+kind, coefficients, False{}, x1, x2, y1, y2}:
-      +seed = Bool.pick(N, U32.is_lt(kind, 2), x, from_u32(0))
+      +seed = from_u32(0)
       step(~N, ~from_u32, ~add, ~sub, ~mul, kind, coefficients, x, x, seed, seed, x)
     case State{kind, coefficients, True{}, x1, x2, y1, y2}:
       step(~N, ~from_u32, ~add, ~sub, ~mul, kind, coefficients, x1, x2, y1, y2, x)

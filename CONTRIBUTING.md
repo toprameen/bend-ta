@@ -22,6 +22,14 @@ constant input. Bend stores those expectations as F32.
 
 Review dependencies, workflow steps, and gate changes for embedded logic.
 
+## F32 arithmetic
+
+Accept rounding, changes below F32 resolution, and intermediate overflow near
+the limits of its range. Fix material errors in indicator behavior, such as a
+nonzero spread on flat prices. Prefer a stable formula in the shared core.
+Avoid special cases, arbitrary tolerances, or wider arithmetic just to match
+an F64 reference. Measure the cost of changes to streaming calculations.
+
 ## Local checks
 
 On macOS or Linux, use Git, Clang, `find`, `mktemp`, `rm`, and the Bend version

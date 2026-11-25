@@ -199,7 +199,7 @@ def stc.created(~N: Data, first: Cycle<N>, second: Cycle<N>, result: Result<&2, 
 
 
 def stc.init(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Params.Error, Ma.State<N>>, +fast: U32, +slow: U32, +cycle: U32) -> Result<&2, &1, Params.Error, Stc<N>>:
-  stc.created(~N, cycle.init(~N, ~from, cycle), cycle.init(~N, ~from, cycle), Init.dual(~N, ~from, ~make, U32.min(fast, slow), U32.max(fast, slow), 1, U32.sub(U32.max(fast, slow), U32.min(fast, slow))))
+  stc.created(~N, cycle.init(~N, ~from, cycle), cycle.init(~N, ~from, cycle), Init.dual(~N, ~make, U32.min(fast, slow), U32.max(fast, slow), 1, U32.sub(U32.max(fast, slow), U32.min(fast, slow))))
 
 
 def stc.second(~N: Data, macd: Smooth.Dual<N>, first: Cycle<N>, result: Cycle<N> & Maybe<&2, N>) -> Stc<N> & Maybe<&2, N>:
@@ -213,10 +213,10 @@ def stc.first(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~
     case (first, Some{value}): stc.second(~N, macd, first, cycle.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, ~le, second, value))
 
 
-def stc.macd(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, ~le: N -> N -> Bool, first: Cycle<N>, second: Cycle<N>, result: Smooth.Dual<N> & Maybe<&2, Smooth.SpreadValue<N>>) -> Stc<N> & Maybe<&2, N>:
+def stc.macd(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~eq: N -> N -> Bool, ~le: N -> N -> Bool, first: Cycle<N>, second: Cycle<N>, result: Smooth.Dual<N> & Maybe<&2, Smooth.Lines<N>>) -> Stc<N> & Maybe<&2, N>:
   match result:
     case (macd, None{}): (Stc{macd, first, second}, None{})
-    case (macd, Some{Smooth.SpreadValue{a, b, origin}}): stc.first(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, ~le, macd, second, cycle.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, ~le, first, sub(a, b)))
+    case (macd, Some{Smooth.Lines{a, b}}): stc.first(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, ~le, macd, second, cycle.next(~N, ~from, ~add, ~sub, ~mul, ~div, ~eq, ~le, first, sub(a, b)))
 
 
 def stc.next(~N: Data, ~from: U32 -> N, ~add: N -> N -> N, ~sub: N -> N -> N, ~mul: N -> N -> N, ~div: N -> N -> N, ~abs: N -> N, ~eq: N -> N -> Bool, ~le: N -> N -> Bool, ~atan: N -> N, state: Stc<N>, price: N) -> Stc<N> & Maybe<&2, N>:

@@ -256,10 +256,10 @@ def momentum_window.prices(~N: Data, value: MomentumWindow.Prices<N>) -> Momentu
 
 def momentum_smooth.dual(~N: Data, value: MomentumSmooth.Dual<N>) -> MomentumSmooth.Dual<N> & MomentumSmooth.Dual<N>:
   match value:
-    case MomentumSmooth.Dual{x_first, x_second, +x_delay, +x_origin}:
+    case MomentumSmooth.Dual{x_first, x_second, +x_delay}:
       pair(~Ma.State<N>, ~(MomentumSmooth.Dual<N> & MomentumSmooth.Dual<N>), ma(~N, x_first), x_first_a => x_first_b =>
         pair(~Ma.State<N>, ~(MomentumSmooth.Dual<N> & MomentumSmooth.Dual<N>), ma(~N, x_second), x_second_a => x_second_b =>
-          (MomentumSmooth.Dual{x_first_a, x_second_a, x_delay, x_origin}, MomentumSmooth.Dual{x_first_b, x_second_b, x_delay, x_origin})))
+          (MomentumSmooth.Dual{x_first_a, x_second_a, x_delay}, MomentumSmooth.Dual{x_first_b, x_second_b, x_delay})))
 
 def momentum_smooth.macd(~N: Data, value: MomentumSmooth.MACD<N>) -> MomentumSmooth.MACD<N> & MomentumSmooth.MACD<N>:
   match value:
@@ -476,11 +476,11 @@ def trend_composite.delayed(~N: Data, value: TrendComposite.Delayed<N>) -> Trend
 
 def trend_composite.macd(~N: Data, value: TrendComposite.Macd<N>) -> TrendComposite.Macd<N> & TrendComposite.Macd<N>:
   match value:
-    case TrendComposite.Macd{x_fast, x_slow, x_signal, +x_origin}:
+    case TrendComposite.Macd{x_fast, x_slow, x_signal}:
       pair(~TrendComposite.Delayed<N>, ~(TrendComposite.Macd<N> & TrendComposite.Macd<N>), trend_composite.delayed(~N, x_fast), x_fast_a => x_fast_b =>
         pair(~TrendComposite.Delayed<N>, ~(TrendComposite.Macd<N> & TrendComposite.Macd<N>), trend_composite.delayed(~N, x_slow), x_slow_a => x_slow_b =>
           pair(~Ma.State<N>, ~(TrendComposite.Macd<N> & TrendComposite.Macd<N>), ma(~N, x_signal), x_signal_a => x_signal_b =>
-            (TrendComposite.Macd{x_fast_a, x_slow_a, x_signal_a, x_origin}, TrendComposite.Macd{x_fast_b, x_slow_b, x_signal_b, x_origin}))))
+            (TrendComposite.Macd{x_fast_a, x_slow_a, x_signal_a}, TrendComposite.Macd{x_fast_b, x_slow_b, x_signal_b}))))
 
 def trend_composite.leg(~N: Data, value: TrendComposite.Leg<N>) -> TrendComposite.Leg<N> & TrendComposite.Leg<N>:
   match value:

@@ -45,25 +45,25 @@ def ultimate(~N: Data, ~from: U32 -> N, +first: U32, +second: U32, +third: U32) 
   +large = U32.max(first, U32.max(second, third))
   Composite.Ultimate{market(~N, ~from, small), market(~N, ~from, middle), market(~N, ~from, large)}
 
-def dual(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, fast: U32, slow: U32, +kind: U32, delay: U32) -> Result<&2, &1, Parameters.Error, Smooth.Dual<N>>:
-  Smooth.dual.init(~N, delay, Bool.pick(Maybe<&2, N>, U32.is_eq(kind, 7), Some{from(0)}, None{}), make(fast, kind), make(slow, kind))
+def dual(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, fast: U32, slow: U32, +kind: U32, delay: U32) -> Result<&2, &1, Parameters.Error, Smooth.Dual<N>>:
+  Smooth.dual.init(~N, delay, make(fast, kind), make(slow, kind))
 
-def apo(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, +fast: U32, +slow: U32, kind: U32) -> Result<&2, &1, Parameters.Error, Smooth.Dual<N>>:
-  dual(~N, ~from, ~make, U32.min(fast, slow), U32.max(fast, slow), kind, 0)
+def apo(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, +fast: U32, +slow: U32, kind: U32) -> Result<&2, &1, Parameters.Error, Smooth.Dual<N>>:
+  dual(~N, ~make, U32.min(fast, slow), U32.max(fast, slow), kind, 0)
 
-def ao(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, fast: U32, slow: U32) -> Result<&2, &1, Parameters.Error, Smooth.Dual<N>>:
-  dual(~N, ~from, ~make, fast, slow, 0, 0)
+def ao(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, fast: U32, slow: U32) -> Result<&2, &1, Parameters.Error, Smooth.Dual<N>>:
+  dual(~N, ~make, fast, slow, 0, 0)
 
-def ac(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, fast: U32, slow: U32, signal: U32) -> Result<&2, &1, Parameters.Error, Smooth.MACD<N>>:
-  Smooth.macd.init(~N, ao(~N, ~from, ~make, fast, slow), make(signal, 0))
+def ac(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, fast: U32, slow: U32, signal: U32) -> Result<&2, &1, Parameters.Error, Smooth.MACD<N>>:
+  Smooth.macd.init(~N, ao(~N, ~make, fast, slow), make(signal, 0))
 
-def macd(~N: Data, ~from: U32 -> N, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, +fast: U32, +slow: U32, signal: U32) -> Result<&2, &1, Parameters.Error, Smooth.MACD<N>>:
+def macd(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, +fast: U32, +slow: U32, signal: U32) -> Result<&2, &1, Parameters.Error, Smooth.MACD<N>>:
   +short = U32.min(fast, slow)
   +long = U32.max(fast, slow)
-  Smooth.macd.init(~N, dual(~N, ~from, ~make, short, long, 1, U32.sub(long, short)), make(signal, 1))
+  Smooth.macd.init(~N, dual(~N, ~make, short, long, 1, U32.sub(long, short)), make(signal, 1))
 
 def macdfix(~N: Data, ~from: U32 -> N, ~div: N -> N -> N, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, signal: U32) -> Result<&2, &1, Parameters.Error, Smooth.MACD<N>>:
-  Smooth.macd.init(~N, Smooth.dual.init(~N, 14, None{}, Done{Ma.Exponential{Ema.init.alpha(~N, ~from, 12, div(from(3), from(20)))}}, Done{Ma.Exponential{Ema.init.alpha(~N, ~from, 26, div(from(3), from(40)))}}), make(signal, 1))
+  Smooth.macd.init(~N, Smooth.dual.init(~N, 14, Done{Ma.Exponential{Ema.init.alpha(~N, ~from, 12, div(from(3), from(20)))}}, Done{Ma.Exponential{Ema.init.alpha(~N, ~from, 26, div(from(3), from(40)))}}), make(signal, 1))
 
 def pipeline2(~N: Data, ~make: U32 -> U32 -> Result<&2, &1, Parameters.Error, Ma.State<N>>, first: U32, second: U32) -> Result<&2, &1, Parameters.Error, Smooth.Pipeline<N>>:
   Smooth.pipeline.init(~N, make(first, 1), Smooth.pipeline.init(~N, make(second, 1), Done{Smooth.Pipeline{0n, Nil{}}}))
