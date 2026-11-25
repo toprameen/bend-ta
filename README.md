@@ -1,6 +1,6 @@
 # bend-ta
 
-F32 technical analysis in Bend for streaming and batch calculations.
+Technical analysis indicators for Bend, with batch and streaming APIs.
 
 ## Use
 
